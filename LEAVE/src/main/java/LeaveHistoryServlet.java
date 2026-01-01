@@ -1,9 +1,6 @@
-
-
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
-
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -20,11 +17,31 @@ public class LeaveHistoryServlet extends HttpServlet {
         return URLEncoder.encode(s, StandardCharsets.UTF_8);
     }
 
+    private String normalizeDbDuration(String d) {
+        if (d == null) return "FULL_DAY";
+        d = d.trim().toUpperCase();
+        if ("FULL_DAY".equals(d) || "HALF_DAY".equals(d)) return d;
+        return "FULL_DAY";
+    }
+
+    private String normalizeHalfSession(String s) {
+        if (s == null) return "AM";
+        s = s.trim().toUpperCase();
+        if ("AM".equals(s) || "PM".equals(s)) return s;
+        return "AM";
+    }
+
+    private String durationLabel(String dbDuration, String halfSession) {
+        if ("HALF_DAY".equalsIgnoreCase(dbDuration)) {
+            return "HALF DAY (" + normalizeHalfSession(halfSession) + ")";
+        }
+        return "FULL DAY";
+    }
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        // ✅ Security: employee only
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("empid") == null ||
             session.getAttribute("role") == null ||
@@ -34,8 +51,8 @@ public class LeaveHistoryServlet extends HttpServlet {
         }
 
         int empId = Integer.parseInt(String.valueOf(session.getAttribute("empid")));
-        String statusFilter = request.getParameter("status"); // ALL / PENDING / APPROVED / REJECTED / CANCELLED
-        String yearFilter = request.getParameter("year");     // e.g., 2025
+        String statusFilter = request.getParameter("status");
+        String yearFilter = request.getParameter("year");
 
         List<Map<String, Object>> leaves = new ArrayList<>();
         List<String> years = new ArrayList<>();
@@ -43,11 +60,8 @@ public class LeaveHistoryServlet extends HttpServlet {
 
         try (Connection conn = DatabaseConnection.getConnection()) {
 
-            // ✅ Fetch distinct years for the filter dropdown
-            String yearSql =
-                "SELECT DISTINCT EXTRACT(YEAR FROM START_DATE) AS YR " +
-                "FROM LEAVE_REQUESTS WHERE EMPID = ? ORDER BY YR DESC";
-
+            // 1. Ambil tahun untuk dropdown
+            String yearSql = "SELECT DISTINCT EXTRACT(YEAR FROM START_DATE) AS YR FROM LEAVE_REQUESTS WHERE EMPID = ? ORDER BY YR DESC";
             try (PreparedStatement psYear = conn.prepareStatement(yearSql)) {
                 psYear.setInt(1, empId);
                 try (ResultSet rsYear = psYear.executeQuery()) {
@@ -57,23 +71,15 @@ public class LeaveHistoryServlet extends HttpServlet {
                 }
             }
 
-            // ✅ Main query: Get leave details, types, status codes, and attachment filename
+            // 2. Main Query
             StringBuilder sql = new StringBuilder();
-            sql.append(
-                "SELECT " +
-                "  lr.LEAVE_ID, lr.START_DATE, lr.END_DATE, lr.DURATION, lr.DURATION_DAYS, lr.HALF_SESSION, " +
-                "  lr.REASON, lr.APPLIED_ON, lr.ADMIN_COMMENT, " +
-                "  lt.TYPE_CODE, " +
-                "  ls.STATUS_CODE, " +
-                "  (SELECT a.FILE_NAME " +
-                "     FROM LEAVE_REQUEST_ATTACHMENTS a " +
-                "    WHERE a.LEAVE_ID = lr.LEAVE_ID " +
-                "    ORDER BY a.UPLOADED_ON DESC FETCH FIRST 1 ROW ONLY) AS FILE_NAME " +
-                "FROM LEAVE_REQUESTS lr " +
-                "JOIN LEAVE_TYPES lt ON lr.LEAVE_TYPE_ID = lt.LEAVE_TYPE_ID " +
-                "JOIN LEAVE_STATUSES ls ON lr.STATUS_ID = ls.STATUS_ID " +
-                "WHERE lr.EMPID = ? "
-            );
+            sql.append("SELECT lr.LEAVE_ID, lr.START_DATE, lr.END_DATE, lr.DURATION, lr.DURATION_DAYS, lr.HALF_SESSION, ")
+               .append("lr.REASON, lr.APPLIED_ON, lr.ADMIN_COMMENT, lt.TYPE_CODE, ls.STATUS_CODE, ")
+               .append("(SELECT a.FILE_NAME FROM LEAVE_REQUEST_ATTACHMENTS a WHERE a.LEAVE_ID = lr.LEAVE_ID ORDER BY a.UPLOADED_ON DESC FETCH FIRST 1 ROW ONLY) AS FILE_NAME ")
+               .append("FROM LEAVE_REQUESTS lr ")
+               .append("JOIN LEAVE_TYPES lt ON lr.LEAVE_TYPE_ID = lt.LEAVE_TYPE_ID ")
+               .append("JOIN LEAVE_STATUSES ls ON lr.STATUS_ID = ls.STATUS_ID ")
+               .append("WHERE lr.EMPID = ? ");
 
             if (statusFilter != null && !statusFilter.isBlank() && !"ALL".equalsIgnoreCase(statusFilter)) {
                 sql.append(" AND UPPER(ls.STATUS_CODE) = ? ");
@@ -81,7 +87,6 @@ public class LeaveHistoryServlet extends HttpServlet {
             if (yearFilter != null && !yearFilter.isBlank()) {
                 sql.append(" AND EXTRACT(YEAR FROM lr.START_DATE) = ? ");
             }
-
             sql.append(" ORDER BY lr.APPLIED_ON DESC");
 
             try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
@@ -97,50 +102,39 @@ public class LeaveHistoryServlet extends HttpServlet {
 
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
-                        int leaveId = rs.getInt("LEAVE_ID");
-                        java.sql.Date sd = rs.getDate("START_DATE");
-                        java.sql.Date ed = rs.getDate("END_DATE");
-                        String durationType = rs.getString("DURATION"); 
+                        String dbDuration = normalizeDbDuration(rs.getString("DURATION"));
+                        String halfSession = rs.getString("HALF_SESSION");
                         double durationDays = rs.getDouble("DURATION_DAYS");
-                        String halfSession = rs.getString("HALF_SESSION"); 
-
-                        // ✅ Format Duration display text (e.g., "HALF DAY AM")
-                        String durationDisplay;
-                        if ("HALF_DAY".equalsIgnoreCase(durationType)) {
-                            String sess = (halfSession == null ? "" : (" " + halfSession));
-                            durationDisplay = "HALF DAY" + sess;
+                        
+                        double totalDays;
+                        if (!rs.wasNull() && durationDays > 0) {
+                            totalDays = durationDays;
                         } else {
-                            durationDisplay = "FULL DAY";
-                        }
-
-                        // ✅ Calculate total days for display (fallback logic included)
-                        Double totalDays = durationDays;
-                        if (totalDays <= 0) {
-                            if (sd != null && ed != null) {
-                                long diff = (ed.toLocalDate().toEpochDay() - sd.toLocalDate().toEpochDay()) + 1;
-                                totalDays = (double) Math.max(diff, 1);
+                            if ("HALF_DAY".equals(dbDuration)) {
+                                totalDays = 0.5;
                             } else {
-                                totalDays = 0.0;
+                                java.sql.Date sd = rs.getDate("START_DATE");
+                                java.sql.Date ed = rs.getDate("END_DATE");
+                                if (sd != null && ed != null) {
+                                    long diff = (ed.toLocalDate().toEpochDay() - sd.toLocalDate().toEpochDay()) + 1;
+                                    totalDays = (double) Math.max(diff, 1);
+                                } else {
+                                    totalDays = 0.0;
+                                }
                             }
                         }
 
-                        String statusCode = rs.getString("STATUS_CODE");
-                        String fileName = rs.getString("FILE_NAME");
-                        boolean hasFile = (fileName != null && !fileName.isBlank());
-
-                        // ✅ Build data map for JSP
                         Map<String, Object> l = new HashMap<>();
-                        l.put("id", leaveId);
+                        l.put("id", rs.getInt("LEAVE_ID"));
                         l.put("type", rs.getString("TYPE_CODE"));
-                        l.put("duration", durationDisplay);
-                        l.put("start", sd);
-                        l.put("end", ed);
+                        l.put("duration", durationLabel(dbDuration, halfSession));
+                        l.put("start", rs.getDate("START_DATE"));
+                        l.put("end", rs.getDate("END_DATE"));
                         l.put("totalDays", totalDays);
-                        l.put("statusCode", statusCode);
-                        l.put("status", statusCode);
+                        l.put("status", rs.getString("STATUS_CODE"));
                         l.put("appliedOn", rs.getTimestamp("APPLIED_ON"));
-                        l.put("hasFile", hasFile);
-                        l.put("fileName", fileName);
+                        l.put("fileName", rs.getString("FILE_NAME"));
+                        l.put("hasFile", (rs.getString("FILE_NAME") != null));
                         l.put("reason", rs.getString("REASON"));
                         l.put("adminComment", rs.getString("ADMIN_COMMENT"));
 
@@ -150,6 +144,7 @@ public class LeaveHistoryServlet extends HttpServlet {
             }
 
         } catch (Exception e) {
+            e.printStackTrace();
             error = e.getMessage();
         }
 

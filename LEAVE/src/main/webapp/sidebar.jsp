@@ -1,100 +1,95 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-         pageEncoding="UTF-8"%>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ include file="icon.jsp" %>
 
 <%
-    String fullName = (session.getAttribute("fullname") != null)
-            ? session.getAttribute("fullname").toString()
-            : "User";
-
-    String role = (session.getAttribute("role") != null)
-            ? session.getAttribute("role").toString()
-            : "EMPLOYEE";
+    String role = (session.getAttribute("role") != null) ? (String) session.getAttribute("role") : "EMPLOYEE";
+    String uri = request.getRequestURI();
+    // Get current filename for active menu logic
+    String activePage = uri.substring(uri.lastIndexOf("/") + 1);
 %>
 
-<link rel="stylesheet" href="sidebar.css" />
+<script src="https://cdn.tailwindcss.com"></script>
 
-<aside id="appSidebar" class="sidebar">
-    <div class="sidebar-header">
-        <div class="logo-box">
-            <img src="https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcRNhLlRcJ19hFyLWQOGP3EWiaxRZiHWupjWp6xtRzs5cdMeCUzu" alt="Clinic Logo" />
+<style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    #appSidebar { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    /* Ensure Arial font consistency on sidebar */
+    #appSidebar * { font-family: Arial, sans-serif !important; }
+</style>
+
+<aside id="appSidebar" class="fixed left-0 top-0 h-full bg-[#0f172a] text-slate-200 border-r border-slate-800 z-50 flex flex-col w-20 lg:w-64 transition-all duration-300">
+    
+    <div class="p-4 lg:p-6 border-b border-slate-800 flex items-center gap-3 overflow-hidden shrink-0">
+        <div class="min-w-[40px] w-10 h-10 bg-white rounded-lg flex items-center justify-center shrink-0 p-1">
+            <img src="https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcRNhLlRcJ19hFyLWQOGP3EWiaxRZiHWupjWp6xtRzs5cdMeCUzu" alt="Logo" class="max-w-full max-h-full object-contain" />
         </div>
-
-        <div class="brand-text">
-            <h1>KLINIK <br>DR MOHAMAD</h1>
+        <div class="hidden lg:block">
+            <h1 class="text-[12px] font-extrabold text-white leading-tight uppercase">Klinik <br>Dr Mohamad</h1>
         </div>
     </div>
 
-    <div class="sidebar-section-title" style="padding-left:14px; font-size:10px; opacity:0.5; margin-bottom:10px; text-transform:uppercase;">
-        <%= role.equalsIgnoreCase("ADMIN") ? "Admin Panel" : "Menu Utama" %>
-    </div>
+    <nav class="flex-1 px-3 mt-4 space-y-1 no-scrollbar overflow-y-auto">
+        <% if (role.equalsIgnoreCase("ADMIN")) { %>
+            <!-- ADMIN MENU -->
+            <a href="AdminDashboardServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("AdminDashboardServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+                <span class="shrink-0"><%= BriefcaseIcon("w-5 h-5") %></span>
+                <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Admin Dashboard</span>
+            </a>
 
-    <nav class="sidebar-nav">
-        <% if (!role.equalsIgnoreCase("ADMIN")) { %>
-            <a href="EmployeeDashboardServlet" class="nav-item">
-                <span class="nav-icon"><%= HomeIcon("icon-sm") %></span>
-                <span class="nav-label">Dashboard</span>
+            <a href="RegisterEmployeeServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("RegisterEmployeeServlet") || activePage.equalsIgnoreCase("EmployeeDirectoryServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+                <span class="shrink-0"><%= UsersIcon("w-5 h-5") %></span>
+                <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Employees</span>
             </a>
-            <a href="ApplyLeaveServlet" class="nav-item">
-                <span class="nav-icon"><%= FilePlusIcon("icon-sm") %></span>
-                <span class="nav-label">Apply Leave</span>
+
+            <a href="LeaveEmpBalancesServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("LeaveEmpBalancesServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+                <span class="shrink-0"><%= ChartBarIcon("w-5 h-5") %></span>
+                <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Leave Balances</span>
             </a>
-            <a href="LeaveHistoryServlet" class="nav-item">
-                <span class="nav-icon"><%= ListIcon("icon-sm") %></span>
-                <span class="nav-label">My History</span>
+
+            <a href="leaveEmpHistoryServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("leaveEmpHistoryServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+                <span class="shrink-0"><%= ClipboardListIcon("w-5 h-5") %></span>
+                <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Leave History</span>
             </a>
+
+            <a href="ManageHolidayServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("ManageHolidayServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+                <span class="shrink-0"><%= CalendarIcon("w-5 h-5") %></span>
+                <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Manage Holidays</span>
+            </a>
+
+        <% } else if (role.equalsIgnoreCase("MANAGER")) { %>
+            <!-- MANAGER MENU -->
+            <a href="ManagerDashboardServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("ManagerDashboardServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+                <span class="shrink-0"><%= BriefcaseIcon("w-5 h-5") %></span>
+                <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Review Dashboard</span>
+            </a>
+            <a href="LeaveHistoryServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("LeaveHistoryServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+                <span class="shrink-0"><%= ClipboardListIcon("w-5 h-5") %></span>
+                <span class="hidden lg:block whitespace-nowrap text-sm font-medium">My History</span>
+            </a>
+
         <% } else { %>
-            <a href="AdminDashboardServlet" class="nav-item">
-                <span class="nav-icon"><%= BriefcaseIcon("icon-sm") %></span>
-                <span class="nav-label">Admin Dashboard</span>
+            <!-- EMPLOYEE MENU -->
+            <a href="EmployeeDashboardServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("EmployeeDashboardServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+                <span class="shrink-0"><%= HomeIcon("w-5 h-5") %></span>
+                <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Dashboard</span>
             </a>
-            <a href="RegisterEmployeeServlet" class="nav-item">
-                <span class="nav-icon"><%= UsersIcon("icon-sm") %></span>
-                <span class="nav-label">Register Employee</span>
+
+            <a href="ApplyLeaveServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("ApplyLeaveServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+                <span class="shrink-0"><%= CalendarIcon("w-5 h-5") %></span>
+                <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Apply Leave</span>
             </a>
-            <a href="ManageHolidayServlet" class="nav-item">
-                <span class="nav-icon"><%= CalendarIcon("icon-sm") %></span>
-                <span class="nav-label">Manage Holidays</span>
+
+            <a href="LeaveHistoryServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("LeaveHistoryServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+                <span class="shrink-0"><%= ClipboardListIcon("w-5 h-5") %></span>
+                <span class="hidden lg:block whitespace-nowrap text-sm font-medium">My History</span>
             </a>
         <% } %>
     </nav>
 
-    <div class="sidebar-footer">
-        <a href="LogoutServlet" class="nav-item logout-btn">
-            <span class="nav-icon"><%= LogOutIcon("icon-sm") %></span>
-            <span class="nav-label">Sign Out</span>
+    <div class="p-3 border-t border-slate-800 bg-[#0f172a]">
+        <a href="LogoutServlet" class="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-red-400 hover:bg-red-500/10 transition-colors font-medium">
+            <span class="shrink-0"><%= LogOutIcon("w-5 h-5") %></span>
+            <span class="hidden lg:block text-sm">Sign Out</span>
         </a>
-        <div class="version-box" style="font-size: 10px; opacity: 0.4; text-align: center; margin-top: 10px;">v1.2.1</div>
     </div>
 </aside>
-
-<div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:999;"></div>
-
-<script>
-  function toggleSidebar() {
-    const sb = document.getElementById("appSidebar");
-    const ov = document.getElementById("sidebarOverlay");
-
-    if (window.innerWidth >= 980) {
-      // Desktop: Pakai collapsed mode
-      sb.classList.toggle("collapsed");
-      document.body.classList.toggle("sidebar-collapsed");
-    } else {
-      // Mobile: Pakai slide-in drawer
-      sb.classList.add("open");
-      ov.style.display = "block";
-    }
-  }
-
-  function closeSidebar() {
-    const sb = document.getElementById("appSidebar");
-    const ov = document.getElementById("sidebarOverlay");
-    sb.classList.remove("open");
-    ov.style.display = "none";
-  }
-
-  // Automatik tutup sidebar kalau user besarkan skrin balik
-  window.addEventListener("resize", () => {
-    if (window.innerWidth >= 980) closeSidebar();
-  });
-</script>

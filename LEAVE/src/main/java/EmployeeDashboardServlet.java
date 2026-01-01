@@ -18,13 +18,13 @@ public class EmployeeDashboardServlet extends HttpServlet {
             throws ServletException, IOException {
 
         // ✅ SECURITY: employee only
-        HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("empid") == null ||
-                session.getAttribute("role") == null ||
-                !"EMPLOYEE".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
-            response.sendRedirect(request.getContextPath() + "/login.jsp?error=" + enc("Please login as employee."));
-            return;
-        }
+    	  HttpSession session = request.getSession(false);
+          if (session == null || session.getAttribute("empid") == null ||
+              session.getAttribute("role") == null ||
+              !"EMPLOYEE".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
+              response.sendRedirect("login.jsp?error=" + enc("Please login as employee."));
+              return;
+          }
 
         int empId = Integer.parseInt(String.valueOf(session.getAttribute("empid")));
         LocalDate today = LocalDate.now();
@@ -105,9 +105,7 @@ public class EmployeeDashboardServlet extends HttpServlet {
             }
 
             // =====================================================
-            // C) LEAVE BALANCE (ikut schema kau)
-            // USERS.HIREDATE, USERS.GENDER
-            // LEAVE_STATUSES.STATUS_CODE
+            // C) LEAVE BALANCE
             // =====================================================
             try {
                 // 1) employee hire date + gender
@@ -119,13 +117,13 @@ public class EmployeeDashboardServlet extends HttpServlet {
                     ps.setInt(1, empId);
                     try (ResultSet rs = ps.executeQuery()) {
                         if (rs.next()) {
-                            java.sql.Date hd = rs.getDate("HIREDATE");
-                            if (hd != null) hireDate = hd.toLocalDate();
+                            if (rs.getDate("HIREDATE") != null) hireDate = rs.getDate("HIREDATE").toLocalDate();
                             gender = rs.getString("GENDER"); // 'M' or 'F'
                         }
                     }
                 }
-                if (hireDate == null) hireDate = LocalDate.now();
+                // Fallback hire date if missing to avoid calculation errors
+                if (hireDate == null) hireDate = LocalDate.of(calYear, 1, 1);
 
                 // 2) load leave types
                 class LeaveTypeRow {
@@ -135,7 +133,7 @@ public class EmployeeDashboardServlet extends HttpServlet {
                     }
                 }
                 List<LeaveTypeRow> types = new ArrayList<>();
-                String typeSql = "SELECT LEAVE_TYPE_ID, TYPE_CODE, DESCRIPTION FROM LEAVE_TYPES ORDER BY TYPE_CODE";
+                String typeSql = "SELECT LEAVE_TYPE_ID, TYPE_CODE, DESCRIPTION FROM LEAVE_TYPES ORDER BY LEAVE_TYPE_ID ASC";
                 try (PreparedStatement ps = con.prepareStatement(typeSql);
                      ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
@@ -151,18 +149,22 @@ public class EmployeeDashboardServlet extends HttpServlet {
                 Map<Integer, Double> usedMap = new HashMap<>();
                 Map<Integer, Double> pendingMap = new HashMap<>();
 
+                // Aggregation logic including CANCELLATION_REQUESTED as "Used" and fallback for DURATION_DAYS
                 String aggSql =
                         "SELECT lr.LEAVE_TYPE_ID, " +
-                        "  SUM(CASE WHEN UPPER(s.STATUS_CODE) = 'APPROVED' THEN NVL(lr.DURATION_DAYS,0) ELSE 0 END) AS USED_DAYS, " +
-                        "  SUM(CASE WHEN UPPER(s.STATUS_CODE) = 'PENDING'  THEN NVL(lr.DURATION_DAYS,0) ELSE 0 END) AS PENDING_DAYS " +
+                        "  SUM(CASE WHEN TRIM(UPPER(s.STATUS_CODE)) IN ('APPROVED', 'CANCELLATION_REQUESTED') THEN " +
+                        "    COALESCE(NULLIF(lr.DURATION_DAYS, 0), (lr.END_DATE - lr.START_DATE + 1)) ELSE 0 END) AS USED_DAYS, " +
+                        "  SUM(CASE WHEN TRIM(UPPER(s.STATUS_CODE)) = 'PENDING' THEN " +
+                        "    COALESCE(NULLIF(lr.DURATION_DAYS, 0), (lr.END_DATE - lr.START_DATE + 1)) ELSE 0 END) AS PENDING_DAYS " +
                         "FROM LEAVE_REQUESTS lr " +
                         "JOIN LEAVE_STATUSES s ON s.STATUS_ID = lr.STATUS_ID " +
                         "WHERE lr.EMPID = ? " +
-                        "  AND EXTRACT(YEAR FROM lr.START_DATE) = EXTRACT(YEAR FROM SYSDATE) " +
+                        "  AND EXTRACT(YEAR FROM lr.START_DATE) = ? " +
                         "GROUP BY lr.LEAVE_TYPE_ID";
 
                 try (PreparedStatement ps = con.prepareStatement(aggSql)) {
                     ps.setInt(1, empId);
+                    ps.setInt(2, calYear);
                     try (ResultSet rs = ps.executeQuery()) {
                         while (rs.next()) {
                             int leaveTypeId = rs.getInt("LEAVE_TYPE_ID");
@@ -172,11 +174,11 @@ public class EmployeeDashboardServlet extends HttpServlet {
                     }
                 }
 
-                // 4) carry forward from LEAVE_BALANCE (column: CARRIED_FWD)
+                // 4) carry forward from LEAVE_BALANCES (column: CARRIED_FWD)
                 Map<Integer, Integer> carryMap = new HashMap<>();
                 String carrySql =
                         "SELECT LEAVE_TYPE_ID, NVL(CARRIED_FWD,0) AS CARRIED_FWD " +
-                        "FROM LEAVE_BALANCE WHERE EMPID = ?";
+                        "FROM LEAVE_BALANCES WHERE EMPID = ?";
 
                 try (PreparedStatement ps = con.prepareStatement(carrySql)) {
                     ps.setInt(1, empId);
@@ -185,32 +187,36 @@ public class EmployeeDashboardServlet extends HttpServlet {
                             carryMap.put(rs.getInt("LEAVE_TYPE_ID"), rs.getInt("CARRIED_FWD"));
                         }
                     }
-                } catch (SQLException ignore) {
-                    // if no rows, carried = 0
+                } catch (SQLException ignore) { 
+                    // If table doesn't exist or error, assume 0 carried forward
                 }
 
                 // 5) compute
                 for (LeaveTypeRow t : types) {
+                    String code = (t.code != null) ? t.code.trim().toUpperCase() : "";
+                    String g = (gender != null) ? gender.trim().toUpperCase() : "";
+
+                    // ✅ PENAPISAN JANTINA (GENDER-BASED FILTERING): 
+                    // Maternity hanya untuk wanita, Paternity hanya untuk lelaki.
+                    // Pastikan code sepadan dengan ejaan di database anda.
+                    if (code.contains("MATERNITY") && !g.startsWith("F")) continue;
+                    if (code.contains("PATERNITY") && !g.startsWith("M")) continue;
 
                     LeaveBalanceEngine.EntitlementResult er =
                             LeaveBalanceEngine.computeEntitlement(t.code, hireDate, gender);
 
                     int entitlement = er.proratedEntitlement;
                     int carried = carryMap.getOrDefault(t.id, 0);
-
                     double used = usedMap.getOrDefault(t.id, 0.0);
                     double pending = pendingMap.getOrDefault(t.id, 0.0);
-
                     double available = LeaveBalanceEngine.availableDays(entitlement, carried, used, pending);
 
                     Map<String, Object> m = new HashMap<>();
                     m.put("leaveTypeId", t.id);
                     m.put("typeCode", t.code);
                     m.put("desc", t.desc);
-
                     m.put("entitlement", entitlement);
                     m.put("carriedForward", carried);
-
                     m.put("used", used);
                     m.put("pending", pending);
                     m.put("total", available);

@@ -56,11 +56,10 @@ public class RegisterEmployeeServlet extends HttpServlet {
             return;
         }
 
-        String sql =
-            "INSERT INTO USERS " +
-            "(FULLNAME, EMAIL, PASSWORD, GENDER, HIREDATE, PHONENO, ADDRESS, IC_NUMBER, ROLE, PROFILE_PIC) " +
-            "VALUES (?, ?, ?, ?, TO_DATE(?, 'YYYY-MM-DD'), ?, ?, ?, ?, NULL)";
-
+        		String sql =
+        		    "INSERT INTO USERS " +
+        		    "(FULLNAME, EMAIL, PASSWORD, GENDER, HIREDATE, PHONENO, ADDRESS, IC_NUMBER, ROLE, PROFILE_PICTURE) " +
+        		    "VALUES (?, ?, ?, ?, TO_DATE(?, 'YYYY-MM-DD'), ?, ?, ?, ?, NULL)";
         try (Connection con = DatabaseConnection.getConnection()) {
 
             // check duplicate email

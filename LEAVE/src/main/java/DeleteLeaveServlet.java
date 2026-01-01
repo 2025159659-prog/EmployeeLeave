@@ -6,8 +6,8 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 
-@WebServlet("/CancelLeaveServlet")
-public class CancelLeaveServlet extends HttpServlet {
+@WebServlet("/DeleteLeaveServlet")
+public class DeleteLeaveServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
 
     @Override
@@ -21,15 +21,19 @@ public class CancelLeaveServlet extends HttpServlet {
         }
 
         String idParam = request.getParameter("id");
+        if (idParam == null || idParam.isBlank()) {
+            response.sendError(400, "Missing ID");
+            return;
+        }
+
         int empId = Integer.parseInt(String.valueOf(session.getAttribute("empid")));
         int leaveId = Integer.parseInt(idParam);
 
-        // Update status from APPROVED to CANCEL_REQUESTED
-      
-        String sql = "UPDATE LEAVE_REQUESTS SET STATUS_ID = " +
-                "(SELECT STATUS_ID FROM LEAVE_STATUSES WHERE UPPER(STATUS_CODE) = 'CANCELLED') " +
-                "WHERE LEAVE_ID = ? AND EMPID = ? " +
-                "AND STATUS_ID = (SELECT STATUS_ID FROM LEAVE_STATUSES WHERE UPPER(STATUS_CODE) = 'APPROVED')";
+        // Only delete if status is PENDING
+        String sql = "DELETE FROM LEAVE_REQUESTS " +
+                     "WHERE LEAVE_ID = ? AND EMPID = ? " +
+                     "AND STATUS_ID = (SELECT STATUS_ID FROM LEAVE_STATUSES WHERE UPPER(STATUS_CODE) = 'PENDING')";
+
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
@@ -40,7 +44,7 @@ public class CancelLeaveServlet extends HttpServlet {
             if (rows > 0) {
                 response.getWriter().print("OK");
             } else {
-                response.sendError(400, "Cancellation request failed. Leave must be in APPROVED status.");
+                response.sendError(400, "Deletion failed. Request may no longer be pending.");
             }
         } catch (Exception e) {
             e.printStackTrace();

@@ -1,139 +1,54 @@
-:root {
-  --sb-w: 260px;
-  --sb-collapsed: 80px;
-  --sb-bg: #0f172a; /* Warna Navy Dark untuk kontras tinggi */
-  --accent: #3b82f6; /* Warna biru logo */
-}
-
-/* ===== Sidebar Base ===== */
+/* Pastikan sidebar tidak overflow */
 .sidebar {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: var(--sb-w);
-  background: var(--sb-bg);
-  color: #fff;
-  padding: 20px 16px;
-  display: flex;
-  flex-direction: column;
-  z-index: 1000;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  /* ... kod sedia ada ... */
+  overflow: hidden; /* Buang scrollbar pada sidebar utama */
 }
 
-/* ===== Desktop Collapsed Mode (980px ke atas) ===== */
-@media (min-width: 980px) {
-  .sidebar.collapsed {
-    width: var(--sb-collapsed);
-  }
-  .sidebar.collapsed .brand-text,
-  .sidebar.collapsed .nav-label,
-  .sidebar.collapsed .sidebar-section-title,
-  .sidebar.collapsed .version-box {
-    display: none;
-  }
-  .sidebar.collapsed .nav-item, .sidebar.collapsed .logout-btn {
-    justify-content: center;
-    padding: 10px 0;
-  }
-  /* Margin untuk main content bila sidebar collapsed */
-  body.sidebar-collapsed .content {
-    margin-left: var(--sb-collapsed);
-  }
-}
-
-/* ===== Mobile & Tablet Mode (Bawah 980px) ===== */
-@media (max-width: 979px) {
-  .sidebar {
-    transform: translateX(-100%); /* Sembunyi terus */
-    width: 280px;
-  }
-  .sidebar.open {
-    transform: translateX(0); /* Slide in */
-  }
-  /* Pastikan elemen teks sentiasa nampak bila sidebar dibuka di mobile */
-  .sidebar .nav-label, .sidebar .brand-text {
-    display: block !important;
-  }
-}
-
-/* ===== Header & Logo ===== */
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-bottom: 20px;
-  margin-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.logo-box {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: #fff; /* Putih supaya logo klinik nampak jelas */
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.logo-box img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.brand-text h1 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 800;
-  color: #fff;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-/* ===== Navigation Items ===== */
+/* Navigasi: Jangan paksa tinggi penuh */
 .sidebar-nav {
-  flex: 1;
-  overflow-y: auto;
-  margin-top: 15px;
+  /* Buang flex: 1 jika ada */
+  margin-top: 10px;
+  overflow-y: visible; /* Biarkan dia ikut saiz kandungan */
 }
 
+/* Item Navigasi: Padat dan Ngam-ngam */
 .nav-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
-  color: #94a3b8; /* Warna kelabu lembut */
+  padding: 8px 14px; /* Kecilkan padding atas/bawah */
+  color: var(--text-muted);
   text-decoration: none;
-  border-radius: 12px;
-  transition: 0.2s;
-  margin-bottom: 4px;
+  border-radius: 8px;
+  margin-bottom: 2px;
+  height: auto; /* Pastikan tinggi ikut kandungan */
+  min-height: 40px; /* Tinggi minimum yang selesa */
 }
 
-.nav-item:hover, .nav-item.active {
-  background: rgba(59, 130, 246, 0.15);
-  color: #fff;
-}
-
+/* Icon: Pastikan saiz konsisten */
 .nav-icon {
-  width: 24px;
+  width: 20px;
+  height: 20px;
   display: flex;
+  align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-/* ===== Footer & Sign Out ===== */
-.logout-btn {
-  background: #7f1d1d; /* Merah gelap */
-  color: #fecaca;
-  border: 1px solid #991b1b;
+/* Label: Pastikan line-height tidak terlalu besar */
+.nav-label {
+  font-size: 14px;
+  line-height: 1; /* Rapatkan text */
+  white-space: nowrap;
 }
 
-.logout-btn:hover {
-  background: #991b1b;
-  color: #fff;
+/* Footer: Pastikan Sign Out tidak terlalu besar */
+.sidebar-footer {
+  margin-top: auto; /* Tolak ke bawah sekali */
+  padding-top: 10px;
+}
+
+.logout-btn {
+  padding: 10px 14px !important;
+  min-height: 40px !important;
 }

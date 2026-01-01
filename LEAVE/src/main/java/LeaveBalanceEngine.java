@@ -7,14 +7,19 @@ public class LeaveBalanceEngine {
     public static class EntitlementResult {
         public final int baseEntitlement;
         public final int proratedEntitlement;
+
         public EntitlementResult(int baseEntitlement, int proratedEntitlement) {
             this.baseEntitlement = baseEntitlement;
             this.proratedEntitlement = proratedEntitlement;
         }
     }
 
-    // ✅ statutory base entitlement by service years + leave type
-    public static int baseEntitlementByType(String typeCode, long serviceYears, String genderUpper) {
+    /**
+     * Dasar kelayakan cuti berdasarkan undang-undang dan polisi syarikat.
+     * - MATERNITY: 98 hari (Kelayakan: Kerja > 90 hari).
+     * - PATERNITY: 7 hari (Kelayakan: Kerja > 12 bulan / 365 hari).
+     */
+    public static int baseEntitlementByType(String typeCode, long serviceYears, String genderUpper, long totalDaysEmployed) {
         String t = typeCode == null ? "" : typeCode.trim().toUpperCase();
         String g = genderUpper == null ? "" : genderUpper.trim().toUpperCase();
 
@@ -33,9 +38,16 @@ public class LeaveBalanceEngine {
                 return 60;
 
             case "MATERNITY":
-                return "F".equals(g) || "FEMALE".equals(g) ? 98 : 0;
+                // Kelayakan: Pekerja wanita yang telah bekerja sekurang-kurangnya 90 hari
+                if ((g.equals("F") || g.equals("FEMALE")) && totalDaysEmployed >= 90) return 98;
+                return 0;
 
-            // ikut polisi company (ubah kalau perlu)
+            case "PATERNITY":
+                // Kelayakan: Pekerja lelaki yang telah bekerja sekurang-kurangnya 12 bulan (365 hari)
+                // Jika 0 days keluar, bermaksud pekerja belum cukup setahun bekerja.
+                if ((g.equals("M") || g.equals("MALE")) && totalDaysEmployed >= 365) return 7;
+                return 0;
+
             case "EMERGENCY":
                 return 5;
 
@@ -47,52 +59,35 @@ public class LeaveBalanceEngine {
         }
     }
 
-    // ✅ compute completed service years (simple + practical)
     public static long serviceYears(LocalDate hireDate, LocalDate today) {
-        if (hireDate == null) return 0;
-        if (today.isBefore(hireDate)) return 0;
+        if (hireDate == null || today.isBefore(hireDate)) return 0;
         return ChronoUnit.YEARS.between(hireDate, today);
     }
 
-    // ✅ completed months in current year (for proration)
     public static int completedMonthsThisYear(LocalDate hireDate, LocalDate today) {
         if (hireDate == null) return 0;
-
         int year = today.getYear();
         LocalDate yearStart = LocalDate.of(year, 1, 1);
-
-        // start counting from later of (hireDate) or (Jan 1)
         LocalDate start = hireDate.isAfter(yearStart) ? hireDate : yearStart;
-
         if (today.isBefore(start)) return 0;
-
-        // "completed months": use first day of month trick
-        LocalDate startMonth = start.withDayOfMonth(1);
-        LocalDate thisMonth = today.withDayOfMonth(1);
-
-        long months = ChronoUnit.MONTHS.between(startMonth, thisMonth);
-
-        // if today already within current month, completed months exclude current running month
-        // but many HR count completed months up to current month-1. We'll use that.
-        int completed = (int) Math.max(0, months);
-
-        // cap max 12
-        return Math.min(12, completed);
+        long months = ChronoUnit.MONTHS.between(start.withDayOfMonth(1), today.withDayOfMonth(1));
+        return (int) Math.min(12, Math.max(0, months));
     }
 
-    // ✅ prorate entitlement (floor)
     public static EntitlementResult computeEntitlement(String typeCode, LocalDate hireDate, String genderUpper) {
         LocalDate today = LocalDate.now();
         long years = serviceYears(hireDate, today);
-        int base = baseEntitlementByType(typeCode, years, genderUpper);
+        long daysEmployed = (hireDate != null) ? ChronoUnit.DAYS.between(hireDate, today) : 0;
+        
+        int base = baseEntitlementByType(typeCode, years, genderUpper, daysEmployed);
 
-        // by default: prorate annual + sick if hired within this year, else full
-        // (you can also prorate any type you want)
+        // Prorate hanya untuk Annual dan Sick jika baru mula tahun ini
         int currentYear = Year.now().getValue();
-
         boolean hiredThisYear = (hireDate != null && hireDate.getYear() == currentYear);
+        String t = (typeCode != null) ? typeCode.trim().toUpperCase() : "";
+        boolean isProratable = t.equals("ANNUAL") || t.equals("SICK");
 
-        if (!hiredThisYear) {
+        if (!hiredThisYear || !isProratable) {
             return new EntitlementResult(base, base);
         }
 
@@ -102,7 +97,6 @@ public class LeaveBalanceEngine {
         return new EntitlementResult(base, prorated);
     }
 
-    // ✅ final available balance
     public static double availableDays(int entitlement, int carriedFwd, double used, double pending) {
         return (entitlement + carriedFwd) - used - pending;
     }
