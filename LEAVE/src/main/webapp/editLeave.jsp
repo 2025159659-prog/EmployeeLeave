@@ -7,7 +7,7 @@
 </head>
 <body>
 
-  <form id="editForm" action="<%=request.getContextPath()%>/EditLeaveServlet" method="post">
+  <form id="editForm" action="<%=request.getContextPath()%>/EditLeave" method="post">
     <input type="hidden" id="editLeaveId" name="leaveId">
 
     <div class="edit-grid">

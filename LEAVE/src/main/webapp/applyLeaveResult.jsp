@@ -61,7 +61,7 @@
         </div>
       <% } %>
 
-      <a class="btn" href="EmployeeDashboardServlet">Back to Dashboard</a>
+      <a class="btn" href="EmployeeDashboard">Back to Dashboard</a>
       <a class="btn" style="background:#0f172a" href="ApplyLeaveServlet">Apply Another</a>
     </div>
   </div>

@@ -8,8 +8,8 @@ import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.util.*;
 
-@WebServlet("/LeaveHistoryServlet")
-public class LeaveHistoryServlet extends HttpServlet {
+@WebServlet("/LeaveHistory")
+public class LeaveHistory extends HttpServlet {
 
     private static final long serialVersionUID = 1L;
 

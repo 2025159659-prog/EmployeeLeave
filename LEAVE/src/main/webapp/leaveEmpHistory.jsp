@@ -87,7 +87,7 @@
             </div>
 
             <!-- Filter Section -->
-            <form action="leaveEmpHistory" method="get" class="bg-white p-6 rounded-[2rem] border border-slate-200 mb-8 flex flex-wrap items-center gap-6 shadow-sm">
+            <form action="leaveEmpHistoryServlet" method="get" class="bg-white p-6 rounded-[2rem] border border-slate-200 mb-8 flex flex-wrap items-center gap-6 shadow-sm">
                 <div class="flex flex-col gap-1">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status Filter</label>
                     <select name="status">
@@ -314,5 +314,6 @@
         document.getElementById('detailModal').classList.remove('show');
     }
 </script>
+
 </body>
 </html>

@@ -1,77 +1,82 @@
+import java.io.IOException;
+import java.sql.*;
+import java.util.*;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 
-import java.io.IOException;
-import java.sql.*;
-import java.util.*;
-
 @WebServlet("/AdminDashboardServlet")
 public class AdminDashboardServlet extends HttpServlet {
+    private static final long serialVersionUID = 1L;
 
-   
-	private static final long serialVersionUID = 1L;
-
-	@Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) 
             throws ServletException, IOException {
-
-        Object empidObj = request.getSession().getAttribute("empid");
-        Object roleObj  = request.getSession().getAttribute("role");
-
-        if (empidObj == null || roleObj == null || !"ADMIN".equalsIgnoreCase(roleObj.toString())) {
-            response.sendRedirect("login.jsp?error=Please login as admin.");
+        
+        HttpSession session = request.getSession(false);
+        if (session == null || !"ADMIN".equalsIgnoreCase((String) session.getAttribute("role"))) {
+            response.sendRedirect("login.jsp");
             return;
         }
 
-        List<Map<String, Object>> leaves = new ArrayList<>();
-        int pendingCount = 0;
-        int cancelReqCount = 0;
+        Map<String, Integer> leaveStats = new LinkedHashMap<>();
+        Map<String, Integer> monthlyTrends = new LinkedHashMap<>();
+        int totalEmployees = 0, activeToday = 0, totalHolidays = 0;
 
-        String sql =
-            "SELECT lr.LEAVE_ID, lr.EMPID, u.FULLNAME, " +
-            "       lt.TYPE_CODE AS LEAVE_TYPE, " +
-            "       ls.STATUS_CODE AS STATUS, " +
-            "       lr.START_DATE, lr.END_DATE, lr.DURATION, lr.APPLIED_ON, lr.ADMIN_COMMENT " +
-            "FROM LEAVE_REQUESTS lr " +
-            "JOIN USERS u ON u.EMPID = lr.EMPID " +
-            "JOIN LEAVE_TYPES lt ON lt.LEAVE_TYPE_ID = lr.LEAVE_TYPE_ID " +
-            "JOIN LEAVE_STATUSES ls ON ls.STATUS_ID = lr.STATUS_ID " +
-            "WHERE ls.STATUS_CODE IN ('PENDING','CANCELLATION_REQUESTED') " +
-            "ORDER BY lr.APPLIED_ON ASC";
-
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-
-            while (rs.next()) {
-                Map<String, Object> row = new HashMap<>();
-                row.put("leaveId", rs.getInt("LEAVE_ID"));
-                row.put("empid", rs.getInt("EMPID"));
-                row.put("fullname", rs.getString("FULLNAME"));
-                row.put("leaveType", rs.getString("LEAVE_TYPE"));
-                row.put("status", rs.getString("STATUS"));
-                row.put("startDate", rs.getDate("START_DATE"));
-                row.put("endDate", rs.getDate("END_DATE"));
-                row.put("duration", rs.getString("DURATION"));
-                row.put("appliedOn", rs.getDate("APPLIED_ON"));
-                row.put("adminComment", rs.getString("ADMIN_COMMENT"));
-
-                String status = rs.getString("STATUS");
-                if ("PENDING".equalsIgnoreCase(status)) pendingCount++;
-                if ("CANCELLATION_REQUESTED".equalsIgnoreCase(status)) cancelReqCount++;
-
-                leaves.add(row);
+        try (Connection con = DatabaseConnection.getConnection()) {
+            
+            // 1. Total Workforce
+            String sql1 = "SELECT COUNT(*) FROM USERS WHERE UPPER(ROLE) != 'ADMIN'";
+            try (PreparedStatement ps = con.prepareStatement(sql1); ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) totalEmployees = rs.getInt(1);
             }
 
-        } catch (Exception e) {
-            throw new ServletException("Error loading dashboard", e);
+            // 2. Currently On Leave (Approved & Date check)
+            String sql2 = "SELECT COUNT(*) FROM LEAVE_REQUESTS r " +
+                          "JOIN LEAVE_STATUSES s ON r.STATUS_ID = s.STATUS_ID " +
+                          "WHERE s.STATUS_CODE = 'APPROVED' " +
+                          "AND TRUNC(SYSDATE) BETWEEN TRUNC(r.START_DATE) AND TRUNC(r.END_DATE)";
+            try (PreparedStatement ps = con.prepareStatement(sql2); ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) activeToday = rs.getInt(1);
+            }
+
+            // 3. Holidays Count (Current Year)
+            String sql3 = "SELECT COUNT(*) FROM HOLIDAYS WHERE TO_CHAR(HOLIDAY_DATE, 'YYYY') = TO_CHAR(SYSDATE, 'YYYY')";
+            try (PreparedStatement ps = con.prepareStatement(sql3); ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) totalHolidays = rs.getInt(1);
+            }
+
+            // 4. Leave Type Distribution (Pie Chart Data)
+            String sql4 = "SELECT t.TYPE_CODE, COUNT(r.LEAVE_ID) as total " +
+                          "FROM LEAVE_REQUESTS r " +
+                          "JOIN LEAVE_TYPES t ON r.LEAVE_TYPE_ID = t.LEAVE_TYPE_ID " +
+                          "GROUP BY t.TYPE_CODE";
+            try (PreparedStatement ps = con.prepareStatement(sql4); ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) leaveStats.put(rs.getString("TYPE_CODE"), rs.getInt("total"));
+            }
+
+            // 5. Monthly Trends (Bar Chart Data - Dynamic sorting)
+            String sql5 = "SELECT mname, mcount FROM (" +
+                          "  SELECT TO_CHAR(START_DATE, 'Mon') as mname, TO_CHAR(START_DATE, 'MM') as mnum, COUNT(*) as mcount " +
+                          "  FROM LEAVE_REQUESTS WHERE START_DATE >= ADD_MONTHS(SYSDATE, -12) " +
+                          "  GROUP BY TO_CHAR(START_DATE, 'Mon'), TO_CHAR(START_DATE, 'MM') " +
+                          "  ORDER BY mnum" +
+                          ")";
+            try (PreparedStatement ps = con.prepareStatement(sql5); ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) monthlyTrends.put(rs.getString("mname"), rs.getInt("mcount"));
+            }
+
+            request.setAttribute("totalEmployees", totalEmployees);
+            request.setAttribute("activeToday", activeToday);
+            request.setAttribute("totalHolidays", totalHolidays);
+            request.setAttribute("leaveStats", leaveStats);
+            request.setAttribute("monthlyTrends", monthlyTrends);
+            
+            request.getRequestDispatcher("adminDashboard.jsp").forward(request, response);
+
+        } catch (SQLException | ClassNotFoundException e) {
+            e.printStackTrace();
+            response.sendRedirect("login.jsp?error=DatabaseError");
         }
-
-        request.setAttribute("leaves", leaves);
-        request.setAttribute("pendingCount", pendingCount);
-        request.setAttribute("cancelReqCount", cancelReqCount);
-
-        request.getRequestDispatcher("adminDashboard.jsp").forward(request, response);
     }
 }

@@ -7,22 +7,13 @@
     // SECURITY GUARD - MANAGER ONLY
     // =========================
     HttpSession ses = request.getSession(false);
-    if (ses == null || ses.getAttribute("empid") == null || ses.getAttribute("role") == null) {
-        response.sendRedirect("login.jsp"); 
-        return;
-    }
-
-    String currentRole = String.valueOf(ses.getAttribute("role")).toUpperCase();
-    
-    if (!"MANAGER".equals(currentRole)) {
-        response.sendRedirect("login.jsp?error=Access+Denied+Managers+Only"); 
-        return;
+    if (ses == null || ses.getAttribute("empid") == null || !"MANAGER".equalsIgnoreCase(String.valueOf(ses.getAttribute("role")))) {
+        response.sendRedirect("login.jsp?error=Access+Denied"); return;
     }
 
     List<Map<String, Object>> leaves = (List<Map<String, Object>>) request.getAttribute("leaves");
     Integer pendingCount = (Integer) request.getAttribute("pendingCount");
     Integer cancelReqCount = (Integer) request.getAttribute("cancelReqCount");
-
     String msg = request.getParameter("msg");
 %>
 
@@ -30,323 +21,322 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Manager Dashboard</title>
-
+    <title>Manager Dashboard | Review Console</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/sidebar.css">
     <script src="https://cdn.tailwindcss.com"></script>
-
     <style>
-        :root{
-            --bg:#f8fafc;
-            --card:#ffffff;
-            --border:#e2e8f0;
-            --text:#1e293b;
-            --muted:#64748b;
-            --primary:#2563eb;
-            --shadow:0 10px 25px rgba(0,0,0,0.05);
-            --radius:16px;
-            --green:#10b981;
-            --red:#ef4444;
-        }
-
-        *{box-sizing:border-box}
-        body{margin:0;font-family: 'Inter', sans-serif;background:var(--bg);color:var(--text);}
+        :root { --bg:#f8fafc; --card:#ffffff; --border:#e2e8f0; --text:#1e293b; --primary:#2563eb; --green:#10b981; --red:#ef4444; }
+        body { margin:0; font-family: 'Inter', sans-serif; background:var(--bg); color:var(--text); overflow-x: hidden; }
         
-        .content{ padding:0; transition: 0.3s; }
+        .content { padding:0; transition: 0.3s; }
         .pageWrap { padding: 32px 24px; }
-        .container{max-width: 1400px; margin:0 auto;}
-
-        .pageHeader{margin-bottom:24px; display: flex; justify-content: space-between; align-items: flex-end;}
-        .pageTitle{margin:0;font-size:24px;font-weight:800; color: var(--text);}
-        .sub{color: var(--muted); font-size: 15px; margin-top: 4px;}
-
-        .msgBox{ padding:12px 16px; border-radius:12px; font-size:13px; margin-bottom:16px; background:#ecfdf5; border:1px solid #10b981; color:#065f46; font-weight: 600; }
-
-        .stats{ display:grid; grid-template-columns: repeat(2, 1fr); gap:16px; margin-bottom: 24px; }
-        .stat{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:24px; display:flex; align-items:center; justify-content:space-between; border-left: 6px solid var(--primary); }
-        .stat.orange{ border-left-color: #f97316; }
-        .stat .num{font-size:32px;font-weight:900;}
-        .stat .info-label { font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
-
-        .card{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
-        .cardHead{ padding:18px 24px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; font-weight:800; }
-
-        table{width:100%;border-collapse:collapse;}
-        th,td{border-bottom:1px solid #f1f5f9;padding:18px;text-align:left;vertical-align:middle;}
-        th{background:#f8fafc;font-size:11px;text-transform:uppercase;color:#64748b; letter-spacing: 0.05em; font-weight: 800;}
-
-        .badge{ display:inline-block; font-size:11px; font-weight:700; padding:4px 12px; border-radius:999px; background:#f1f5f9; color:#475569; text-transform: uppercase;}
-        .badge.pending{background:#fff7ed; color:#9a3412; border: 1px solid #ffedd5;}
-        .badge.cancel{background:#fef2f2; color:#991b1b; border: 1px solid #fee2e2;}
-
-        .btn-review { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; font-size: 12px; }
-        .btn-review:hover { background: #1d4ed8; transform: translateY(-1px); }
-
-        .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); display: none; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px); }
-        .modal-overlay.show { display: flex; }
-        .modal-content { background: white; width: 650px; max-width: 95%; border-radius: 24px; padding: 32px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); position: relative; animation: slideUp 0.3s ease; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .modal-header { border-bottom: 1px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
-        .modal-body { max-height: 65vh; overflow-y: auto; padding-right: 10px; }
         
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-        .info-item { display: flex; flex-direction: column; gap: 4px; }
-        .info-label { font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
-        .info-value { font-size: 14px; font-weight: 600; color: #1e293b; }
+        /* Stats Badges */
+        .stat { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px; display:flex; align-items:center; justify-content:space-between; border-left: 6px solid var(--primary); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .stat.orange { border-left-color: #f97316; }
+        
+        /* Main Table Layout */
+        .card { background:var(--card); border:1px solid var(--border); border-radius:24px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.05); overflow:hidden; }
+        table { width:100%; border-collapse:collapse; }
+        th, td { border-bottom:1px solid #f1f5f9; padding:18px; text-align:left; vertical-align:middle; }
+        th { background:#f8fafc; font-size:11px; text-transform:uppercase; color:#64748b; font-weight:800; letter-spacing:0.05em; }
 
-        .attr-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-top: 10px; display: none; }
-        .attr-title { font-size: 11px; font-weight: 800; color: var(--primary); margin-bottom: 12px; display: block; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }
+        .badge { display:inline-block; font-size:10px; font-weight:700; padding:4px 12px; border-radius:999px; text-transform:uppercase; }
+        .badge.pending { background:#fff7ed; color:#9a3412; border: 1px solid #fed7aa; }
+        .badge.cancel { background:#fef2f2; color:#991b1b; border: 1px solid #fecaca; }
 
-        .decision-footer { border-top: 1px solid #e2e8f0; padding-top: 24px; margin-top: 24px; display: flex; gap: 12px; }
-        .btn-decision { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 13px; color: white; transition: 0.2s; }
-        .btn-approve { background: var(--green); }
-        .btn-reject { background: var(--red); }
-        .btn-circle { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; color: var(--muted); }
+        /* MODAL FLOW: Updated to 800px */
+        .modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.6); display:none; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px); padding: 20px; }
+        .modal-overlay.show { display:flex; }
+        .modal-content { background:white; width:100%; max-width:800px; border-radius:32px; padding:0; overflow:hidden; animation:slideUp 0.3s ease; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); position: relative; }
+        @keyframes slideUp { from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
+        
+        .modal-body { padding: 40px; max-height: 85vh; overflow-y: auto; }
+        
+        .info-label { font-size:10px; font-weight:800; color:#94a3b8; text-transform:uppercase; display:block; margin-bottom:4px; letter-spacing:0.05em; }
+        .info-value { font-size:14px; font-weight:700; color:#1e293b; display:block; margin-bottom:18px; }
+        
+        select, textarea { width:100%; border:1px solid #cbd5e1; border-radius:12px; padding:12px; font-size:14px; margin-top:8px; background:#fff; outline:none; transition:0.2s; }
+        select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(37,99,235,0.1); }
+
+        .btn-submit { width:100%; background:var(--primary); color:white; padding:16px; border-radius:14px; font-weight:800; margin-top:24px; text-transform:uppercase; cursor:pointer; border:none; transition:0.2s; letter-spacing: 0.1em; }
+        .btn-submit:hover { background:#1d4ed8; transform:translateY(-1px); box-shadow: 0 10px 15px -3px rgba(37,99,235,0.3); }
+
+        /* Close Button */
+        .btn-close { position: absolute; top: 24px; right: 24px; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #94a3b8; transition: 0.2s; z-index: 10; }
+        .btn-close:hover { background: #fef2f2; border-color: #fecaca; color: var(--red); }
+
+        /* Metadata Container: Single column list */
+        .dynamic-meta-container { background: #f8fafc; border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-top: 10px; margin-bottom: 24px; }
+        
+        /* Auto-hide Message box */
+        #statusAlert { transition: opacity 0.5s ease-out, transform 0.5s ease-out; }
+        #statusAlert.hide { opacity: 0; transform: translateY(-10px); pointer-events: none; }
     </style>
 </head>
-
 <body>
-<div class="layout">
+<div class="flex">
     <jsp:include page="sidebar.jsp" />
-
-    <main class="ml-20 lg:ml-64 min-h-screen transition-all duration-300">
+    <main class="ml-20 lg:ml-64 min-h-screen w-full transition-all duration-300">
         <jsp:include page="topbar.jsp" />
+        
+        <div class="pageWrap">
+            <div class="flex justify-between items-center mb-10">
+                <div>
+                    <h2 class="text-3xl font-black text-slate-800 tracking-tight uppercase">REVIEW DASHBOARD</h2>
+                    <p class="text-slate-400 font-bold text-sm mt-1 uppercase tracking-widest">Management Approval Console</p>
+                </div>
+                <span class="bg-blue-600 text-white px-5 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-blue-200">
+                    <i class="fas fa-shield-alt mr-2"></i> Manager Access
+                </span>
+            </div>
 
-        <div class="content">
-            <div class="pageWrap">
-                <div class="container">
-                    <div class="pageHeader">
-                        <div>
-                            <h2 class="pageTitle">Review Dashboard</h2>
-                            <p class="sub">Process pending employee leave applications.</p>
-                        </div>
-                        <div class="badge">MANAGER ACCOUNT</div>
+            <!-- Success Message (Auto-dismisses) -->
+            <% if (msg != null && !msg.isBlank()) { %>
+                <div id="statusAlert" class="bg-emerald-50 border-2 border-emerald-100 text-emerald-700 p-5 rounded-2xl mb-8 flex items-center gap-4 font-black text-sm">
+                    <div class="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center shrink-0"><i class="fas fa-check"></i></div>
+                    <%= msg %>
+                </div>
+            <% } %>
+
+            <!-- Dashboard Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                <div class="stat">
+                    <div>
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">New Applications</span>
+                        <div class="text-4xl font-black text-slate-800 mt-2"><%= pendingCount %></div>
                     </div>
-
-                    <div class="stats">
-                        <div class="stat">
-                            <div>
-                                <div class="info-label">Pending Approvals</div>
-                                <div class="num"><%= (pendingCount==null?0:pendingCount) %></div>
-                            </div>
-                            <i class="fas fa-clock fa-2x opacity-10"></i>
-                        </div>
-                        <div class="stat orange">
-                            <div>
-                                <div class="info-label">Cancel Requests</div>
-                                <div class="num"><%= (cancelReqCount==null?0:cancelReqCount) %></div>
-                            </div>
-                            <i class="fas fa-times-circle fa-2x opacity-10"></i>
-                        </div>
+                    <div class="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center shadow-inner"><i class="fas fa-file-signature fa-2x"></i></div>
+                </div>
+                <div class="stat orange">
+                    <div>
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Cancellation Requests</span>
+                        <div class="text-4xl font-black text-slate-800 mt-2"><%= cancelReqCount %></div>
                     </div>
+                    <div class="w-16 h-16 bg-orange-50 text-orange-500 rounded-2xl flex items-center justify-center shadow-inner"><i class="fas fa-undo-alt fa-2x"></i></div>
+                </div>
+            </div>
 
-                    <% if (msg != null && !msg.isBlank()) { %>
-                        <div class="msgBox"><i class="fas fa-check-circle"></i> <%= msg %></div>
-                    <% } %>
-
-                    <div class="card">
-                        <div class="cardHead">
-                            <span>Applications Ready for Review</span>
-                            <span style="color: var(--primary); font-size: 14px;"><%= (leaves==null?0:leaves.size()) %> items</span>
-                        </div>
-
-                        <div style="overflow-x:auto;">
-                            <table>
-                                <thead>
-                                <tr>
-                                    <th>Employee</th>
-                                    <th>Leave Type</th>
-                                    <th>Dates (Start - End)</th>
-                                    <th>Duration</th>
-                                    <th>Days</th>
-                                    <th>Status</th>
-                                    <th>Applied On</th>
-                                    <th style="width:120px;">Action</th>
+            <!-- Task List Table -->
+            <div class="card">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                    <span class="font-black text-slate-700 uppercase text-xs tracking-[0.15em]">Pending Workforce Requests</span>
+                    <span class="text-[10px] font-bold text-slate-400"><%= (leaves!=null?leaves.size():0) %> ITEMS QUEUED</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr>
+                                <th>Employee</th><th>Leave Type</th><th>Dates (Start - End)</th><th>Duration</th><th>Days</th><th>Status</th><th>Applied On</th><th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (leaves == null || leaves.isEmpty()) { %>
+                                <tr><td colspan="8" class="text-center py-24 text-slate-300 font-bold tracking-widest uppercase text-xs italic">All Clear! No pending tasks in queue.</td></tr>
+                            <% } else { for (Map<String, Object> r : leaves) { 
+                                boolean isCancel = "CANCELLATION_REQUESTED".equals(r.get("status"));
+                            %>
+                                <tr class="hover:bg-slate-50/80 transition-colors">
+                                    <td><div class="font-black text-slate-800"><%= r.get("fullname") %></div><div class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">ID: <%= r.get("empid") %></div></td>
+                                    <td><span class="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-[9px] font-black uppercase border border-slate-200"><%= r.get("leaveType") %></span></td>
+                                    <td class="text-xs font-bold text-slate-600"><%= r.get("startDate") %> — <%= r.get("endDate") %></td>
+                                    <td class="text-[9px] font-black uppercase text-slate-400 tracking-tighter"><%= r.get("duration") %></td>
+                                    <td class="font-black text-blue-600 text-sm"><%= r.get("days") %></td>
+                                    <td><span class="badge <%= isCancel ? "cancel" : "pending" %>"><%= r.get("status").toString().replace("_", " ") %></span></td>
+                                    <td class="text-[10px] text-slate-400 font-bold"><%= r.get("appliedOn") %></td>
+                                    <td>
+                                        <button onclick="openReview(this)" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-[10px] font-black hover:bg-blue-600 transition-all shadow-md shadow-slate-100 uppercase"
+                                                data-id="<%= r.get("leaveId") %>" 
+                                                data-name="<%= r.get("fullname") %>" 
+                                                data-empid="<%= r.get("empid") %>"
+                                                data-type="<%= r.get("leaveType") %>" 
+                                                data-start="<%= r.get("startDate") %>"
+                                                data-end="<%= r.get("endDate") %>"
+                                                data-days="<%= r.get("days") %>" 
+                                                data-duration="<%= r.get("duration") %>"
+                                                data-applied="<%= r.get("appliedOn") %>"
+                                                data-reason="<%= r.get("reason") %>" 
+                                                data-status="<%= r.get("status") %>"
+                                                data-attachment="<%= r.get("attachment") != null ? r.get("attachment") : "" %>"
+                                                data-med="<%= r.get("medicalFacility") %>" 
+                                                data-ref="<%= r.get("refSerialNo") %>"
+                                                data-evt="<%= r.get("eventDate") %>" 
+                                                data-dis="<%= r.get("dischargeDate") %>"
+                                                data-cat="<%= r.get("emergencyCategory") %>" 
+                                                data-cnt="<%= r.get("emergencyContact") %>"
+                                                data-spo="<%= r.get("spouseName") %>">Review</button>
+                                    </td>
                                 </tr>
-                                </thead>
-                                <tbody>
-                                <%
-                                    if (leaves == null || leaves.isEmpty()) {
-                                %>
-                                    <tr><td colspan="8" style="text-align:center; padding:50px; color:#94a3b8;">No tasks pending.</td></tr>
-                                <%
-                                    } else {
-                                        for (Map<String, Object> r : leaves) {
-                                            String status = String.valueOf(r.get("status"));
-                                            boolean isCancelReq = "CANCELLATION_REQUESTED".equalsIgnoreCase(status);
-                                            
-                                            // FIX: Directly retrieve from keys defined in ManagerDashboardServlet.java
-                                            Object daysVal = r.get("days");
-                                            Object sessionVal = r.get("duration");
-                                            String days = (daysVal != null) ? String.valueOf(daysVal) : "0";
-                                            String sessionType = (sessionVal != null) ? String.valueOf(sessionVal) : "-";
-                                            String appliedOn = (r.get("appliedOn") != null) ? String.valueOf(r.get("appliedOn")) : "-";
-                                %>
-                                    <tr>
-                                        <td>
-                                            <div style="font-weight: 700;"><%= r.get("fullname") %></div>
-                                            <div style="font-size:11px; color:#64748b;">ID: <%= r.get("empid") %></div>
-                                        </td>
-                                        <td><span class="badge"><%= r.get("leaveType") %></span></td>
-                                        <td style="font-size:13px; font-weight:600;">
-                                            <%= r.get("startDate") %> - <%= r.get("endDate") %>
-                                        </td>
-                                        <td>
-                                            <span style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase;"><%= sessionType %></span>
-                                        </td>
-                                        <td>
-                                            <span style="font-size:13px; font-weight:700; color:var(--primary);"><%= days %></span>
-                                        </td>
-                                        <td>
-                                            <span class="badge <%= isCancelReq ? "cancel" : "pending" %>">
-                                                <%= isCancelReq ? "Cancel Req" : "Pending" %>
-                                            </span>
-                                        </td>
-                                        <td style="font-size:11px; color:#64748b; white-space: nowrap;">
-                                            <%= appliedOn %>
-                                        </td>
-                                        <td>
-                                            <button class="btn-review" onclick='openReview(this)'
-                                                    data-id="<%= r.get("leaveId") %>"
-                                                    data-empid="<%= r.get("empid") %>"
-                                                    data-name="<%= r.get("fullname") %>"
-                                                    data-type="<%= r.get("leaveType") %>"
-                                                    data-dates="<%= r.get("startDate") %> to <%= r.get("endDate") %>"
-                                                    data-duration="<%= days %> Days (<%= sessionType %>)"
-                                                    data-reason="<%= r.get("reason") %>"
-                                                    data-status="<%= r.get("status") %>"
-                                                    data-attachment="<%= r.get("attachment") != null ? r.get("attachment") : "" %>"
-                                                    data-medical="<%= r.get("medicalFacility") != null ? r.get("medicalFacility") : "" %>"
-                                                    data-ref="<%= r.get("refSerialNo") != null ? r.get("refSerialNo") : "" %>"
-                                                    data-event="<%= r.get("eventDate") != null ? r.get("eventDate") : "" %>"
-                                                    data-discharge="<%= r.get("dischargeDate") != null ? r.get("dischargeDate") : "" %>"
-                                                    data-cat="<%= r.get("emergencyCategory") != null ? r.get("emergencyCategory") : "" %>"
-                                                    data-contact="<%= r.get("emergencyContact") != null ? r.get("emergencyContact") : "" %>"
-                                                    data-spouse="<%= r.get("spouseName") != null ? r.get("spouseName") : "" %>">
-                                                <i class="fas fa-search"></i> Review
-                                            </button>
-                                        </td>
-                                    </tr>
-                                <% } } %>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                            <% } } %>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </main>
 </div>
 
-<!-- MODALS -->
+<!-- REVIEW MODAL -->
 <div class="modal-overlay" id="reviewModal">
     <div class="modal-content">
-        <div class="modal-header">
-            <h3 style="margin:0; font-weight:800; font-size:20px;">Review Application</h3>
-            <button class="btn-circle" onclick="closeReview()"><i class="fas fa-times"></i></button>
-        </div>
+        <button type="button" class="btn-close" onclick="closeReview()"><i class="fas fa-times"></i></button>
         <form action="ManagerLeaveActionServlet" method="post">
             <input type="hidden" name="leaveId" id="modalLeaveId">
             <div class="modal-body">
-                <div class="info-grid">
-                    <div class="info-item"><span class="info-label">Employee</span><span class="info-value" id="modalName"></span></div>
-                    <div class="info-item"><span class="info-label">Employee ID</span><span class="info-value" id="modalEmpId"></span></div>
-                    <div class="info-item"><span class="info-label">Leave Type</span><span class="info-value" id="modalType"></span></div>
-                    <div class="info-item"><span class="info-label">Duration</span><span class="info-value" id="modalDuration"></span></div>
+                <h3 class="text-2xl font-black text-slate-800 tracking-tight uppercase mb-8 pr-12 border-b border-slate-100 pb-4">Review Application</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12">
+                    <div class="info-item">
+                        <span class="info-label">Employee Name</span>
+                        <span class="info-value" id="modalName"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Employee ID</span>
+                        <span class="info-value" id="modalEmpId"></span>
+                    </div>
                 </div>
-                <div class="info-item" style="margin-bottom:20px;"><span class="info-label">Dates</span><span class="info-value" id="modalDates"></span></div>
-                <div class="info-item" style="margin-bottom:20px;"><span class="info-label">Reason</span><p id="modalReason" style="margin:0; font-size:14px; color:#475569;"></p></div>
-                <div id="attachmentBox" style="margin-bottom:20px; display:none;">
-                    <span class="info-label">Document</span><br/>
-                    <button type="button" id="btnOpenDoc" class="btn-review" style="display:inline-block; margin-top:5px; background:#fff; color:var(--primary); border:1px solid var(--primary);"><i class="fas fa-eye"></i> View Attachment</button>
+
+                <div class="info-item">
+                    <span class="info-label">Leave Type</span>
+                    <span class="info-value text-blue-600" id="modalType"></span>
                 </div>
-                <div id="dynamicBox" class="attr-box">
-                    <span class="attr-title">Specific Details</span>
-                    <div class="info-grid" id="dynamicGrid"></div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12">
+                    <div class="info-item">
+                        <span class="info-label">Start Date</span>
+                        <span class="info-value" id="modalStart"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">End Date</span>
+                        <span class="info-value" id="modalEnd"></span>
+                    </div>
                 </div>
-                <div style="margin-top:24px;">
-                    <label class="info-label">Decision Remark</label>
-                    <textarea name="comment" placeholder="Optional remark..." style="width:100%; border:1px solid #e2e8f0; border-radius:12px; padding:12px; margin-top:8px; height:80px;"></textarea>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12">
+                    <div class="info-item">
+                        <span class="info-label">Duration</span>
+                        <span class="info-value" id="modalDuration"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Total Days</span>
+                        <span class="info-value font-black text-blue-600" id="modalDays"></span>
+                    </div>
                 </div>
-            </div>
-            <div class="decision-footer">
-                <button type="submit" name="action" id="btnReject" class="btn-decision btn-reject">Reject</button>
-                <button type="submit" name="action" id="btnApprove" class="btn-decision btn-approve">Approve</button>
+
+                <div class="info-item">
+                    <span class="info-label">Applied On</span>
+                    <span class="info-value" id="modalAppliedOn"></span>
+                </div>
+
+                <div class="info-item">
+                    <span class="info-label">Reason</span>
+                    <p class="text-sm text-slate-500 mb-6 bg-slate-50 p-5 rounded-2xl border border-slate-100 font-medium leading-relaxed" id="modalReason"></p>
+                </div>
+
+                <!-- Integrated Metadata Extraction Section - Single Column -->
+                <div id="dynamicBox" class="hidden">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-1 h-4 bg-blue-600 rounded-full"></div>
+                        <h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Additional Attributes</h4>
+                    </div>
+                    <div class="dynamic-meta-container space-y-4" id="dynamicGrid"></div>
+                </div>
+
+                <!-- ATTACHMENT ACTION -->
+                <div id="attachBox" class="mb-8 hidden">
+                    <span class="info-label">Supporting Document</span>
+                    <a id="modalAttachLink" href="#" target="_blank" class="inline-flex items-center gap-3 bg-white border-2 border-slate-100 px-5 py-3 rounded-2xl text-[11px] font-black text-slate-600 hover:border-blue-200 hover:text-blue-600 transition-all">
+                        <i class="fas fa-file-medical text-red-500 text-lg"></i> VIEW ATTACHMENT <i class="fas fa-external-link-alt opacity-20 text-[9px]"></i>
+                    </a>
+                </div>
+
+                <!-- Decision Section -->
+                <div class="bg-blue-50/60 p-8 rounded-[2.5rem] border border-blue-100 mt-6">
+                    <label class="info-label text-blue-500">Decision Choice</label>
+                    <select name="action" id="decisionSelect" required class="font-bold text-slate-700"></select>
+                    
+                    <label class="info-label text-blue-500 mt-6">Response Comment</label>
+                    <textarea name="comment" placeholder="Provide feedback for the staff..." class="h-24 resize-none font-medium"></textarea>
+                    
+                    <button type="submit" class="btn-submit shadow-xl shadow-blue-200 uppercase tracking-widest">Submit Review</button>
+                </div>
             </div>
         </form>
     </div>
 </div>
 
-<div class="modal-overlay" id="docOverlay">
-  <div class="modal-content" style="width: 900px; height: 90vh;">
-    <div class="modal-header">
-      <h3 id="docTitle" style="margin:0; font-weight:800; font-size:18px;">Preview</h3>
-      <button class="btn-circle" onclick="closeOverlay('docOverlay')"><i class="fas fa-times"></i></button>
-    </div>
-    <div class="modal-body" style="padding:0; background:#525659; flex:1; border-radius:0 0 12px 12px; overflow:hidden;">
-      <iframe id="docFrame" style="width:100%; height:100%; border:none; display:block;"></iframe>
-    </div>
-  </div>
-</div>
-
 <script>
     const CTX = "<%=request.getContextPath()%>";
-    function closeOverlay(id) { 
-        document.getElementById(id).classList.remove('show'); 
-        if(id === 'docOverlay') document.getElementById('docFrame').src = "about:blank";
+
+    // Auto-dismiss the success message after 3 seconds
+    window.onload = function() {
+        const alert = document.getElementById('statusAlert');
+        if (alert) {
+            setTimeout(() => {
+                alert.classList.add('hide');
+                // Optional: Clean URL params after showing
+                setTimeout(() => {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }, 500);
+            }, 3000);
+        }
     }
-    function openDoc(id, name) {
-        document.getElementById('docTitle').innerText = "Preview: " + name;
-        document.getElementById('docFrame').src = CTX + "/ViewAttachmentServlet?id=" + id;
-        document.getElementById('docOverlay').classList.add('show');
-    }
+
     function openReview(btn) {
         const d = btn.dataset;
         document.getElementById('modalLeaveId').value = d.id;
         document.getElementById('modalName').textContent = d.name;
         document.getElementById('modalEmpId').textContent = d.empid;
         document.getElementById('modalType').textContent = d.type;
-        document.getElementById('modalDates').textContent = d.dates;
-        document.getElementById('modalDuration').textContent = d.duration;
-        document.getElementById('modalReason').textContent = d.reason || "No reason provided.";
-        const abox = document.getElementById('attachmentBox');
-        const btnDoc = document.getElementById('btnOpenDoc');
+        document.getElementById('modalStart').textContent = d.start;
+        document.getElementById('modalEnd').textContent = d.end;
+        document.getElementById('modalDuration').textContent = d.duration.replace(/_/g, ' ');
+        document.getElementById('modalDays').textContent = d.days;
+        document.getElementById('modalAppliedOn').textContent = d.applied;
+        document.getElementById('modalReason').textContent = d.reason || "Staff did not provide a detailed reason.";
+
+        // Attachment link
+        const abox = document.getElementById('attachBox');
         if(d.attachment && d.attachment !== "") {
-            abox.style.display = "block";
-            btnDoc.onclick = function() { openDoc(d.id, d.attachment); };
-        } else { abox.style.display = "none"; }
-        const dGrid = document.getElementById('dynamicGrid');
-        dGrid.innerHTML = "";
+            abox.classList.remove('hidden');
+            document.getElementById('modalAttachLink').href = CTX + "/ViewAttachment?id=" + d.id;
+        } else { abox.classList.add('hidden'); }
+
+        // Dynamic Dropdown Logic
+        const sel = document.getElementById('decisionSelect');
+        sel.innerHTML = "";
+        if(d.status === "PENDING") {
+            sel.innerHTML = '<option value="APPROVE">Approve Request</option><option value="REJECT">Reject Request</option>';
+        } else {
+            sel.innerHTML = '<option value="APPROVE_CANCEL">Approve Cancellation</option><option value="REJECT_CANCEL">Maintain Approval (Reject Cancel)</option>';
+        }
+
+        // Dynamic Attributes Logic (Single Column)
+        const dBox = document.getElementById('dynamicBox');
+        const grid = document.getElementById('dynamicGrid');
+        grid.innerHTML = "";
         let count = 0;
-        const checkAttr = (label, val) => {
-            if(val && val !== "" && val !== "null") {
-                dGrid.innerHTML += '<div class="info-item"><span class="info-label">'+label+'</span><span class="info-value">'+val+'</span></div>';
+        const addAttr = (label, val) => {
+            if(val && val !== "null" && val !== "" && val !== "undefined") {
+                grid.innerHTML += '<div class="info-item border-b border-slate-100 pb-2"><span class="info-label text-slate-400">'+label+'</span><span class="info-value mb-0 text-slate-600 font-bold">'+val+'</span></div>';
                 count++;
             }
         };
-        checkAttr("Medical Facility", d.medical);
-        checkAttr("Ref Serial No", d.ref);
-        checkAttr("Event Date", d.event);
-        checkAttr("Discharge Date", d.discharge);
-        checkAttr("Category", d.cat);
-        checkAttr("Contact", d.contact);
-        checkAttr("Spouse Name", d.spouse);
-        document.getElementById('dynamicBox').style.display = count > 0 ? "block" : "none";
-        const isCancel = d.status === "CANCELLATION_REQUESTED";
-        const app = document.getElementById('btnApprove');
-        const rej = document.getElementById('btnReject');
-        if(isCancel) {
-            app.textContent = "Approve Cancel"; app.value = "APPROVE_CANCEL";
-            rej.textContent = "Reject Cancel"; rej.value = "REJECT_CANCEL";
-        } else {
-            app.textContent = "Approve"; app.value = "APPROVE";
-            rej.textContent = "Reject"; rej.value = "REJECT";
-        }
+        addAttr("Medical Facility", d.med);
+        addAttr("MC / IC Ref Serial No", d.ref);
+        addAttr("Event Date", d.evt);
+        addAttr("Discharge Date", d.dis);
+        addAttr("Emergency Category", d.cat);
+        addAttr("Emergency Phone", d.cnt);
+        addAttr("Spouse Name", d.spo);
+
+        dBox.classList.toggle('hidden', count === 0);
         document.getElementById('reviewModal').classList.add('show');
     }
-    function closeReview() { document.getElementById('reviewModal').classList.remove('show'); }
+
+    function closeReview() { 
+        document.getElementById('reviewModal').classList.remove('show'); 
+    }
 </script>
 </body>
 </html>

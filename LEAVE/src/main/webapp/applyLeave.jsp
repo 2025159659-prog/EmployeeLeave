@@ -220,7 +220,7 @@
         <% } %>
 
         <div class="card">
-          <form action="ApplyLeaveServlet" method="post" enctype="multipart/form-data" id="applyForm">
+          <form action="ApplyLeave" method="post" enctype="multipart/form-data" id="applyForm">
             
             <div class="form-grid">
               <div>

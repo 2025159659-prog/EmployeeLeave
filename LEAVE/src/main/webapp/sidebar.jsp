@@ -46,7 +46,7 @@
                 <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Leave Balances</span>
             </a>
 
-            <a href="leaveEmpHistoryServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("leaveEmpHistoryServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+            <a href="leaveEmpHistory" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("leaveEmpHistory") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
                 <span class="shrink-0"><%= ClipboardListIcon("w-5 h-5") %></span>
                 <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Leave History</span>
             </a>
@@ -69,17 +69,17 @@
 
         <% } else { %>
             <!-- EMPLOYEE MENU -->
-            <a href="EmployeeDashboardServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("EmployeeDashboardServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+            <a href="EmployeeDashboard" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("EmployeeDashboard") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
                 <span class="shrink-0"><%= HomeIcon("w-5 h-5") %></span>
                 <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Dashboard</span>
             </a>
 
-            <a href="ApplyLeaveServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("ApplyLeaveServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+            <a href="ApplyLeave" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("ApplyLeave") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
                 <span class="shrink-0"><%= CalendarIcon("w-5 h-5") %></span>
                 <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Apply Leave</span>
             </a>
 
-            <a href="LeaveHistoryServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("LeaveHistoryServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+            <a href="LeaveHistory" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("LeaveHistory") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
                 <span class="shrink-0"><%= ClipboardListIcon("w-5 h-5") %></span>
                 <span class="hidden lg:block whitespace-nowrap text-sm font-medium">My History</span>
             </a>

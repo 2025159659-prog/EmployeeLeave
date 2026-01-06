@@ -1,6 +1,7 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ page import="java.util.*,java.time.*,java.time.format.*" %>
 <%@ include file="icon.jsp" %>
+<%@ page import="bean.LeaveBalance, bean.Holiday, util.LeaveBalanceEngine" %>
 
 <%
   // =========================
@@ -22,23 +23,28 @@
   String dbError = (String) request.getAttribute("dbError");
   String balanceError = (String) request.getAttribute("balanceError");
   
-  List<Map<String,Object>> balances = (List<Map<String,Object>>) request.getAttribute("balances");
-  if (balances == null) balances = new ArrayList<>();
+//Use List<LeaveBalance> instead of List<Map>
+ List<LeaveBalance> balances = (List<LeaveBalance>) request.getAttribute("balances");
+ if (balances == null) balances = new ArrayList<>();
 
-  // Map baki mengikut TypeCode untuk carian UI
-  Map<String, Map<String,Object>> balByType = new HashMap<>();
-  for (Map<String,Object> b : balances) {
-    if (b == null) continue;
-    Object tObj = b.get("typeCode"); 
-    if (tObj != null) balByType.put(String.valueOf(tObj).trim().toUpperCase(), b);
-  }
+ // Map baki mengikut TypeCode untuk carian UI
+ Map<String, LeaveBalance> balByType = new HashMap<>();
+ for (LeaveBalance b : balances) {
+   if (b == null || b.getTypeCode() == null) continue;
+   balByType.put(b.getTypeCode().trim().toUpperCase(), b);
+ }
 
-  Map<LocalDate, List<Map<String,Object>>> holidayMap = (Map<LocalDate, List<Map<String,Object>>>) request.getAttribute("monthHolidaysMap");
-  if (holidayMap == null) holidayMap = new HashMap<>();
-
-  List<Map<String,Object>> holidayUpcoming = (List<Map<String,Object>>) request.getAttribute("holidayUpcoming");
-  if (holidayUpcoming == null) holidayUpcoming = new ArrayList<>();
-
+ // Monthly Holidays (Now using Bean list)
+ List<Holiday> monthHolidays = (List<Holiday>) request.getAttribute("monthHolidays");
+ Map<LocalDate, List<Holiday>> holidayMap = new HashMap<>();
+ if (monthHolidays != null) {
+     for(Holiday h : monthHolidays) {
+         holidayMap.computeIfAbsent(h.getDate(), k -> new ArrayList<>()).add(h);
+     }
+ }
+ 
+ List<Holiday> holidayUpcoming = (List<Holiday>) request.getAttribute("holidayUpcoming");
+ if (holidayUpcoming == null) holidayUpcoming = new ArrayList<>();
   // =========================
   // PENGURUSAN KALENDAR
   // =========================
@@ -226,217 +232,169 @@
       
       <jsp:include page="topbar.jsp" />
 
-      <div class="pageWrap">
+   <div class="pageWrap">
+    <% if (dbError != null && !dbError.isBlank()) { %>
+      <div class="err">DB ERROR: <%= dbError %></div>
+    <% } %>
+
+    <h2 class="title">EMPLOYEE DASHBOARD</h2>
+    <p class="sub">Welcome back, <b><%= fullname %></b>. Here is your leave summary.</p>
+
+    <div class="gridCards">
+      <%
+        java.text.DecimalFormat df = new java.text.DecimalFormat("0.#");
+        List<String> typesOrder = new ArrayList<>(Arrays.asList("ANNUAL", "SICK", "EMERGENCY", "HOSPITALIZATION", "UNPAID", "MATERNITY", "PATERNITY"));
         
-        <% if (dbError != null && !dbError.isBlank()) { %>
-          <div class="err text-red-700 bg-red-50 p-4 rounded-xl border border-red-100 mb-4">DB ERROR: <%= dbError %></div>
-        <% } %>
+        for (String type : typesOrder) {
+          LeaveBalance b = balByType.get(type);
+          if (b == null) continue;
 
-        <h2 class="title">EMPLOYEE DASHBOARD</h2>
-        <p class="sub">Welcome back, <b><%= fullname %></b>. Here is your leave summary.</p>
+          double entVal   = b.getEntitlement();
+          double usedVal  = b.getUsed();
+          double pendVal  = b.getPending();
+          double totalVal = b.getTotalAvailable();
+          
+          String cardTheme = type.toLowerCase().replace(" ", "-");
+          if (cardTheme.contains("maternity")) cardTheme = "maternity";
+          else if (cardTheme.contains("paternity")) cardTheme = "paternity";
 
-        <div class="gridCards">
+          double availPercent = (entVal > 0) ? (totalVal / entVal) * 100 : 0;
+      %>
+        <div class="card <%= cardTheme %>">
+          <div class="label">
+            <%= type %> LEAVE
+            <%= CalendarIcon("w-4 h-4 opacity-30") %>
+          </div>
+          
+          <div class="big">
+            <%= df.format(totalVal) %> <span>Available</span>
+          </div>
+
+          <div class="timeline-track">
+              <div class="timeline-bar" style="width: <%= Math.min(availPercent, 100) %>%; background: var(--primary);"></div>
+          </div>
+
+          <div class="card-footer">
+              <div class="entitlement-text">Base Entitlement: <b><%= df.format(entVal) %></b> days/year</div>
+              <div class="stats-row">
+                  <div class="stat-box">
+                      <span>USED</span>
+                      <b><%= df.format(usedVal) %></b>
+                  </div>
+                  <div class="divider"></div>
+                  <div class="stat-box">
+                      <span>PENDING</span>
+                      <b style="color:var(--orange);"><%= df.format(pendVal) %></b>
+                  </div>
+              </div>
+          </div>
+        </div>
+      <% } %>
+    </div>
+
+    <div class="gridMain">
+      <div class="cal-card">
+        <div class="calHeader">
+          <div class="calTitle"><%= monthTitle %></div>
+          <div class="calNav">
+            <%-- FIXED LINKS: Changed from EmployeeDashboardServlet to EmployeeDashboard --%>
+            <a href="EmployeeDashboard?year=<%=prev.getYear()%>&month=<%=prev.getMonthValue()%>">
+                <%= ChevronLeftIcon("w-5 h-5") %>
+            </a>
+            <a href="EmployeeDashboard?year=<%=next.getYear()%>&month=<%=next.getMonthValue()%>">
+                <%= ChevronRightIcon("w-5 h-5") %>
+            </a>
+          </div>
+        </div>
+
+        <table class="calTable">
+          <thead>
+            <tr><th>SUN</th><th>MON</th><th>TUE</th><th>WED</th><th>THU</th><th>FRI</th><th>SAT</th></tr>
+          </thead>
+          <tbody>
           <%
-            List<String> typesOrder = new ArrayList<>(Arrays.asList("ANNUAL", "SICK", "EMERGENCY", "HOSPITALIZATION", "UNPAID"));
-            for (String key : balByType.keySet()) {
-                if (!typesOrder.contains(key)) typesOrder.add(key);
-            }
-
-            for (String type : typesOrder) {
-              Map<String,Object> b = balByType.get(type);
-              if (b == null) continue;
-
-              double entVal = 0, usedVal = 0, pendVal = 0, totalVal = 0;
-              try { entVal = Double.parseDouble(String.valueOf(b.get("entitlement"))); } catch(Exception e){}
-              try { usedVal = Double.parseDouble(String.valueOf(b.get("used"))); } catch(Exception e){}
-              try { pendVal = Double.parseDouble(String.valueOf(b.get("pending"))); } catch(Exception e){}
-              try { totalVal = Double.parseDouble(String.valueOf(b.get("total"))); } catch(Exception e){}
-              
-              String cardTheme = type.toLowerCase().replace(" ", "-");
-              if (cardTheme.contains("maternity")) cardTheme = "maternity";
-              else if (cardTheme.contains("paternity") || cardTheme.contains("parenity")) cardTheme = "paternity";
-
-              double availPercent = (entVal > 0) ? (totalVal / entVal) * 100 : 0;
-              java.text.DecimalFormat df = new java.text.DecimalFormat("0.#");
+            int dayCounter = 1;
+            for (int row = 0; row < 6; row++) {
           %>
-            <div class="card <%= cardTheme %>">
-              <div class="label">
-                <%= type %> LEAVE
-                <!-- ✅ Changed to CalendarIcon from icon.jsp -->
-                <%= CalendarIcon("w-4 h-4 opacity-30") %>
-              </div>
-              
-              <div class="big">
-                <%= df.format(totalVal) %> <span>Available</span>
-              </div>
-
-              <div class="timeline-track">
-                  <div class="timeline-bar" style="width: <%= Math.min(availPercent, 100) %>%;"></div>
-              </div>
-
-              <div class="card-footer">
-                  <div class="entitlement-text">Base Entitlement: <b><%= df.format(entVal) %></b> days/year</div>
-                  <div class="stats-row">
-                      <div class="stat-box">
-                          <span>USED</span>
-                          <b><%= df.format(usedVal) %></b>
-                      </div>
-                      <div class="divider"></div>
-                      <div class="stat-box">
-                          <span>PENDING</span>
-                          <b style="color:var(--orange);"><%= df.format(pendVal) %></b>
-                      </div>
-                  </div>
-              </div>
-            </div>
-          <% } %>
-        </div>
-
-        <div class="gridMain">
-          <!-- Calendar Section -->
-          <div class="cal-card">
-            <div class="calHeader">
-              <div class="calTitle"><%= monthTitle %></div>
-              <div class="calNav">
-                <!-- ✅ Replaced arrows with custom SVGs -->
-                <a href="EmployeeDashboardServlet?year=<%=prev.getYear()%>&month=<%=prev.getMonthValue()%>">
-                    <%= ChevronLeftIcon("w-5 h-5") %>
-                </a>
-                <a href="EmployeeDashboardServlet?year=<%=next.getYear()%>&month=<%=next.getMonthValue()%>">
-                    <%= ChevronRightIcon("w-5 h-5") %>
-                </a>
-              </div>
-            </div>
-
-            <table class="calTable">
-              <thead>
-                <tr><th>SUN</th><th>MON</th><th>TUE</th><th>WED</th><th>THU</th><th>FRI</th><th>SAT</th></tr>
-              </thead>
-              <tbody>
+            <tr>
               <%
-                int dayCounter = 1;
-                for (int row = 0; row < 6; row++) {
+                for (int col = 0; col < 7; col++) {
+                  int cellIndex = row * 7 + col;
+                  if (cellIndex < firstDow || dayCounter > daysInMonth) {
+              %><td><span class="dayBox">&nbsp;</span></td><%
+                  } else {
+                    LocalDate cursor = ym.atDay(dayCounter);
+                    boolean isToday = cursor.equals(today);
+                    List<Holiday> hs = holidayMap.get(cursor);
+                    boolean isHoliday = (hs != null && !hs.isEmpty());
+                    String tipText = ""; String dotClass = ""; 
+                    if (isHoliday) {
+                      StringBuilder sb = new StringBuilder();
+                      String hType = hs.get(0).getType().toUpperCase();
+                      for (int k=0; k<hs.size(); k++) {
+                        sb.append(hs.get(k).getName());
+                        if (k < hs.size()-1) sb.append(" • ");
+                      }
+                      tipText = sb.toString();
+                      if (hType.contains("PUBLIC")) dotClass = "h-public-dot";
+                      else if (hType.contains("STATE")) dotClass = "h-state-dot";
+                      else if (hType.contains("COMPANY")) dotClass = "h-company-dot";
+                    }
               %>
-                <tr>
-                  <%
-                    for (int col = 0; col < 7; col++) {
-                      int cellIndex = row * 7 + col;
-                      if (cellIndex < firstDow || dayCounter > daysInMonth) {
-                  %>
-                      <td><span class="dayBox">&nbsp;</span></td>
-                  <%
-                      } else {
-                        LocalDate cursor = ym.atDay(dayCounter);
-                        boolean isToday = cursor.equals(today);
-                        List<Map<String,Object>> hs = holidayMap.get(cursor);
-                        boolean isHoliday = (hs != null && !hs.isEmpty());
-                        String tipText = ""; String dotClass = ""; 
-                        if (isHoliday) {
-                          StringBuilder sb = new StringBuilder();
-                          String hType = String.valueOf(hs.get(0).get("type")).toUpperCase();
-                          for (int k=0; k<hs.size(); k++) {
-                            sb.append(String.valueOf(hs.get(k).get("name")));
-                            if (k < hs.size()-1) sb.append(" • ");
-                          }
-                          tipText = sb.toString();
-                          if (hType.contains("PUBLIC")) dotClass = "h-public-dot";
-                          else if (hType.contains("STATE")) dotClass = "h-state-dot";
-                          else if (hType.contains("COMPANY")) dotClass = "h-company-dot";
-                        }
-                  %>
-                    <td>
-                      <div class="tipWrap">
-                        <span class="dayBox <%= isToday ? "today" : "" %>"><%= dayCounter %></span>
-                        <% if (isHoliday) { %>
-                          <div class="h-dot <%= dotClass %>"></div>
-                          <span class="tip"><%= tipText %></span>
-                        <% } %>
-                      </div>
-                    </td>
-                  <% dayCounter++; } } %>
-                </tr>
-              <% if (dayCounter > daysInMonth) break; } %>
-              </tbody>
-            </table>
-
-            <div class="legend">
-              <div class="legend-item"><div class="legend-dot" style="background:var(--red);"></div> Public</div>
-              <div class="legend-item"><div class="legend-dot" style="background:var(--orange);"></div> State</div>
-              <div class="legend-item"><div class="legend-dot" style="background:var(--blue);"></div> Company</div>
-            </div>
-          </div>
-
-          <div style="display: flex; flex-direction: column; gap: 20px; justify-content: space-between;">
-            <!-- Upcoming Holidays -->
-            <div class="cal-card" style="flex-grow: 1;">
-              <h3 style="font-weight:800; font-size:16px; margin: 0 0 16px 0; color: #1e293b; display: flex; align-items: center; gap: 8px;">
-                  <!-- ✅ Replaced with CalendarIcon from icon.jsp -->
-                  <%= CalendarIcon("w-5 h-5 text-slate-500") %> Upcoming Holidays
-              </h3>
-              <%
-                int upCount = 0;
-                for (Map<String,Object> h : holidayUpcoming) {
-                  if (upCount >= 4) break; 
-                  LocalDate d = (LocalDate) h.get("date");
-                  String hType = String.valueOf(h.get("type")).toUpperCase();
-                  String badgeCls = hType.contains("PUBLIC") ? "public" : (hType.contains("STATE") ? "state" : "company");
-              %>
-                  <div class="hListItem" style="padding: 8px 0;">
-                    <div class="dateBadge <%= badgeCls %>" style="width:44px; height:44px;">
-                      <span style="font-size:14px;"><%= d.getDayOfMonth() %></span>
-                      <span style="font-size:8px;"><%= d.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH).toUpperCase() %></span>
-                    </div>
-                    <div>
-                      <p style="font-weight:800; font-size:13px; margin:0;"><%= h.get("name") %></p>
-                      <div style="color:var(--muted); font-size:11px; font-weight: 700;"><%= h.get("type") %></div>
-                    </div>
+                <td>
+                  <div class="tipWrap">
+                    <span class="dayBox <%= isToday ? "today" : "" %>"><%= dayCounter %></span>
+                    <% if (isHoliday) { %><div class="h-dot <%= dotClass %>"></div><span class="tip"><%= tipText %></span><% } %>
                   </div>
-              <% upCount++; } %>
-            </div>
+                </td>
+              <% dayCounter++; } } %>
+            </tr>
+          <% if (dayCounter > daysInMonth) break; } %>
+          </tbody>
+        </table>
+      </div>
 
-            <!-- Leave Guidelines -->
-            <div class="cal-card" style="background: #f8fafc; border: 1px dashed #e2e8f0; padding: 15px;">
-              <h3 style="font-weight:800; font-size:14px; margin: 0 0 10px 0; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">Leave Guidelines</h3>
-              <ul style="list-style: none; padding: 0; margin: 0;">
-                <li style="display: flex; align-items: start; gap: 10px; font-size: 12px; color: #64748b; margin-bottom: 6px; font-weight: 700;">
-                  <div style="width: 5px; height: 5px; border-radius: 50%; background:var(--blue); flex-shrink: 0; margin-top: 4px;"></div> 
-                  Annual leave: 3 days notice.
-                </li>
-                <li style="display: flex; align-items: start; gap: 10px; font-size: 12px; color: #64748b; margin-bottom: 6px; font-weight: 700;">
-                  <div style="width: 5px; height: 5px; border-radius: 50%; background:var(--teal); flex-shrink: 0; margin-top: 4px;"></div> 
-                  Sick leave: MC required.
-                </li>
-                <li style="display: flex; align-items: start; gap: 10px; font-size: 12px; color: #64748b; margin-bottom: 6px; font-weight: 700;">
-                  <div style="width: 5px; height: 5px; border-radius: 50%; background:var(--purple); flex-shrink: 0; margin-top: 4px;"></div> 
-                  Hospitalization: Max 60 days.
-                </li>
-                <li style="display: flex; align-items: start; gap: 10px; font-size: 12px; color: #64748b; margin-bottom: 6px; font-weight: 700;">
-                  <div style="width: 5px; height: 5px; border-radius: 50%; background:var(--pink); flex-shrink: 0; margin-top: 4px;"></div> 
-                  Maternity: 98 days (Female).
-                </li>
-                <li style="display: flex; align-items: start; gap: 10px; font-size: 12px; color: #64748b; margin-bottom: 6px; font-weight: 700;">
-                  <div style="width: 5px; height: 5px; border-radius: 50%; background:var(--indigo); flex-shrink: 0; margin-top: 4px;"></div> 
-                  Paternity: 7 days (Male staff).
-                </li>
-                <li style="display: flex; align-items: start; gap: 10px; font-size: 12px; color: #64748b; margin-bottom: 6px; font-weight: 700;">
-                  <div style="width: 5px; height: 5px; border-radius: 50%; background:var(--red); flex-shrink: 0; margin-top: 4px;"></div> 
-                  Emergency: Valid reason/proof required.
-                </li>
-                <li style="display: flex; align-items: start; gap: 10px; font-size: 12px; color: #64748b; font-weight: 700;">
-                  <div style="width: 5px; height: 5px; border-radius: 50%; background:var(--orange); flex-shrink: 0; margin-top: 4px;"></div> 
-                  Unpaid: Approval based on HR policy.
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        
-        <div class="mt-12 text-center opacity-30 text-[10px] font-bold uppercase tracking-widest">
-            v1.2.5 © 2024 Klinik Dr Mohamad
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        <div class="cal-card" style="flex-grow: 1;">
+          <h3 style="font-weight:800; font-size:16px; margin: 0 0 16px 0; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+              <%= CalendarIcon("w-5 h-5 text-slate-500") %> Upcoming Holidays
+          </h3>
+          <%
+            int upCount = 0;
+            for (Holiday h : holidayUpcoming) {
+              if (upCount >= 4) break; 
+              LocalDate d = h.getDate();
+              String hType = h.getType().toUpperCase();
+              String badgeCls = hType.contains("PUBLIC") ? "public" : (hType.contains("STATE") ? "state" : "company");
+          %>
+              <div class="hListItem">
+                <div class="dateBadge <%= badgeCls %>">
+                  <span><%= d.getDayOfMonth() %></span>
+                  <span><%= d.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH).toUpperCase() %></span>
+                </div>
+                <div>
+                  <p style="font-weight:800; font-size:13px; margin:0;"><%= h.getName() %></p>
+                  <div style="color:var(--muted); font-size:11px; font-weight: 700;"><%= h.getType() %></div>
+                </div>
+              </div>
+          <% upCount++; } %>
         </div>
 
+        <div class="cal-card" style="background: #f8fafc; border: 1px dashed #e2e8f0; padding: 15px;">
+          <h3 style="font-weight:800; font-size:14px; margin: 0 0 10px 0; color: #1e293b; text-transform: uppercase;">Leave Guidelines</h3>
+          <ul style="list-style: none; padding: 0; font-size: 12px; color: #64748b; font-weight: 700;">
+            <li style="margin-bottom: 5px;">• Annual: 3 days notice.</li>
+            <li style="margin-bottom: 5px;">• Sick: MC required.</li>
+            <li style="margin-bottom: 5px;">• Maternity: 98 days (Female).</li>
+            <li>• Paternity: 7 days (Male).</li>
+          </ul>
+        </div>
       </div>
     </div>
-  </main>
+  </div>
+</div>
+
+
+</main>
 </body>
 </html>

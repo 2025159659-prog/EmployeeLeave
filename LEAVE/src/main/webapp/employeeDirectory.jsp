@@ -1,5 +1,6 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ page import="java.util.*" %>
+<%@ page import="java.text.SimpleDateFormat" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
 
 <%
@@ -12,179 +13,288 @@
 %>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Employee Directory</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee Directory | Admin Access</title>
 
-    <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <style>
-        :root{
-            --bg:#f4f6fb;
-            --card:#ffffff;
-            --border:#e5e7eb;
-            --text:#0f172a;
-            --muted:#64748b;
-            --primary:#2563eb;
-            --shadow:0 10px 25px rgba(0,0,0,0.06);
-            --radius:16px;
-        }
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #fff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      --radius: 16px;
+      --primary: #2563eb;
+      --red: #ef4444;
+      --orange: #f97316;
+      --blue: #3b82f6;
+      --teal: #14b8a6;
+      --purple: #a855f7;
+      --indigo: #6366f1;
+    }
 
-        *{box-sizing:border-box}
-        body{margin:0;font-family:Arial, sans-serif;background:var(--bg);color:var(--text);}
-        
-        /* Transition content bila sidebar resize */
-        main { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    * { 
+      box-sizing: border-box; 
+      font-family: 'Inter', Arial, sans-serif !important; 
+    }
 
-        .content { padding: 24px; }
-        .container { max-width: 1100px; margin: 0 auto; }
-        
-        .pageHeader { margin-bottom: 16px; }
-        .pageTitle { margin: 0; font-size: 22px; font-weight: 800; }
-        .pageSub { margin-top: 6px; font-size: 13px; color: var(--muted); }
+    body { 
+      margin: 0; 
+      background: var(--bg); 
+      color: var(--text);
+      overflow-x: hidden;
+    }
+    
+    main { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 
-        /* Tabs Navigation */
-        .tabs { display: flex; gap: 10px; margin: 14px 0 18px; }
-        .tab {
-            text-decoration: none; font-weight: 800; font-size: 13px; padding: 10px 12px;
-            border-radius: 12px; border: 1px solid var(--border); background: #fff; color: var(--text);
-        }
-        .tab.active { border-color: rgba(37,99,235,0.35); background: rgba(37,99,235,0.08); color: var(--primary); }
+    .pageWrap { 
+      padding: 32px 40px; 
+      max-width: 1200px; 
+      margin: 0 auto;
+    }
 
-        /* Card & Table Styles */
-        .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
-        .cardHead { padding: 16px 18px; border-bottom: 1px solid #eef2f7; display: flex; justify-content: space-between; align-items: center; font-weight: 900; }
-        
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border-bottom: 1px solid #eef2f7; padding: 14px; text-align: left; vertical-align: top; }
-        th { background: #f8fafc; font-size: 12px; text-transform: uppercase; color: #334155; }
-        
-        .small { font-size: 12px; color: #64748b; }
-        .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
-        .badge-admin { background: #eff6ff; color: #2563eb; border: 1px solid #dbeafe; }
-        .badge-emp { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+    /* Consistent Header Styling */
+    h2.title { 
+      font-size: 26px; 
+      font-weight: 800; 
+      margin: 0; 
+      color: var(--text); 
+      text-transform: uppercase; 
+      letter-spacing: -0.025em;
+    }
+    
+    .sub-label { 
+      color: var(--indigo); 
+      font-size: 11px; 
+      font-weight: 800; 
+      text-transform: uppercase; 
+      letter-spacing: 0.1em;
+      margin-top: 4px;
+      display: block;
+    }
 
-        .btnDel {
-            border: 1px solid #fecaca; background: #fff; color: #dc2626;
-            font-weight: 800; font-size: 11px; padding: 6px 12px; border-radius: 10px;
-            cursor: pointer; transition: all 0.2s; text-transform: uppercase;
-        }
-        .btnDel:hover { background: #fef2f2; }
+    /* Tabs Navigation */
+    .tabs { display: flex; gap: 12px; margin: 24px 0; }
+    .tab {
+      text-decoration: none; font-weight: 800; font-size: 12px; padding: 10px 16px;
+      border-radius: 12px; border: 1px solid var(--border); background: #fff; color: var(--muted);
+      text-transform: uppercase; transition: 0.2s;
+    }
+    .tab.active { 
+      border-color: var(--indigo); 
+      background: #f5f3ff; 
+      color: var(--indigo); 
+    }
+    .tab:hover:not(.active) {
+      border-color: var(--text);
+      color: var(--text);
+    }
 
-        .msg, .err { padding: 10px 12px; border-radius: 12px; font-size: 13px; margin-bottom: 12px; font-weight: 800; }
-        .msg { background: #ecfeff; border: 1px solid #a5f3fc; color: #0e7490; }
-        .err { background: #fee2e2; border: 1px solid #fecaca; color: #b91c1c; }
-    </style>
+    /* Card & Table Styles */
+    .card { 
+      background: var(--card); 
+      border: 1px solid var(--border); 
+      border-radius: var(--radius); 
+      box-shadow: var(--shadow); 
+      overflow: hidden; 
+    }
+    
+    .cardHead { 
+      padding: 20px 24px; 
+      border-bottom: 1px solid #f1f5f9; 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center;
+    }
+    
+    .cardHead span:first-child { font-weight: 800; font-size: 15px; color: var(--text); text-transform: uppercase; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #f1f5f9; padding: 16px 24px; text-align: left; }
+    th { 
+      background: #f8fafc; 
+      font-size: 11px; 
+      text-transform: uppercase; 
+      color: var(--muted); 
+      font-weight: 800;
+      letter-spacing: 0.05em;
+    }
+    
+    .badge { 
+      display: inline-flex; 
+      padding: 4px 10px; 
+      border-radius: 8px; 
+      font-size: 10px; 
+      font-weight: 800; 
+      text-transform: uppercase; 
+      letter-spacing: 0.02em;
+    }
+    .badge-admin { background: #eff6ff; color: var(--blue); border: 1px solid #dbeafe; }
+    .badge-emp { background: #f8fafc; color: var(--muted); border: 1px solid #e2e8f0; }
+
+    /* Updated Delete Button Style */
+    .btnDel {
+      border: 1px solid #fee2e2; 
+      background: #fff; 
+      color: var(--red);
+      font-weight: 800; 
+      font-size: 11px; 
+      padding: 8px 14px; 
+      border-radius: 10px;
+      cursor: pointer; 
+      transition: all 0.2s; 
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btnDel:hover { 
+      background: var(--red); 
+      color: #fff; 
+      border-color: var(--red);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2);
+    }
+
+    .msg, .err { padding: 14px 18px; border-radius: 12px; font-size: 13px; margin-bottom: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .msg { background: #f0fdfa; border: 1px solid #ccfbf1; color: #0f766e; }
+    .err { background: #fef2f2; border: 1px solid #fee2e2; color: #b91c1c; }
+
+    /* Custom Scrollbar */
+    .pageWrap::-webkit-scrollbar { width: 6px; }
+    .pageWrap::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+  </style>
 </head>
 
-<body>
+<body class="flex">
     <jsp:include page="sidebar.jsp" />
 
-    <main class="ml-20 lg:ml-64 min-h-screen transition-all duration-300">
-        
+    <main class="flex-1 ml-20 lg:ml-64 min-h-screen transition-all duration-300">
         <jsp:include page="topbar.jsp" />
 
-        <div class="content">
-            <div class="container">
+        <div class="pageWrap">
+            <!-- Header Section -->
+            <div class="mb-8">
+                <h2 class="title">EMPLOYEE DIRECTORY</h2>
+                <span class="sub-label">View and manage registered employees in the system.</span>
+            </div>
 
-                <div class="pageHeader">
-                    <h2 class="pageTitle">Employee Directory</h2>
-                    <p class="pageSub">View and manage registered employees in the system.</p>
+            <!-- Navigation Tabs -->
+            <div class="tabs">
+                <a class="tab" href="RegisterEmployeeServlet">
+                    <i class="fa fa-user-plus mr-2"></i>Register
+                </a>
+                <a class="tab active" href="EmployeeDirectoryServlet">
+                    <i class="fa fa-list mr-2"></i>Directory
+                </a>
+            </div>
+
+            <!-- Notifications -->
+            <c:if test="${not empty param.msg}">
+                <div class="msg shadow-sm"><i class="fa fa-check-circle"></i> ${param.msg}</div>
+            </c:if>
+            <c:if test="${not empty param.error}">
+                <div class="err shadow-sm"><i class="fa fa-exclamation-triangle"></i> ${param.error}</div>
+            </c:if>
+
+            <!-- Table Card -->
+            <div class="card">
+                <div class="cardHead">
+                    <span>Active Personnel</span>
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Administrator Access Only</span>
                 </div>
+                
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name / Designation</th>
+                                <th>Contact Details</th>
+                                <th>Employment Date</th>
+                                <th style="width:160px; text-align: center;">Management</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <%
+                            List<Map<String,Object>> users = (List<Map<String,Object>>) request.getAttribute("users");
+                            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
 
-                <div class="tabs">
-                    <a class="tab" href="RegisterEmployeeServlet">Register Employee</a>
-                    <a class="tab active" href="EmployeeDirectoryServlet">Employee Directory</a>
-                </div>
+                            if (users == null || users.isEmpty()) {
+                        %>
+                            <tr>
+                                <td colspan="4" style="text-align:center; padding:48px; color: var(--muted);">
+                                    <i class="fa fa-folder-open fa-2x mb-3 block opacity-20"></i>
+                                    No employees found in the directory.
+                                </td>
+                            </tr>
+                        <%
+                            } else {
+                                for (Map<String,Object> u : users) {
+                                    int empid = (Integer) u.get("empid");
+                                    String fullname = String.valueOf(u.get("fullname"));
+                                    String email = String.valueOf(u.get("email"));
+                                    String role = String.valueOf(u.get("role"));
+                                    String phone = String.valueOf(u.get("phone"));
+                                    Object hiredate = u.get("hiredate");
+                                    
+                                    // Formatting date to DD/MM/YYYY
+                                    String formattedDate = (hiredate != null) ? sdf.format(hiredate) : "---";
 
-                <c:if test="${not empty param.msg}">
-                    <div class="msg">${param.msg}</div>
-                </c:if>
-                <c:if test="${not empty param.error}">
-                    <div class="err">${param.error}</div>
-                </c:if>
-
-                <div class="card">
-                    <div class="cardHead">
-                        <span>Staff Directory</span>
-                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Administrator Access</span>
-                    </div>
-                    
-                    <div style="overflow-x:auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Name / Role</th>
-                                    <th>Contact Information</th>
-                                    <th>Hire Date</th>
-                                    <th style="width:140px; text-align: center;">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            <%
-                                List<Map<String,Object>> users = (List<Map<String,Object>>) request.getAttribute("users");
-
-                                if (users == null || users.isEmpty()) {
-                            %>
-                                <tr>
-                                    <td colspan="4" style="text-align:center; padding:30px; color: var(--muted);">
-                                        No employees found in the directory.
-                                    </td>
-                                </tr>
-                            <%
-                                } else {
-                                    for (Map<String,Object> u : users) {
-                                        int empid = (Integer) u.get("empid");
-                                        String fullname = String.valueOf(u.get("fullname"));
-                                        String email = String.valueOf(u.get("email"));
-                                        String role = String.valueOf(u.get("role"));
-                                        String phone = String.valueOf(u.get("phone"));
-                                        Object hiredate = u.get("hiredate");
-
-                                        boolean isAdmin = "ADMIN".equalsIgnoreCase(role);
-                            %>
-                                <tr>
-                                    <td>
-                                        <div class="font-bold text-slate-900"><%= fullname %></div>
-                                        <div class="mt-1">
-                                            <span class="badge <%= isAdmin ? "badge-admin" : "badge-emp" %>">
-                                                <%= role %>
-                                            </span>
-                                        </div>
-                                        <div class="small mt-1 uppercase font-bold tracking-tighter">ID: <%= empid %></div>
-                                    </td>
-                                    <td>
-                                        <div class="text-sm font-medium"><%= email %></div>
-                                        <div class="small mt-1"><%= (phone == null || phone.isBlank()) ? "No Phone No." : phone %></div>
-                                    </td>
-                                    <td class="text-sm font-medium text-slate-600">
-                                        <%= hiredate %>
-                                    </td>
-                                    <td style="text-align: center;">
-                                        <% if (!isAdmin) { %>
-                                            <form action="DeleteEmployeeServlet" method="post"
-                                                  onsubmit="return confirm('Are you sure you want to delete this employee? This action cannot be undone.');">
-                                                <input type="hidden" name="empid" value="<%= empid %>">
-                                                <button class="btnDel" type="submit">Delete Staff</button>
-                                            </form>
-                                        <% } else { %>
-                                            <span class="text-[10px] font-bold text-slate-300 uppercase italic">System Protected</span>
-                                        <% } %>
-                                    </td>
-                                </tr>
-                            <%
-                                    }
+                                    boolean isAdmin = "ADMIN".equalsIgnoreCase(role);
+                        %>
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td>
+                                    <div class="font-bold text-slate-800"><%= fullname %></div>
+                                    <div class="mt-1.5 flex items-center gap-2">
+                                        <span class="badge <%= isAdmin ? "badge-admin" : "badge-emp" %>">
+                                            <%= role %>
+                                        </span>
+                                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">ID: <%= empid %></span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="text-[13px] font-semibold text-slate-700"><%= email %></div>
+                                    <div class="text-[11px] text-slate-400 mt-1 font-medium">
+                                        <i class="fa fa-phone mr-1 opacity-50"></i>
+                                        <%= (phone == null || phone.isBlank()) ? "Not provided" : phone %>
+                                    </div>
+                                </td>
+                                <td class="text-[13px] font-bold text-slate-600">
+                                    <%= formattedDate %>
+                                </td>
+                                <td style="text-align: center;">
+                                    <% if (!isAdmin) { %>
+                                        <form action="DeleteEmployeeServlet" method="post" class="inline-block"
+                                              onsubmit="return confirm('WARNING: Are you sure you want to delete this employee? This action cannot be undone.');">
+                                            <input type="hidden" name="empid" value="<%= empid %>">
+                                            <button class="btnDel" type="submit">
+                                                <i class="fa fa-trash-can"></i> Delete Staff
+                                            </button>
+                                        </form>
+                                    <% } else { %>
+                                        <span class="text-[10px] font-bold text-slate-300 uppercase italic tracking-widest">
+                                            <i class="fa fa-shield-halved mr-1"></i>Protected
+                                        </span>
+                                    <% } %>
+                                </td>
+                            </tr>
+                        <%
                                 }
-                            %>
-                            </tbody>
-                        </table>
-                    </div>
-                </div><div class="mt-8 text-center opacity-30 text-[10px] font-bold uppercase tracking-widest">
-                    v1.2.1 © 2024 Klinik Dr Mohamad
+                            }
+                        %>
+                        </tbody>
+                    </table>
                 </div>
-
-            </div></div></main>
+            </div>
+        </div>
+    </main>
 </body>
 </html>

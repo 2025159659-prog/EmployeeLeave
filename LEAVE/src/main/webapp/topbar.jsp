@@ -38,7 +38,7 @@
 
     <div class="h-8 w-[1px] bg-slate-200 mx-1"></div>
 
-    <a href="ProfileServlet" class="flex items-center gap-3 group transition-all" title="Go to My Profile">
+    <a href="Profile" class="flex items-center gap-3 group transition-all" title="Go to My Profile">
       <div class="text-right hidden sm:block">
         <p class="text-[13px] font-black text-slate-900 leading-none group-hover:text-blue-600 transition-colors">
           <%= fullNameTB %>
