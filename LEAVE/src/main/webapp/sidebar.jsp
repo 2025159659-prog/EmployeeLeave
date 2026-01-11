@@ -51,28 +51,25 @@
                 <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Leave History</span>
             </a>
 
-            <a href="ManageHolidayServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("ManageHolidayServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+            <a href="ManageHolidays" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("ManageHolidays") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
                 <span class="shrink-0"><%= CalendarIcon("w-5 h-5") %></span>
                 <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Manage Holidays</span>
             </a>
 
-        <% } else if (role.equalsIgnoreCase("MANAGER")) { %>
-            <!-- MANAGER MENU -->
-            <a href="ManagerDashboardServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("ManagerDashboardServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
-                <span class="shrink-0"><%= BriefcaseIcon("w-5 h-5") %></span>
-                <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Review Dashboard</span>
-            </a>
-            <a href="LeaveHistoryServlet" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("LeaveHistoryServlet") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
-                <span class="shrink-0"><%= ClipboardListIcon("w-5 h-5") %></span>
-                <span class="hidden lg:block whitespace-nowrap text-sm font-medium">My History</span>
-            </a>
-
         <% } else { %>
-            <!-- EMPLOYEE MENU -->
+            <!-- EMPLOYEE & MANAGER COMMON MENU -->
             <a href="EmployeeDashboard" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("EmployeeDashboard") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
                 <span class="shrink-0"><%= HomeIcon("w-5 h-5") %></span>
                 <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Dashboard</span>
             </a>
+
+            <% if (role.equalsIgnoreCase("MANAGER")) { %>
+                <!-- EXTRA PAGE FOR MANAGER ONLY -->
+                <a href="ReviewLeave" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("ReviewLeave") ? "bg-orange-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
+                    <span class="shrink-0"><%= CheckCircleIcon("w-5 h-5") %></span>
+                    <span class="hidden lg:block whitespace-nowrap text-sm font-medium">Review Applications</span>
+                </a>
+            <% } %>
 
             <a href="ApplyLeave" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group <%= activePage.equalsIgnoreCase("ApplyLeave") ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800" %>">
                 <span class="shrink-0"><%= CalendarIcon("w-5 h-5") %></span>
@@ -85,11 +82,4 @@
             </a>
         <% } %>
     </nav>
-
-    <div class="p-3 border-t border-slate-800 bg-[#0f172a]">
-        <a href="LogoutServlet" class="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-red-400 hover:bg-red-500/10 transition-colors font-medium">
-            <span class="shrink-0"><%= LogOutIcon("w-5 h-5") %></span>
-            <span class="hidden lg:block text-sm">Sign Out</span>
-        </a>
-    </div>
 </aside>

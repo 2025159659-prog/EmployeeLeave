@@ -6,15 +6,12 @@ import java.io.IOException;
 import java.sql.*;
 import java.util.*;
 
-@WebServlet("/EmployeeDirectoryServlet")
-public class EmployeeDirectoryServlet extends HttpServlet {
+@WebServlet("/EmployeeDirectory")
+public class EmployeeDirectory extends HttpServlet {
 
-    /**
-	 * 
-	 */
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
+    @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
@@ -26,9 +23,8 @@ public class EmployeeDirectoryServlet extends HttpServlet {
         }
 
         List<Map<String, Object>> users = new ArrayList<>();
-
-        String sql = "SELECT EMPID, FULLNAME, EMAIL, ROLE, PHONENO, HIREDATE " +
-                     "FROM USERS ORDER BY FULLNAME ASC";
+        String sql = "SELECT EMPID, FULLNAME, EMAIL, ROLE, PHONENO, HIREDATE, STATUS " +
+                     "FROM USERS ORDER BY STATUS ASC, FULLNAME ASC";
 
         try (Connection con = DatabaseConnection.getConnection();
              PreparedStatement ps = con.prepareStatement(sql);
@@ -42,6 +38,7 @@ public class EmployeeDirectoryServlet extends HttpServlet {
                 u.put("role", rs.getString("ROLE"));
                 u.put("phone", rs.getString("PHONENO"));
                 u.put("hiredate", rs.getDate("HIREDATE"));
+                u.put("status", rs.getString("STATUS") != null ? rs.getString("STATUS") : "ACTIVE");
                 users.add(u);
             }
         } catch (Exception e) {

@@ -1,5 +1,6 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<%@ include file="icon.jsp" %>
 <%
     if (session.getAttribute("empid") == null || session.getAttribute("role") == null ||
         !"ADMIN".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
@@ -14,7 +15,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register Employee | Admin Access</title>
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
@@ -22,13 +22,14 @@
         :root {
             --bg: #f8fafc;
             --card: #ffffff;
-            --border: #e2e8f0;
+            --border: #cbd5e1;
             --text: #1e293b;
             --muted: #64748b;
-            --primary: #2563eb;
-            --indigo: #6366f1;
-            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-            --radius: 16px;
+            --blue-primary: #2563eb;
+            --blue-light: #eff6ff;
+            --blue-hover: #1d4ed8;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            --radius: 12px;
         }
 
         * { 
@@ -51,7 +52,6 @@
             margin: 0 auto;
         }
 
-        /* Consistent Header Styling */
         h2.title { 
             font-size: 26px; 
             font-weight: 800; 
@@ -62,7 +62,7 @@
         }
         
         .sub-label { 
-            color: var(--indigo); 
+            color: var(--blue-primary); 
             font-size: 11px; 
             font-weight: 800; 
             text-transform: uppercase; 
@@ -71,24 +71,24 @@
             display: block;
         }
 
-        /* Tabs Navigation */
         .tabs { display: flex; gap: 12px; margin: 24px 0; }
         .tab {
             text-decoration: none; font-weight: 800; font-size: 12px; padding: 10px 16px;
-            border-radius: 12px; border: 1px solid var(--border); background: #fff; color: var(--muted);
+            border-radius: 10px; border: 1px solid var(--border); background: #fff; color: var(--muted);
             text-transform: uppercase; transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
         }
         .tab.active { 
-            border-color: var(--indigo); 
-            background: #f5f3ff; 
-            color: var(--indigo); 
+            border-color: var(--blue-primary); 
+            background: var(--blue-light); 
+            color: var(--blue-primary); 
         }
         .tab:hover:not(.active) {
             border-color: var(--text);
             color: var(--text);
         }
 
-        /* Card & Form Styles */
         .card { 
             background: var(--card); 
             border: 1px solid var(--border); 
@@ -124,21 +124,24 @@
             letter-spacing: 0.05em;
         }
 
+        /* Input specific changes: 18px horizontal padding for the typing gap */
         input, select {
             width: 100%; 
-            padding: 12px 16px; 
+            height: 48px;
+            padding: 0 18px; 
             border: 1px solid var(--border);
-            border-radius: 12px; 
+            border-radius: 10px; 
             font-size: 14px; 
             background: #fff;
             color: var(--text);
             transition: 0.2s;
             font-weight: 500;
         }
+        
         input:focus, select:focus { 
             outline: none; 
-            border-color: var(--indigo); 
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); 
+            border-color: var(--blue-primary); 
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); 
         }
         input::placeholder { color: #cbd5e1; }
 
@@ -153,7 +156,7 @@
 
         .btn { 
             padding: 12px 24px; 
-            border-radius: 12px; 
+            border-radius: 10px; 
             cursor: pointer; 
             font-weight: 800; 
             font-size: 13px; 
@@ -165,24 +168,16 @@
             align-items: center;
             gap: 8px;
         }
-        .btnPrimary { 
-            background: var(--indigo); 
-            color: #fff; 
-        }
+        
+        .btnPrimary { background: var(--blue-primary); color: #fff; }
         .btnPrimary:hover {
-            background: #4f46e5;
+            background: var(--blue-hover);
             transform: translateY(-1px);
-            box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.3);
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
         }
-        .btnGhost { 
-            background: #fff; 
-            border: 1px solid var(--border); 
-            color: var(--text); 
-        }
-        .btnGhost:hover {
-            background: #f8fafc;
-            border-color: var(--text);
-        }
+        
+        .btnGhost { background: #fff; border: 1px solid var(--border); color: var(--text); }
+        .btnGhost:hover { background: #f8fafc; border-color: var(--text); }
 
         .msg, .err { padding: 14px 18px; border-radius: 12px; font-size: 13px; margin-bottom: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
         .msg { background: #f0fdfa; border: 1px solid #ccfbf1; color: #0f766e; }
@@ -192,6 +187,11 @@
             .grid-form { grid-template-columns: 1fr; } 
             .span2 { grid-column: span 1; } 
         }
+        
+        /* Icon Sizing */
+        .icon-sm { width: 16px; height: 16px; }
+        .icon-md { width: 20px; height: 20px; }
+        .icon-lg { width: 24px; height: 24px; }
     </style>
 </head>
 
@@ -202,35 +202,31 @@
         <jsp:include page="topbar.jsp" />
 
         <div class="pageWrap">
-            <!-- Header Section -->
             <div class="mb-8">
                 <h2 class="title">REGISTER EMPLOYEE</h2>
-                <span class="sub-label">Create a new employee account. Use a valid email because it will be used for login.</span>
+                <span class="sub-label">Complete the fields below to create a secure employee profile.</span>
             </div>
 
-            <!-- Navigation Tabs -->
             <div class="tabs">
                 <a class="tab active" href="RegisterEmployeeServlet">
-                    <i class="fa fa-user-plus mr-2"></i>Register
+                    <%= PlusIcon("icon-sm mr-2") %>Register
                 </a>
-                <a class="tab" href="EmployeeDirectoryServlet">
-                    <i class="fa fa-list mr-2"></i>Directory
+                <a class="tab" href="EmployeeDirectory">
+                    <%= UsersIcon("icon-sm mr-2") %>Directory
                 </a>
             </div>
 
-            <!-- Notifications -->
             <c:if test="${not empty param.msg}">
-                <div class="msg shadow-sm"><i class="fa fa-check-circle"></i> ${param.msg}</div>
+                <div class="msg shadow-sm"><%= CheckCircleIcon("icon-md") %> ${param.msg}</div>
             </c:if>
             <c:if test="${not empty param.error}">
-                <div class="err shadow-sm"><i class="fa fa-exclamation-triangle"></i> ${param.error}</div>
+                <div class="err shadow-sm"><%= AlertIcon("icon-md") %> ${param.error}</div>
             </c:if>
 
-            <!-- Registration Card -->
             <div class="card">
                 <div class="cardHead">
-                    <span>Account Information</span>
-                    <i class="fa fa-id-card text-slate-300"></i>
+                    <span>Account Identification</span>
+                    <%= BriefcaseIcon("icon-lg text-blue-200") %>
                 </div>
 
                 <div class="cardBody">
@@ -248,12 +244,12 @@
 
                             <div class="field">
                                 <label>System Password *</label>
-                                <input type="password" name="password" placeholder="Min. 8 characters" required>
+                                <input type="password" name="password" placeholder="••••••••" required>
                             </div>
 
                             <div class="field">
-                                <label>IC Number (No dashes) *</label>
-                                <input type="text" name="icNumber" placeholder="e.g., 900101045566" required>
+                                <label>IC Number *</label>
+                                <input type="text" name="icNumber" placeholder="900101045566" required>
                             </div>
 
                             <div class="field">
@@ -267,7 +263,7 @@
 
                             <div class="field">
                                 <label>Phone Contact</label>
-                                <input type="text" name="phoneNo" placeholder="e.g., 0123456789">
+                                <input type="text" name="phoneNo" placeholder="0123456789">
                             </div>
 
                             <div class="field">
@@ -276,35 +272,61 @@
                             </div>
 
                             <div class="field span2">
-                                <label>Home Address</label>
-                                <input type="text" name="address" placeholder="Full residential address">
+                                <label>Street Address *</label>
+                                <input type="text" name="street" placeholder="No. 12, Jalan Merlimau" required>
+                            </div>
+
+                            <div class="field">
+                                <label>City *</label>
+                                <input type="text" name="city" placeholder="Jasin" required>
+                            </div>
+
+                            <div class="field">
+                                <label>Postal Code *</label>
+                                <input type="text" name="postalCode" placeholder="77300" required>
                             </div>
 
                             <div class="field span2">
-                                <label>System Access Level *</label>
-                                <select name="role" required style="font-weight: 700; color: var(--indigo); border-color: var(--indigo);">
-                                    <option value="EMPLOYEE">STANDARD EMPLOYEE</option>
-                                    <option value="ADMIN">ADMINISTRATOR</option>
+                                <label>State *</label>
+                                <select name="state" required>
+                                    <option value="" disabled selected>Select State</option>
+                                    <optgroup label="States">
+                                        <option value="Johor">Johor</option>
+                                        <option value="Kedah">Kedah</option>
+                                        <option value="Kelantan">Kelantan</option>
+                                        <option value="Melaka">Melaka</option>
+                                        <option value="Negeri Sembilan">Negeri Sembilan</option>
+                                        <option value="Pahang">Pahang</option>
+                                        <option value="Perak">Perak</option>
+                                        <option value="Perlis">Perlis</option>
+                                        <option value="Penang">Penang</option>
+                                        <option value="Selangor">Selangor</option>
+                                        <option value="Terengganu">Terengganu</option>
+                                    </optgroup>
+                                    <optgroup label="Federal Territories">
+                                        <option value="Kuala Lumpur">Kuala Lumpur</option>
+                                        <option value="Putrajaya">Putrajaya</option>
+                                        <option value="Labuan">Labuan</option>
+                                    </optgroup>
+                                    <optgroup label="East Malaysia">
+                                        <option value="Sabah">Sabah</option>
+                                        <option value="Sarawak">Sarawak</option>
+                                    </optgroup>
                                 </select>
                             </div>
                         </div>
 
                         <div class="actions">
-                            <a class="btn btnGhost" href="EmployeeDirectoryServlet">
-                                <i class="fa fa-arrow-left"></i> Cancel
+                            <a class="btn btnGhost" href="EmployeeDirectory">
+                                <%= ArrowLeftIcon("icon-sm") %> Cancel
                             </a>
                             <button class="btn btnPrimary" type="submit">
-                                <i class="fa fa-save"></i> Create Account
+                                <%= SaveIcon("icon-sm") %> Create Account
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
-
-            <div class="mt-12 text-center opacity-30 text-[10px] font-bold uppercase tracking-widest">
-                v1.2.2 © 2024 Klinik Dr Mohamad • Security Level: High
-            </div>
-
         </div>
     </main>
 </body>

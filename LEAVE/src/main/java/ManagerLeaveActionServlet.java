@@ -26,7 +26,7 @@ public class ManagerLeaveActionServlet extends HttpServlet {
         String comment = request.getParameter("comment");
 
         if (leaveIdStr == null || action == null) {
-            response.sendRedirect("ManagerDashboardServlet?error=Invalid+Request");
+            response.sendRedirect("ReviewLeave?error=Invalid+Request");
             return;
         }
 
@@ -77,9 +77,9 @@ public class ManagerLeaveActionServlet extends HttpServlet {
 
             con.commit();
             String msg = URLEncoder.encode("Leave " + finalStatus.toLowerCase() + " successfully.", StandardCharsets.UTF_8);
-            response.sendRedirect("ManagerDashboardServlet?msg=" + msg);
+            response.sendRedirect("ReviewLeave?msg=" + msg);
         } catch (Exception e) {
-            response.sendRedirect("ManagerDashboardServlet?error=" + URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8));
+            response.sendRedirect("ReviewLeave?error=" + URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8));
         }
     }
 }

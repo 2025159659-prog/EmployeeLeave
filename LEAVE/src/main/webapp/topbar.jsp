@@ -1,6 +1,8 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="icon.jsp" %>
 
 <%
+    // Retrieve user data from session
     String fullNameTB = (session.getAttribute("fullname") != null)
             ? session.getAttribute("fullname").toString()
             : "User";
@@ -9,55 +11,78 @@
             ? session.getAttribute("role").toString()
             : "EMPLOYEE";
 
-    String initial = (fullNameTB != null && !fullNameTB.isBlank()) 
-            ? ("" + fullNameTB.charAt(0)).toUpperCase() : "U";
+    // Generate initial for avatar fallback
+    String initialTB = (fullNameTB != null && !fullNameTB.isBlank()) 
+            ? ("" + fullNameTB.trim().charAt(0)).toUpperCase() : "U";
 
-    // Determine Portal Name based on role
+    // Dynamic Portal Title based on Role
     String portalName = "Employee Portal";
-    if (roleTB.equalsIgnoreCase("ADMIN")) {
+    if ("ADMIN".equalsIgnoreCase(roleTB)) {
         portalName = "Admin Portal";
-    } else if (roleTB.equalsIgnoreCase("MANAGER")) {
+    } else if ("MANAGER".equalsIgnoreCase(roleTB)) {
         portalName = "Management Portal";
     }
+
+    // Retrieve profile picture path from session
+    Object sessionPic = session.getAttribute("profilePic");
+    String profilePicTB = (sessionPic != null) ? sessionPic.toString() : null;
 %>
 
-<header class="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-40 transition-all duration-300">
+<header class="h-16 bg-white/90 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-50 transition-all duration-300">
   
+  <!-- Left Side: Portal Identity -->
   <div class="flex items-center gap-4">
-    <h2 class="text-sm font-extrabold text-slate-800 tracking-tight uppercase">
+    <div class="w-1.5 h-6 bg-blue-600 rounded-full hidden sm:block"></div>
+    <h2 class="text-[13px] font-black text-slate-800 tracking-tight uppercase">
       <%= portalName %>
     </h2>
   </div>
 
-  <div class="flex items-center gap-4">
-    
-    <button class="w-10 h-10 flex items-center justify-center rounded-full border border-slate-200 bg-white hover:bg-slate-50 transition-colors text-slate-600 relative" title="Notifications">
-      <span class="text-lg">🔔</span>
-      <span class="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-    </button>
+  <!-- Right Side: User Dropdown -->
+  <div class="flex items-center">
 
-    <div class="h-8 w-[1px] bg-slate-200 mx-1"></div>
-
-    <a href="Profile" class="flex items-center gap-3 group transition-all" title="Go to My Profile">
-      <div class="text-right hidden sm:block">
-        <p class="text-[13px] font-black text-slate-900 leading-none group-hover:text-blue-600 transition-colors">
-          <%= fullNameTB %>
-        </p>
-        <p class="text-[10px] text-slate-500 font-bold uppercase mt-1 tracking-wider">
-          <%= roleTB %>
-        </p>
-      </div>
-
-      <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-sm shadow-md shadow-blue-200 border-2 border-slate-50 group-hover:scale-105 transition-transform">
-        <% 
-            String profilePic = (session.getAttribute("profilePic") != null) ? session.getAttribute("profilePic").toString() : null;
-            if (profilePic != null && !profilePic.isBlank()) { 
-        %>
-          <img src="<%= profilePic %>" alt="Profile" class="w-full h-full object-cover rounded-full">
+    <!-- Profile Dropdown Container -->
+    <div class="relative group">
+      
+      <!-- Trigger: Avatar only -->
+      <button class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-blue-500/20 border-2 border-slate-50 group-hover:scale-105 group-hover:rotate-2 transition-all overflow-hidden cursor-pointer focus:outline-none">
+        <% if (profilePicTB != null && !profilePicTB.isBlank()) { %>
+          <img src="<%= profilePicTB %>" alt="Profile" class="w-full h-full object-cover">
         <% } else { %>
-          <%= initial %>
+          <%= initialTB %>
         <% } %>
+      </button>
+
+      <!-- Dropdown Menu -->
+      <div class="absolute right-0 mt-2 w-56 origin-top-right bg-white border border-slate-200 rounded-2xl shadow-xl opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-200 z-50 overflow-hidden">
+        
+        <!-- Header Info (Optional but good for context) -->
+        <div class="px-4 py-3 border-b border-slate-50 bg-slate-50/50">
+          <p class="text-[11px] font-black text-slate-900 leading-tight truncate"><%= fullNameTB %></p>
+          <p class="text-[9px] text-slate-400 font-extrabold uppercase mt-1 tracking-widest"><%= roleTB %></p>
+        </div>
+
+        <div class="py-1">
+          <!-- Profile Link -->
+          <a href="Profile" class="flex items-center gap-3 px-4 py-2.5 text-[11px] font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+            <%= UsersIcon("w-4 h-4") %>
+            <span>MY PROFILE</span>
+          </a>
+
+          <!-- Change Password Link -->
+          <a href="ChangePassword" class="flex items-center gap-3 px-4 py-2.5 text-[11px] font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+            <%= LockIcon("w-4 h-4") %>
+            <span>CHANGE PASSWORD</span>
+          </a>
+
+          <!-- Logout Link -->
+          <a href="LogoutServlet" class="flex items-center gap-3 px-4 py-2.5 text-[11px] font-bold text-red-500 hover:bg-red-50 transition-colors border-t border-slate-50">
+            <%= LogOutIcon("w-4 h-4") %>
+            <span>LOG OUT</span>
+          </a>
+        </div>
       </div>
-    </a>
+
+    </div>
   </div>
 </header>

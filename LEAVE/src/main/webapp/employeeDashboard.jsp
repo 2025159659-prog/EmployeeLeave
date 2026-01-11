@@ -4,17 +4,17 @@
 <%@ page import="bean.LeaveBalance, bean.Holiday, util.LeaveBalanceEngine" %>
 
 <%
-  // =========================
-  // KAWALAN KESELAMATAN
-  // =========================
-  HttpSession ses = request.getSession(false);
-  if (ses == null || ses.getAttribute("empid") == null ||
-      ses.getAttribute("role") == null ||
-      !"EMPLOYEE".equalsIgnoreCase(String.valueOf(ses.getAttribute("role")))) {
-    response.sendRedirect(request.getContextPath() + "/login.jsp?error=Sila+log+masuk+sebagai+pekerja");
-    return;
-  }
+//=========================
+//SECURITY CHECK
+//=========================
+HttpSession ses = request.getSession(false);
+String role = (ses != null) ? String.valueOf(ses.getAttribute("role")) : "";
 
+if (ses == null || ses.getAttribute("empid") == null ||
+(!"EMPLOYEE".equalsIgnoreCase(role) && !"MANAGER".equalsIgnoreCase(role))) {
+response.sendRedirect(request.getContextPath() + "/login.jsp?error=Please+login+as+employee+or+manager");
+return;
+}
   String fullname = String.valueOf(ses.getAttribute("fullname"));
 
   // =========================

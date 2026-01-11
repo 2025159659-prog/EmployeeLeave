@@ -3,90 +3,158 @@ package dao;
 import bean.LeaveRecord;
 import util.DatabaseConnection;
 import java.sql.*;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+/**
+ * LeaveDAO handles all database operations for leave management.
+ * Optimized for MVC pattern and high-performance administrative views.
+ */
 public class AdminLeaveHistoryDAO {
 
+    private final SimpleDateFormat sdfDate = new SimpleDateFormat("dd/MM/yyyy");
+    private final SimpleDateFormat sdfTime = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+
+    /**
+     * ADMIN: Fetch all years where leaves were requested for the filter dropdown.
+     * This method is used by the LeaveEmpHistory servlet to populate filters.
+     */
     public List<String> getFilterYears() throws Exception {
         List<String> years = new ArrayList<>();
         String sql = "SELECT DISTINCT EXTRACT(YEAR FROM START_DATE) AS YR FROM LEAVE_REQUESTS ORDER BY YR DESC";
         try (Connection con = DatabaseConnection.getConnection();
              PreparedStatement ps = con.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) years.add(rs.getString("YR"));
+            while (rs.next()) {
+                years.add(rs.getString("YR"));
+            }
         }
         return years;
     }
 
-    public List<LeaveRecord> getAdminLeaveHistory(String statusFilter, String yearFilter) throws Exception {
-        List<LeaveRecord> history = new ArrayList<>();
+    /**
+     * ADMIN: Fetch global leave history with employee details and attachments.
+     * Includes a subquery to fetch the attachment filename for the "View Data" popup.
+     */
+    public List<LeaveRecord> getAllHistory(String status, String month, String year) throws Exception {
+        List<LeaveRecord> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder();
         
-        sql.append("SELECT lr.*, u.FULLNAME, u.PROFILE_PICTURE, u.HIREDATE, lt.TYPE_CODE, ls.STATUS_CODE, ")
-           .append("(SELECT a.FILE_NAME FROM LEAVE_REQUEST_ATTACHMENTS a WHERE a.LEAVE_ID = lr.LEAVE_ID ORDER BY a.UPLOADED_ON DESC FETCH FIRST 1 ROW ONLY) AS ATTACH_NAME ")
+        sql.append("SELECT lr.*, u.FULLNAME, u.EMPID as USER_ID, u.HIREDATE, u.PROFILE_PICTURE, lt.TYPE_CODE, ls.STATUS_CODE, ")
+           // Subquery to fetch the attachment filename for the specific leave request
+           .append("(SELECT a.FILE_NAME FROM LEAVE_REQUEST_ATTACHMENTS a WHERE a.LEAVE_ID = lr.LEAVE_ID FETCH FIRST 1 ROW ONLY) AS ATTACHMENT_NAME ")
            .append("FROM LEAVE_REQUESTS lr ")
            .append("JOIN USERS u ON lr.EMPID = u.EMPID ")
            .append("JOIN LEAVE_TYPES lt ON lr.LEAVE_TYPE_ID = lt.LEAVE_TYPE_ID ")
            .append("JOIN LEAVE_STATUSES ls ON lr.STATUS_ID = ls.STATUS_ID ")
            .append("WHERE 1=1 ");
 
-        if (statusFilter != null && !statusFilter.isBlank() && !"ALL".equalsIgnoreCase(statusFilter)) {
+        // Dynamic Filtering logic
+        if (status != null && !status.isEmpty() && !"ALL".equalsIgnoreCase(status)) {
             sql.append(" AND UPPER(ls.STATUS_CODE) = ? ");
         }
-        if (yearFilter != null && !yearFilter.isBlank()) {
+        if (year != null && !year.isEmpty()) {
             sql.append(" AND EXTRACT(YEAR FROM lr.START_DATE) = ? ");
         }
+        if (month != null && !month.isEmpty()) {
+            sql.append(" AND EXTRACT(MONTH FROM lr.START_DATE) = ? ");
+        }
+        
         sql.append(" ORDER BY lr.APPLIED_ON DESC");
 
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql.toString())) {
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
             
             int idx = 1;
-            if (statusFilter != null && !statusFilter.isBlank() && !"ALL".equalsIgnoreCase(statusFilter)) {
-                ps.setString(idx++, statusFilter.trim().toUpperCase());
+            if (status != null && !status.isEmpty() && !"ALL".equalsIgnoreCase(status)) {
+                ps.setString(idx++, status.toUpperCase());
             }
-            if (yearFilter != null && !yearFilter.isBlank()) {
-                ps.setInt(idx++, Integer.parseInt(yearFilter));
+            if (year != null && !year.isEmpty()) {
+                ps.setInt(idx++, Integer.parseInt(year));
+            }
+            if (month != null && !month.isEmpty()) {
+                ps.setInt(idx++, Integer.parseInt(month));
             }
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    LeaveRecord lr = new LeaveRecord();
-                    lr.setId(rs.getInt("LEAVE_ID"));
-                    lr.setEmpId(rs.getInt("EMPID"));
-                    lr.setFullName(rs.getString("FULLNAME"));
-                    lr.setProfilePic(rs.getString("PROFILE_PICTURE"));
-                    lr.setHireDate(rs.getDate("HIREDATE"));
-                    lr.setTypeCode(rs.getString("TYPE_CODE"));
-                    lr.setStatusCode(rs.getString("STATUS_CODE"));
-                    lr.setStartDate(rs.getDate("START_DATE"));
-                    lr.setEndDate(rs.getDate("END_DATE"));
-                    lr.setAppliedOn(rs.getTimestamp("APPLIED_ON"));
-                    lr.setReason(rs.getString("REASON"));
-                    lr.setAdminComment(rs.getString("ADMIN_COMMENT"));
-                    lr.setFileName(rs.getString("ATTACH_NAME"));
-                    lr.setHasFile(lr.getFileName() != null);
-                    lr.setDbDuration(rs.getString("DURATION"));
-                    lr.setHalfSession(rs.getString("HALF_SESSION"));
-                    
-                    double days = rs.getDouble("DURATION_DAYS");
-                    lr.setTotalDays((!rs.wasNull() && days > 0) ? days : lr.calculateDateDiff());
-
-                    // Mapping Dynamic Attributes (Inheritance)
-                    Map<String, String> meta = new HashMap<>();
-                    if(rs.getString("MEDICAL_FACILITY") != null) meta.put("Medical Facility", rs.getString("MEDICAL_FACILITY"));
-                    if(rs.getString("REF_SERIAL_NO") != null) meta.put("Ref Serial No", rs.getString("REF_SERIAL_NO"));
-                    if(rs.getDate("EVENT_DATE") != null) meta.put("Event Date", new SimpleDateFormat("dd/MM/yyyy").format(rs.getDate("EVENT_DATE")));
-                    if(rs.getString("EMERGENCY_CATEGORY") != null) meta.put("Emergency Category", rs.getString("EMERGENCY_CATEGORY"));
-                    if(rs.getString("EMERGENCY_CONTACT") != null) meta.put("Emergency Phone", rs.getString("EMERGENCY_CONTACT"));
-                    if(rs.getString("SPOUSE_NAME") != null) meta.put("Spouse Name", rs.getString("SPOUSE_NAME"));
-                    lr.setTypeSpecificData(meta);
-
-                    history.add(lr);
+                    list.add(mapResultSetToRecord(rs));
                 }
             }
         }
-        return history;
+        return list;
+    }
+
+    /**
+     * Helper: Maps SQL ResultSet to LeaveRecord Bean.
+     * Ensures primary data, staff metadata (Hire Date, Photo), and dynamic attributes are populated.
+     */
+    private LeaveRecord mapResultSetToRecord(ResultSet rs) throws SQLException {
+        LeaveRecord r = new LeaveRecord();
+        r.setLeaveId(rs.getInt("LEAVE_ID"));
+        r.setEmpId(rs.getInt("USER_ID"));
+        r.setFullName(rs.getString("FULLNAME"));
+        r.setHireDate(rs.getDate("HIREDATE"));
+        r.setProfilePic(rs.getString("PROFILE_PICTURE"));
+        
+        r.setTypeCode(rs.getString("TYPE_CODE"));
+        r.setStatusCode(rs.getString("STATUS_CODE"));
+        r.setDurationDays(rs.getDouble("DURATION_DAYS"));
+        r.setDuration(rs.getString("DURATION"));
+        
+        // Formatting Dates for consistent UI display in JSP
+        if (rs.getDate("START_DATE") != null) r.setStartDate(sdfDate.format(rs.getDate("START_DATE")));
+        if (rs.getDate("END_DATE") != null) r.setEndDate(sdfDate.format(rs.getDate("END_DATE")));
+        if (rs.getTimestamp("APPLIED_ON") != null) r.setAppliedOn(sdfTime.format(rs.getTimestamp("APPLIED_ON")));
+        
+        r.setReason(rs.getString("REASON"));
+        r.setAdminComment(rs.getString("ADMIN_COMMENT"));
+        
+        // Metadata for "View Data" Details Popup
+        r.setMedicalFacility(rs.getString("MEDICAL_FACILITY"));
+        r.setRefSerialNo(rs.getString("REF_SERIAL_NO"));
+        
+        java.sql.Date evt = rs.getDate("EVENT_DATE");
+        r.setEventDate(evt != null ? sdfDate.format(evt) : "");
+        
+        java.sql.Date dis = rs.getDate("DISCHARGE_DATE");
+        r.setDischargeDate(dis != null ? sdfDate.format(dis) : "");
+        
+        r.setEmergencyCategory(rs.getString("EMERGENCY_CATEGORY"));
+        r.setEmergencyContact(rs.getString("EMERGENCY_CONTACT"));
+        r.setSpouseName(rs.getString("SPOUSE_NAME"));
+        
+        // Populate the attachment filename from the subquery result
+        r.setAttachment(rs.getString("ATTACHMENT_NAME"));
+        
+        return r;
+    }
+
+    /**
+     * Utility: Calculate working days (excluding weekends and holidays).
+     */
+    public double calculateWorkingDays(LocalDate start, LocalDate end) throws Exception {
+        double count = 0;
+        Set<LocalDate> holidays = new HashSet<>();
+        try (Connection con = DatabaseConnection.getConnection()) {
+            String sql = "SELECT HOLIDAY_DATE FROM HOLIDAYS WHERE HOLIDAY_DATE BETWEEN ? AND ?";
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setDate(1, java.sql.Date.valueOf(start));
+                ps.setDate(2, java.sql.Date.valueOf(end));
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) holidays.add(rs.getDate("HOLIDAY_DATE").toLocalDate());
+                }
+            }
+        }
+        LocalDate curr = start;
+        while (!curr.isAfter(end)) {
+            if (curr.getDayOfWeek() != DayOfWeek.SATURDAY && curr.getDayOfWeek() != DayOfWeek.SUNDAY && !holidays.contains(curr)) {
+                count++;
+            }
+            curr = curr.plusDays(1);
+        }
+        return count;
     }
 }

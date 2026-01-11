@@ -1,5 +1,3 @@
-
-
 import bean.Holiday;
 import bean.LeaveBalance;
 import dao.EmployeeDAO;
@@ -21,15 +19,16 @@ public class EmployeeDashboard extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) 
             throws ServletException, IOException {
-        
-        // 1. SECURITY CHECK
+    	 // 1. SECURITY CHECK (Updated to allow both EMPLOYEE and MANAGER)
         HttpSession session = request.getSession(false);
+        String role = (session != null) ? String.valueOf(session.getAttribute("role")) : "";
+        
         if (session == null || session.getAttribute("empid") == null ||
-            !"EMPLOYEE".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
-            response.sendRedirect("login.jsp?error=Please login as employee.");
+            (!"EMPLOYEE".equalsIgnoreCase(role) && !"MANAGER".equalsIgnoreCase(role))) {
+            
+            response.sendRedirect("login.jsp?error=Please login as an employee or manager.");
             return;
         }
-
         // 2. GET PARAMETERS
         int empId = Integer.parseInt(String.valueOf(session.getAttribute("empid")));
         LocalDate today = LocalDate.now();

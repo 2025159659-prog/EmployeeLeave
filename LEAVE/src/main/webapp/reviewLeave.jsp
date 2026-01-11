@@ -21,7 +21,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Manager Dashboard | Review Console</title>
+    <title>Review Application | Review Console</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -86,9 +86,7 @@
                     <h2 class="text-3xl font-black text-slate-800 tracking-tight uppercase">REVIEW DASHBOARD</h2>
                     <p class="text-slate-400 font-bold text-sm mt-1 uppercase tracking-widest">Management Approval Console</p>
                 </div>
-                <span class="bg-blue-600 text-white px-5 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-blue-200">
-                    <i class="fas fa-shield-alt mr-2"></i> Manager Access
-                </span>
+                
             </div>
 
             <!-- Success Message (Auto-dismisses) -->
@@ -106,14 +104,12 @@
                         <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">New Applications</span>
                         <div class="text-4xl font-black text-slate-800 mt-2"><%= pendingCount %></div>
                     </div>
-                    <div class="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center shadow-inner"><i class="fas fa-file-signature fa-2x"></i></div>
                 </div>
                 <div class="stat orange">
                     <div>
                         <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Cancellation Requests</span>
                         <div class="text-4xl font-black text-slate-800 mt-2"><%= cancelReqCount %></div>
                     </div>
-                    <div class="w-16 h-16 bg-orange-50 text-orange-500 rounded-2xl flex items-center justify-center shadow-inner"><i class="fas fa-undo-alt fa-2x"></i></div>
                 </div>
             </div>
 

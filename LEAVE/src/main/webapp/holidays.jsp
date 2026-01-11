@@ -1,370 +1,314 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
-<%@ page import="java.util.*" %>
+<%@ page import="java.util.*, bean.Holiday, java.time.format.DateTimeFormatter" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn"%>
+<%@ include file="icon.jsp" %>
 
 <%
-    // Admin guard
-    if (session.getAttribute("empid") == null || session.getAttribute("role") == null ||
-        !"ADMIN".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
-        response.sendRedirect("login.jsp?error=Please login as admin.");
-        return;
+    // ADMIN GUARD
+    HttpSession ses = request.getSession(false);
+    if (ses == null || ses.getAttribute("empid") == null || !"ADMIN".equalsIgnoreCase(String.valueOf(ses.getAttribute("role")))) {
+        response.sendRedirect("login.jsp"); return;
     }
+
+    // Retrieve data from Controller (ManageHolidays)
+    List<Holiday> holidays = (List<Holiday>) request.getAttribute("holidays");
+    String error = request.getParameter("error");
+    String msg = request.getParameter("msg");
+
+    // Formatter for display
+    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 %>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Holidays</title>
+    <title>Holiday Calendar | Admin Access</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --bg: #f4f6fb;
+            --bg: #f8fafc;
             --card: #ffffff;
-            --border: #e5e7eb;
-            --text: #0f172a;
+            --border: #cbd5e1;
+            --text: #1e293b;
             --muted: #64748b;
-            --primary: #2563eb;
-            --shadow: 0 10px 25px rgba(0,0,0,0.06);
+            --blue-primary: #2563eb;
+            --blue-light: #eff6ff;
+            --red: #ef4444;
+            --green: #10b981;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
             --radius: 16px;
         }
 
-        /* Paksa Arial secara menyeluruh */
-        * { 
-            box-sizing: border-box; 
-            font-family: Arial, sans-serif !important; 
-        }
+        * { box-sizing: border-box; font-family: 'Inter', sans-serif !important; }
+        body { background: var(--bg); color: var(--text); margin: 0; }
+        
+        .pageWrap { padding: 32px 40px; max-width: 1240px; margin: 0 auto; }
 
-        body {
-            margin: 0;
-            background: var(--bg);
-            color: var(--text);
-        }
+        .title { font-size: 26px; font-weight: 800; margin: 0; text-transform: uppercase; color: var(--text); }
+        .sub-label { color: var(--blue-primary); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; display: block; }
 
-        /* Layout Transition */
-        main { transition: all 0.3s ease; }
-        .content { padding: 24px; }
-        .container { max-width: 1100px; margin: 0 auto; }
+        /* Card Layout Pattern */
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-top: 24px; }
+        .cardHead { padding: 20px 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+        .cardHead span { font-weight: 800; font-size: 15px; color: var(--text); text-transform: uppercase; }
 
-        /* Page Header - Consistent with Dashboard */
-        .pageHeader { margin-bottom: 16px; }
-        .pageTitle { margin: 0; font-size: 22px; font-weight: 800; }
-        .pageSub { margin-top: 6px; font-size: 13px; color: var(--muted); }
-
-        .grid {
-            display: grid;
-            grid-template-columns: 380px 1fr;
-            gap: 20px;
-            align-items: start;
-        }
-        @media (max-width: 980px) {
-            .grid { grid-template-columns: 1fr; }
-        }
-
-        /* Card Styles */
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            overflow: hidden;
-        }
-        .cardPad { padding: 18px; }
-        .cardHead {
-            padding: 16px 18px;
-            border-bottom: 1px solid #eef2f7;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: 900;
-        }
-        .cardHead .left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 18px;
-        }
-
-        /* Form Controls */
-        .field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
-        label { font-weight: 800; font-size: 12px; color: #334155; text-transform: uppercase; }
-        input, select {
-            padding: 10px 12px;
-            border-radius: 12px;
-            border: 1px solid #cbd5e1;
-            background: #fff;
-            font-size: 13px;
-            outline: none;
-        }
-        input:focus, select:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
-        }
-
-        .btnPrimary {
-            width: 100%;
-            background: #1f2937;
-            color: #fff;
-            border: none;
-            border-radius: 12px;
-            padding: 12px 14px;
-            font-weight: 900;
-            font-size: 13px;
-            cursor: pointer;
-            text-transform: uppercase;
-        }
-        .btnPrimary:hover { filter: brightness(1.1); }
-
-        .btnGhost {
-            background: #fff;
-            border: 1px solid var(--border);
-            color: var(--text);
-            border-radius: 12px;
-            padding: 8px 12px;
-            font-weight: 900;
-            font-size: 11px;
-            cursor: pointer;
-        }
-
-        /* Table Styles */
+        /* Table Design */
         table { width: 100%; border-collapse: collapse; }
-        thead th {
-            text-align: left;
-            font-size: 12px;
-            font-weight: 900;
-            color: #334155;
-            padding: 14px 18px;
-            border-bottom: 1px solid #eef2f7;
-            background: #f8fafc;
-            text-transform: uppercase;
-        }
-        tbody td {
-            padding: 14px 18px;
-            border-bottom: 1px solid #f0f3f8;
-            color: var(--text);
-            font-size: 14px;
-            vertical-align: middle;
-        }
-        tbody tr:hover { background: #f8fafc; }
+        th, td { border-bottom: 1px solid #f1f5f9; padding: 18px 24px; text-align: left; vertical-align: middle; }
+        th { background: #f8fafc; font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 800; letter-spacing: 0.05em; }
 
-        .pill {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 8px;
-            font-weight: 900;
-            font-size: 11px;
-            text-transform: uppercase;
-        }
-        .pill.public { background: #fee2e2; color: #b91c1c; }
-        .pill.state { background: #ffedd5; color: #c2410c; }
-        .pill.company { background: #dbeafe; color: #1d4ed8; }
+        /* Buttons */
+        .btn-add { background: var(--blue-primary); color: white; padding: 10px 20px; border-radius: 10px; font-size: 12px; font-weight: 800; text-transform: uppercase; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
+        .btn-add:hover { background: #1d4ed8; transform: translateY(-1px); }
 
-        .actions { display: flex; justify-content: flex-end; gap: 8px; }
-        .iconBtn {
-            width: 32px; height: 32px;
-            border-radius: 10px;
-            border: 1px solid #e5e7eb;
-            background: #fff;
-            cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            color: #64748b;
-        }
-        .iconBtn:hover { background: #f8fafc; color: var(--primary); }
-        .iconBtn.danger:hover { background: #fee2e2; border-color: #fecaca; color: #dc2626; }
+        .action-btn { width: 34px; height: 34px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; transition: 0.2s; border: 1px solid var(--border); background: #fff; cursor: pointer; color: var(--muted); }
+        .btn-edit:hover { background: var(--blue-light); border-color: var(--blue-primary); color: var(--blue-primary); }
+        .btn-delete:hover { background: #fef2f2; border-color: var(--red); color: var(--red); }
 
-        /* Mesej Alert */
-        .msg, .err {
-            padding: 12px 16px;
-            border-radius: 12px;
-            font-size: 13px;
-            margin-bottom: 16px;
-            font-weight: 700;
-            border: 1px solid;
-        }
-        .msg { background: #ecfeff; border-color: #a5f3fc; color: #0e7490; }
-        .err { background: #fee2e2; border-color: #fecaca; color: #b91c1c; }
+        /* Badge Pills */
+        .pill { display: inline-block; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 10px; text-transform: uppercase; border: 1px solid transparent; }
+        .pill-public { background: #eff6ff; color: var(--blue-primary); border-color: #dbeafe; }
+        .pill-company { background: #ecfdf5; color: var(--green); border-color: #d1fae5; }
+        .pill-state { background: #fef3c7; color: #d97706; border-color: #fde68a; }
 
-        .editMode { border: 2px solid var(--primary) !important; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08); }
-        .ico { width: 16px; height: 16px; display: block; }
+        /* Modals */
+        .modal-overlay { position:fixed; inset:0; background:rgba(15, 23, 42, 0.6); display:none; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px); padding: 20px; }
+        .modal-overlay.show { display:flex; }
+        .modal-content { background:white; width: 450px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); animation: slideUp 0.3s ease; overflow: hidden; }
+        @keyframes slideUp { from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
+        
+        .modal-header { padding: 20px 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fcfcfd; }
+        .modal-body { padding: 24px; }
+        
+        .form-group { margin-bottom: 18px; }
+        .form-group label { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 6px; letter-spacing: 0.05em; }
+        .form-control { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); outline: none; font-size: 14px; font-weight: 600; color: var(--text); }
+        .form-control:focus { border-color: var(--blue-primary); }
+
+        .btn-submit { width: 100%; background: #1e293b; color: white; padding: 14px; border-radius: 12px; font-size: 12px; font-weight: 800; text-transform: uppercase; transition: 0.2s; margin-top: 10px; letter-spacing: 0.05em; }
+        .btn-submit:hover { background: var(--blue-primary); transform: translateY(-1px); }
+
+        /* Confirm Modal specific */
+        .btn-confirm-yes { background: var(--red); color: white; padding: 12px 24px; border-radius: 10px; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+        .btn-confirm-no { background: #f1f5f9; color: var(--text); padding: 12px 24px; border-radius: 10px; font-size: 12px; font-weight: 800; text-transform: uppercase; }
     </style>
 </head>
-
-<body>
+<body class="flex">
     <jsp:include page="sidebar.jsp" />
-
-    <main class="ml-20 lg:ml-64 min-h-screen transition-all duration-300">
-        
+    
+    <main class="flex-1 ml-20 lg:ml-64 min-h-screen transition-all duration-300">
         <jsp:include page="topbar.jsp" />
+        
+        <div class="pageWrap">
+            <div class="flex justify-between items-end mb-8">
+                <div>
+                    <h2 class="title">Holiday Calendar</h2>
+                    <span class="sub-label">Administrator Control Panel: Manage Public Holidays and Company Events</span>
+                </div>
+                <button onclick="openModal('ADD')" class="btn-add shadow-sm">
+                    <%= PlusIcon("w-4 h-4") %> Add Holiday
+                </button>
+            </div>
 
-        <div class="content">
-            <div class="container">
+            <!-- Feedback Messages -->
+            <% if (error != null) { %>
+                <div class="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl mb-6 font-bold text-sm flex items-center gap-3">
+                    <%= AlertIcon("w-5 h-5") %> <%= error %>
+                </div>
+            <% } %>
+            <% if (msg != null) { %>
+                <div class="bg-emerald-50 border border-emerald-100 text-emerald-600 p-4 rounded-xl mb-6 font-bold text-sm flex items-center gap-3">
+                    <%= CheckCircleIcon("w-5 h-5") %> <%= msg %>
+                </div>
+            <% } %>
 
-                <div class="pageHeader">
-                    <div>
-                        <h2 class="pageTitle">Manage Holidays</h2>
-                        <p class="pageSub">Manage list of Holiday in Malaysia.</p>
+            <div class="card">
+                <div class="cardHead">
+                    <span>System Holiday List</span>
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Total Records: <%= (holidays != null ? holidays.size() : 0) %>
                     </div>
                 </div>
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Holiday Name</th>
+                                <th>Category</th>
+                                <th>Event Date</th>
+                                <th style="text-align:right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (holidays == null || holidays.isEmpty()) { %>
+                                <tr><td colspan="4" class="py-24 text-center text-slate-300 font-bold uppercase text-xs italic tracking-widest">No holidays configured in system</td></tr>
+                            <% } else { 
+                                for (Holiday h : holidays) { 
+                                    String typeClass = "pill-public";
+                                    if("COMPANY".equalsIgnoreCase(h.getType())) typeClass = "pill-company";
+                                    else if("STATE".equalsIgnoreCase(h.getType())) typeClass = "pill-state";
 
-                <c:if test="${not empty param.msg}">
-                    <div class="msg"><b>${param.msg}</b></div>
-                </c:if>
-                <c:if test="${not empty param.error}">
-                    <div class="err"><b>${param.error}</b></div>
-                </c:if>
-
-                <div class="grid">
-                    <div id="formCard" class="card">
-                        <div class="cardHead">
-                            <div class="left">
-                                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <rect x="3" y="4" width="18" height="18" rx="2"></rect>
-                                    <path d="M16 2v4M8 2v4M3 10h18"></path>
-                                </svg>
-                                <span id="formTitle">Add New Holiday</span>
-                            </div>
-                            <button id="cancelEditBtn" type="button" class="btnGhost" style="display:none;" onclick="resetForm()">Cancel</button>
-                        </div>
-
-                        <div class="cardPad">
-                            <form id="holidayForm" action="AddHolidayServlet" method="post">
-                                <input type="hidden" name="holidayId" id="holidayId" value="">
-
-                                <div class="field">
-                                    <label>Holiday Name</label>
-                                    <input type="text" name="holidayName" id="holidayName" placeholder="e.g. Founder's Day" required>
-                                </div>
-
-                                <div class="field">
-                                    <label>Date</label>
-                                    <input type="date" name="holidayDate" id="holidayDate" required>
-                                </div>
-
-                                <div class="field">
-                                    <label>Type</label>
-                                    <select name="holidayType" id="holidayType" required>
-                                        <option value="PUBLIC">Public Holiday</option>
-                                        <option value="STATE">State</option>
-                                        <option value="COMPANY">Company</option>
-                                    </select>
-                                </div>
-
-                                <button id="submitBtn" class="btnPrimary mt-2" type="submit">Add Holiday</button>
-                            </form>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <div class="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Holiday Calendar</span>
-                            <span class="text-[11px] font-bold text-slate-500">${fn:length(holidays)} Records</span>
-                        </div>
-
-                        <div class="overflow-x-auto">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th style="width:160px;">Date</th>
-                                        <th>Holiday Name</th>
-                                        <th style="width:130px;">Type</th>
-                                        <th style="width:120px; text-align:right;">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <%
-                                        List<Map<String,Object>> holidays = (List<Map<String,Object>>) request.getAttribute("holidays");
-                                        if (holidays == null || holidays.isEmpty()) {
-                                    %>
-                                        <tr>
-                                            <td colspan="4" style="text-align:center; padding:30px; color:#64748b;">No holidays found. Add one to get started.</td>
-                                        </tr>
-                                    <%
-                                        } else {
-                                            for (Map<String,Object> h : holidays) {
-                                                String id = (h.get("id") == null) ? "" : String.valueOf(h.get("id"));
-                                                String name = (h.get("name") == null) ? "" : String.valueOf(h.get("name"));
-                                                String type = (h.get("type") == null) ? "" : String.valueOf(h.get("type"));
-                                                String dateDisplay = (h.get("dateDisplay") == null) ? "-" : String.valueOf(h.get("dateDisplay"));
-                                                String dateIso = (h.get("dateIso") == null) ? "" : String.valueOf(h.get("dateIso"));
-
-                                                String pillClass = "company";
-                                                if ("Public".equalsIgnoreCase(type)) pillClass = "public";
-                                                else if ("State".equalsIgnoreCase(type)) pillClass = "state";
-                                    %>
-                                        <tr>
-                                            <td style="font-weight: bold;"><%= dateDisplay %></td>
-                                            <td style="font-weight: 500;"><%= name %></td>
-                                            <td><span class="pill <%= pillClass %>"><%= type %></span></td>
-                                            <td style="text-align:right;">
-                                                <div class="actions">
-                                                    <button type="button" class="iconBtn" title="Edit" onclick="editHoliday('<%= escapeJs(id) %>','<%= escapeJs(name) %>','<%= escapeJs(dateIso) %>','<%= escapeJs(type) %>')">
-                                                        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
-                                                    </button>
-                                                    <form action="DeleteHolidayServlet" method="post" style="margin:0;" onsubmit="return confirm('Delete this holiday?');">
-                                                        <input type="hidden" name="holidayId" value="<%= id %>">
-                                                        <button type="submit" class="iconBtn danger" title="Delete">
-                                                            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    <% } } %>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                    String dateDisplay = (h.getDate() != null) ? h.getDate().format(dtf) : "-";
+                                    String dateIso = (h.getDate() != null) ? h.getDate().toString() : "";
+                            %>
+                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                    <td><div class="font-bold text-slate-800 text-sm"><%= h.getName() %></div></td>
+                                    <td><span class="pill <%= typeClass %>"><%= h.getType() %></span></td>
+                                    <td>
+                                        <div class="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                                            <%= CalendarIcon("w-3.5 h-3.5 text-blue-500") %> <%= dateDisplay %>
+                                        </div>
+                                    </td>
+                                    <td style="text-align:right">
+                                        <div class="flex justify-end gap-2">
+                                            <button onclick="openModal('UPDATE', '<%= h.getId() %>', '<%= h.getName() %>', '<%= dateIso %>', '<%= h.getType() %>')" class="action-btn btn-edit" title="Edit">
+                                                <%= EditIcon("w-3.5 h-3.5") %>
+                                            </button>
+                                            <form action="ManageHolidays" method="POST" id="formDelete_<%= h.getId() %>" style="display:inline">
+                                                <input type="hidden" name="action" value="DELETE">
+                                                <input type="hidden" name="holidayId" value="<%= h.getId() %>">
+                                                <button type="button" onclick="triggerConfirm('DELETE', 'formDelete_<%= h.getId() %>')" class="action-btn btn-delete" title="Delete">
+                                                    <%= TrashIcon("w-3.5 h-3.5") %>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% } } %>
+                        </tbody>
+                    </table>
                 </div>
-
-                <div class="mt-12 text-center opacity-30 text-[10px] font-bold uppercase tracking-widest">
-                    v1.2.1 © 2024 Klinik Dr Mohamad
-                </div>
-
             </div>
         </div>
     </main>
 
-    <%!
-      public static String escapeJs(String s){
-        if (s == null) return "";
-        return s.replace("\\","\\\\").replace("'","\\'").replace("\"","\\\"");
-      }
-    %>
+    <!-- Unified Modal for Add/Update -->
+    <div class="modal-overlay" id="holidayModal">
+        <div class="modal-content">
+            <form action="ManageHolidays" method="POST" id="holidayForm">
+                <input type="hidden" name="action" id="modalAction" value="ADD">
+                <input type="hidden" name="holidayId" id="modalId">
+                
+                <div class="modal-header">
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-900 uppercase" id="modalTitle">Add Holiday</h3>
+                    </div>
+                    <button type="button" onclick="closeModal()" class="text-slate-400 hover:text-red-500 transition-colors">
+                        <%= XCircleIcon("w-6 h-6") %>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Holiday Description</label>
+                        <input type="text" name="holidayName" id="modalName" class="form-control" required placeholder="e.g. Lunar New Year">
+                    </div>
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" name="holidayDate" id="modalDate" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Holiday Category</label>
+                        <select name="holidayType" id="modalType" class="form-control" required>
+                            <option value="PUBLIC">PUBLIC</option>
+                            <option value="STATE">STATE</option>
+                            <option value="COMPANY">COMPANY</option>
+                        </select>
+                    </div>
+                    <button type="button" onclick="triggerConfirm(document.getElementById('modalAction').value, 'holidayForm')" class="btn-submit shadow-lg shadow-slate-200">
+                        Confirm Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ✅ Custom UI Confirmation Modal -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-content" style="width: 400px; text-align: center; padding: 32px;">
+            <div class="mb-4 flex justify-center">
+                <div id="confirmIconContainer" class="w-16 h-16 rounded-full flex items-center justify-center">
+                    <!-- Icon injected by script -->
+                </div>
+            </div>
+            <h3 class="text-xl font-extrabold text-slate-900 uppercase mb-2" id="confirmTitle">Confirm Action</h3>
+            <p class="text-sm text-slate-500 font-medium mb-8" id="confirmMsg">Are you sure you want to proceed with this action?</p>
+            
+            <div class="flex gap-3">
+                <button type="button" onclick="closeConfirm()" class="btn-confirm-no flex-1">Cancel</button>
+                <button type="button" id="btnConfirmProceed" class="btn-confirm-yes flex-1 shadow-lg shadow-red-100">Proceed</button>
+            </div>
+        </div>
+    </div>
 
     <script>
-      function editHoliday(id, name, dateIso, type){
-        document.getElementById("holidayId").value = id || "";
-        document.getElementById("holidayName").value = name || "";
-        document.getElementById("holidayDate").value = dateIso || "";
+        let currentTargetFormId = null;
 
-        if (type && type.toUpperCase() === "PUBLIC") type = "Public";
-        if (type && type.toUpperCase() === "STATE") type = "State";
-        if (type && type.toUpperCase() === "COMPANY") type = "Company";
+        function triggerConfirm(action, formId) {
+            currentTargetFormId = formId;
+            const titleEl = document.getElementById('confirmTitle');
+            const msgEl = document.getElementById('confirmMsg');
+            const iconContainer = document.getElementById('confirmIconContainer');
+            const btnProceed = document.getElementById('btnConfirmProceed');
 
-        document.getElementById("holidayType").value = type || "Public";
+            // Reset styles
+            btnProceed.className = "btn-confirm-yes flex-1 shadow-lg";
+            iconContainer.className = "w-16 h-16 rounded-full flex items-center justify-center";
 
-        document.getElementById("holidayForm").action = "UpdateHolidayServlet";
-        document.getElementById("formTitle").textContent = "Edit Holiday";
-        document.getElementById("submitBtn").textContent = "Update Holiday";
-        document.getElementById("cancelEditBtn").style.display = "inline-block";
-        document.getElementById("formCard").classList.add("editMode");
+            if (action === 'ADD') {
+                titleEl.textContent = "Add Holiday";
+                msgEl.textContent = "Are you sure you want to register this new holiday to the calendar?";
+                iconContainer.classList.add("bg-blue-50", "text-blue-600");
+                iconContainer.innerHTML = `<%= PlusIcon("w-8 h-8") %>`;
+                btnProceed.classList.add("bg-blue-600", "shadow-blue-100");
+            } else if (action === 'UPDATE') {
+                titleEl.textContent = "Update Record";
+                msgEl.textContent = "Proceed with updating the information for this holiday?";
+                iconContainer.classList.add("bg-amber-50", "text-amber-600");
+                iconContainer.innerHTML = `<%= EditIcon("w-8 h-8") %>`;
+                btnProceed.classList.add("bg-amber-600", "shadow-amber-100");
+            } else if (action === 'DELETE') {
+                titleEl.textContent = "Permanently Delete";
+                msgEl.textContent = "Warning: This action cannot be undone. Are you sure you want to remove this holiday?";
+                iconContainer.classList.add("bg-red-50", "text-red-600");
+                iconContainer.innerHTML = `<%= TrashIcon("w-8 h-8") %>`;
+                btnProceed.classList.add("bg-red-600", "shadow-red-100");
+            }
 
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
+            btnProceed.onclick = function() {
+                document.getElementById(currentTargetFormId).submit();
+            };
 
-      function resetForm(){
-        document.getElementById("holidayForm").reset();
-        document.getElementById("holidayId").value = "";
-        document.getElementById("holidayForm").action = "AddHolidayServlet";
-        document.getElementById("formTitle").textContent = "Add New Holiday";
-        document.getElementById("submitBtn").textContent = "Add Holiday";
-        document.getElementById("cancelEditBtn").style.display = "none";
-        document.getElementById("formCard").classList.remove("editMode");
-      }
+            document.getElementById('confirmModal').classList.add('show');
+        }
+
+        function closeConfirm() {
+            document.getElementById('confirmModal').classList.remove('show');
+            currentTargetFormId = null;
+        }
+
+        function openModal(action, id = '', name = '', date = '', type = 'PUBLIC') {
+            document.getElementById('modalAction').value = action;
+            document.getElementById('modalTitle').textContent = action === 'ADD' ? 'Register New Holiday' : 'Edit Holiday Record';
+            document.getElementById('modalId').value = id;
+            document.getElementById('modalName').value = name;
+            document.getElementById('modalDate').value = date;
+            document.getElementById('modalType').value = type;
+            document.getElementById('holidayModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('holidayModal').classList.remove('show');
+        }
+
+        window.onclick = (e) => { 
+            if (e.target.id === 'holidayModal') closeModal(); 
+            if (e.target.id === 'confirmModal') closeConfirm(); 
+        }
     </script>
 </body>
 </html>

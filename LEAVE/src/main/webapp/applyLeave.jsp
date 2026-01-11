@@ -3,27 +3,36 @@
 <%@ include file="icon.jsp" %>
 
 <%
-  // =========================
-  // SECURITY & GENDER CHECK
-  // =========================
-  HttpSession ses = request.getSession(false);
-  if (ses == null || ses.getAttribute("empid") == null ||
-      ses.getAttribute("role") == null ||
-      !"EMPLOYEE".equalsIgnoreCase(String.valueOf(ses.getAttribute("role")))) {
-    response.sendRedirect("login.jsp?error=Please+login+as+employee");
-    return;
-  }
+// =========================
+// SECURITY CHECK
+// =========================
+HttpSession ses = request.getSession(false);
+String role = (ses != null) ? String.valueOf(ses.getAttribute("role")) : "";
 
-  // Robust Gender Detection
-  // We check the session attribute and normalize it
+if (ses == null || ses.getAttribute("empid") == null ||
+(!"EMPLOYEE".equalsIgnoreCase(role) && !"MANAGER".equalsIgnoreCase(role))) {
+response.sendRedirect(request.getContextPath() + "/login.jsp?error=Please+login+as+employee+or+manager");
+return;
+}
+
+  // =========================
+  // ROBUST GENDER LOGIC (Aligned with CHAR(1 BYTE))
+  // =========================
   Object genderObj = ses.getAttribute("gender");
-  String rawGender = (genderObj != null) ? String.valueOf(genderObj).trim().toUpperCase() : "M"; 
+  if (genderObj == null) genderObj = ses.getAttribute("GENDER"); // Check uppercase variant
   
-  // Detection logic: check if it starts with 'F' or 'M' to catch "Female", "Male", "F", or "M"
-  boolean isFemale = rawGender.startsWith("F");
-  boolean isMale = !isFemale; // Default to Male logic if not explicitly Female
+  // Trim is essential for CHAR(1) fields which might contain trailing spaces in some DBs
+  String gen = (genderObj != null) ? String.valueOf(genderObj).trim().toUpperCase() : ""; 
+  
+  // Logic for Female: F (Female) or P (Perempuan)
+  boolean isFemale = gen.startsWith("F") || gen.startsWith("P") || gen.contains("FEMALE") || gen.contains("PEREMPUAN");
+  
+  // Binary fallback: If not explicitly female, treat as male to ensure one option always shows
+  boolean isMale = !isFemale;
 
-  // Data from Servlet
+  // =========================
+  // DATA RETRIEVAL
+  // =========================
   List<Map<String,Object>> leaveTypes = (List<Map<String,Object>>) request.getAttribute("leaveTypes");
   if (leaveTypes == null) leaveTypes = new ArrayList<>();
 
@@ -42,48 +51,47 @@
   
   <style>
     :root {
-      --bg: #f8fafc;
+      --bg: #f1f5f9;
       --card: #ffffff;
       --border: #e2e8f0;
-      --text: #1e293b;
+      --text: #0f172a;
       --muted: #64748b;
       --primary: #2563eb;
       --primary-hover: #1d4ed8;
-      --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-      --radius: 16px;
+      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --radius: 20px;
     }
 
     * { box-sizing: border-box; font-family: 'Inter', Arial, sans-serif !important; }
-    
     body { margin: 0; background: var(--bg); color: var(--text); overflow-x: hidden; }
 
     .content { min-height: 100vh; padding: 0; }
-    .pageWrap { max-width: 1000px; margin: 0 auto; padding: 32px 40px; }
+    .pageWrap { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
 
-    h2.title { font-size: 26px; font-weight: 800; margin: 10px 0 6px; color: var(--text); text-transform: uppercase; }
-    .sub { color: var(--muted); margin: 0 0 32px; font-size: 15px; font-weight: 500; }
+    h2.title { font-size: 28px; font-weight: 800; margin: 0 0 8px; color: var(--text); letter-spacing: -0.02em; }
+    .sub { color: var(--muted); margin: 0 0 32px; font-size: 15px; }
 
     .card {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
-      padding: 32px;
+      padding: 40px;
     }
 
     .form-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      margin-bottom: 24px;
+      gap: 28px;
+      margin-bottom: 28px;
     }
     @media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } }
 
     label { 
       display: block; 
       font-size: 11px; 
-      font-weight: 800; 
-      color: var(--text); 
+      font-weight: 700; 
+      color: var(--muted); 
       margin-bottom: 8px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -103,23 +111,23 @@
       outline: none;
       border-color: var(--primary);
       box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+      transform: translateY(-1px);
     }
 
-    textarea { min-height: 100px; resize: vertical; }
+    textarea { min-height: 120px; resize: none; }
 
-    /* Duration Selector Styling */
     .duration-options {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
+      gap: 12px;
     }
     .duration-tile {
-      border: 1px solid #cbd5e1;
-      border-radius: 12px;
-      padding: 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 14px;
       text-align: center;
       cursor: pointer;
-      transition: 0.2s;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       background: #fff;
       display: flex;
       flex-direction: column;
@@ -134,64 +142,58 @@
     .duration-tile.selected {
       border-color: var(--primary);
       background: #eff6ff;
-      border-width: 2px;
+      box-shadow: 0 0 0 2px var(--primary);
     }
     .duration-tile.selected span { color: var(--primary); }
 
-    /* DYNAMIC AREA FIX */
     .dynamic-attributes {
         grid-column: span 2;
-        background: #f1f5f9;
-        border: 2px dashed var(--primary);
-        padding: 24px;
-        border-radius: 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        padding: 28px;
+        border-radius: 16px;
         display: none; 
-        margin-bottom: 24px;
+        margin-bottom: 28px;
+        animation: slideDown 0.3s ease-out;
     }
-    .dynamic-title { color: var(--primary); font-weight: 800; font-size: 12px; margin-bottom: 15px; display: block; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px; }
-    .dynamic-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .dynamic-title { color: var(--text); font-weight: 800; font-size: 13px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; text-transform: uppercase; }
+    .dynamic-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
     @media (max-width: 640px) { .dynamic-grid { grid-template-columns: 1fr; } }
 
     .btn-submit {
       background: var(--primary);
       color: #fff;
-      font-weight: 800;
-      font-size: 14px;
+      font-weight: 700;
+      font-size: 15px;
       border: none;
-      border-radius: 12px;
-      padding: 14px 28px;
+      border-radius: 14px;
+      padding: 16px 32px;
       cursor: pointer;
       width: 100%;
-      transition: 0.2s;
+      transition: all 0.2s;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      text-transform: uppercase;
+      gap: 12px;
     }
-    .btn-submit:hover { background: var(--primary-hover); transform: translateY(-1px); }
-
-    .errBox {
-      background: #fef2f2; border: 1px solid #fee2e2; color: #991b1b;
-      padding: 14px 16px; border-radius: 12px; margin-bottom: 24px; font-size: 13px;
-      display: flex; align-items: center; gap: 10px; font-weight: 700;
-    }
-
-    .hint { color: var(--muted); font-size: 11px; margin-top: 6px; font-weight: 600; }
-    .req-star { color: #ef4444; margin-left: 2px; }
+    .btn-submit:hover { background: var(--primary-hover); box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3); }
 
     .overlay {
-      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6);
-      display: none; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(4px);
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7);
+      display: none; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(8px);
     }
     .overlay.show { display: flex; }
     .modal {
-      width: 400px; background: #fff; border-radius: 24px; padding: 40px 32px; text-align: center;
-      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+      width: 440px; background: #fff; border-radius: 28px; padding: 48px 32px; text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
     }
-    .modal-icon-box { margin-bottom: 20px; display: flex; justify-content: center; }
-    .modal h3 { margin: 0 0 12px; font-size: 22px; font-weight: 800; color: #1e293b; }
-    .modal p { color: var(--muted); margin-bottom: 32px; font-size: 15px; line-height: 1.6; }
+    .modal h3 { font-size: 24px; font-weight: 800; color: #0f172a; margin: 20px 0 12px; }
+    .modal p { color: #64748b; margin-bottom: 32px; font-size: 15px; line-height: 1.6; }
+
+    .req-star { color: #ef4444; margin-left: 2px; }
+    .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -204,55 +206,46 @@
 
       <div class="pageWrap">
         
-        <div class="title-area flex justify-between items-start">
-          <div>
-            <h2 class="title">APPLY FOR LEAVE</h2>
-            <p class="sub">Submit your leave request below. Half-day requests deduct <b>0.5 days</b> from your balance.</p>
-          </div>
-
+        <div class="title-area">
+          <h2 class="title">LEAVE APPLICATION</h2>
+          <p class="sub">Please fill in the details below to submit your request.</p>
         </div>
-
-        <% if (typeError != null && !typeError.isEmpty()) { %>
-          <div class="errBox">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Error loading leave types: <%= typeError %>
-          </div>
-        <% } %>
 
         <div class="card">
           <form action="ApplyLeave" method="post" enctype="multipart/form-data" id="applyForm">
             
             <div class="form-grid">
               <div>
-                <label for="leaveTypeId">Leave Type <span class="req-star">*</span></label>
+                <label for="leaveTypeId">Type of Leave <span class="req-star">*</span></label>
                 <select name="leaveTypeId" id="leaveTypeId" required onchange="handleTypeChange()">
-                  <option value="" disabled selected>-- Select Leave Type --</option>
+                  <option value="" disabled selected>-- Select Type --</option>
                   <%
                     for (Map<String,Object> t : leaveTypes) {
                       String id = String.valueOf(t.get("id"));
-                      String code = String.valueOf(t.get("code")).toUpperCase();
-                      String desc = String.valueOf(t.get("desc"));
+                      String code = String.valueOf(t.get("code")).trim().toUpperCase();
+                      String desc = (t.get("desc") != null) ? String.valueOf(t.get("desc")).trim().toUpperCase() : "";
                       
-                      // GENDER FILTERING LOGIC
+                      // Match against both code (ML, PL) and description for eligibility filtering.
+                      boolean isMaternityType = code.contains("MATERNITY") || code.equals("ML") || desc.contains("MATERNITY");
+                      boolean isPaternityType = code.contains("PATERNITY") || code.equals("PL") || desc.contains("PATERNITY");
+
                       boolean canView = true;
-                      // If user is Male, hide Maternity options
-                      if (isMale && code.contains("MATERNITY")) {
-                          canView = false;
-                      }
-                      // If user is Female, hide Paternity options
-                      if (isFemale && code.contains("PATERNITY")) {
-                          canView = false;
-                      }
+                      
+                      // EXCLUSIVE FILTERING LOGIC:
+                      // If it is a Maternity Type, it is only visible to Females.
+                      if (isMaternityType && !isFemale) canView = false;
+                      // If it is a Paternity Type, it is only visible to Males.
+                      if (isPaternityType && !isMale) canView = false;
                       
                       if (canView) {
                   %>
-                    <option value="<%= id %>" data-code="<%= code %>"><%= code %></option>
+                    <option value="<%= id %>" data-code="<%= code %>"><%= code %> <%= (t.get("desc") != null ? "- " + t.get("desc") : "") %></option>
                   <% } } %>
                 </select>
               </div>
 
               <div>
-                <label>Duration <span class="req-star">*</span></label>
+                <label>Period <span class="req-star">*</span></label>
                 <div class="duration-options">
                   <label class="duration-tile selected" onclick="selectDuration(this)">
                     <input type="radio" name="duration" value="FULL_DAY" checked onchange="syncDates()">
@@ -269,9 +262,11 @@
                 </div>
               </div>
               
-              <!-- DYNAMIC CONTAINER -->
               <div id="dynamicAttributes" class="dynamic-attributes">
-                  <span class="dynamic-title"><i class="fas fa-list"></i> Additional Details Required</span>
+                  <span class="dynamic-title">
+                      <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                      Additional Information Required
+                  </span>
                   <div id="dynamicFields" class="dynamic-grid"></div>
               </div>
             </div>
@@ -287,28 +282,22 @@
               </div>
             </div>
 
-            <div style="margin-bottom: 24px;">
+            <div style="margin-bottom: 28px;">
               <label for="reason">Reason for Leave <span class="req-star">*</span></label>
-              <textarea name="reason" id="reason" required placeholder="Briefly describe why you are taking this leave..."></textarea>
+              <textarea name="reason" id="reason" required placeholder="Provide a detailed reason for your application..."></textarea>
             </div>
 
-            <div style="margin-bottom: 32px;">
-              <label id="docLabel">Supporting Document <span id="docRequired" style="display:none;" class="req-star">(Required *)</span></label>
-              <div class="relative">
-                 <input type="file" name="attachment" id="attachment" accept=".pdf,.png,.jpg,.jpeg" 
-                        class="bg-slate-50 border-dashed border-2 border-slate-300 p-8 cursor-pointer text-center w-full rounded-xl hover:bg-slate-100 transition-all text-sm font-semibold text-slate-500" />
-              </div>
-              <div class="hint">Recommended for all leaves. <b>Mandatory for Sick/Hospitalization/Maternity</b>. (Max 5MB)</div>
+            <div style="margin-bottom: 40px;">
+              <label>Supporting Document <span id="docRequired" style="display:none;" class="req-star">(Required *)</span></label>
+              <input type="file" name="attachment" id="attachment" accept=".pdf,.png,.jpg,.jpeg" 
+                     class="bg-slate-50 border-dashed border-2 border-slate-300 p-6 cursor-pointer text-center w-full rounded-xl hover:bg-slate-100 transition-all text-sm font-semibold text-slate-500" />
+              <div class="hint">Upload medical certificates or relevant letters. Max file size: 5MB.</div>
             </div>
 
-            <button type="submit" class="btn-submit shadow-md shadow-blue-200">
-              <%= SendIcon("w-4 h-4") %> Submit Leave Application
+            <button type="submit" class="btn-submit">
+              <%= SendIcon("w-4 h-4") %> Submit Application
             </button>
           </form>
-        </div>
-
-        <div class="mt-12 text-center opacity-30 text-[10px] font-bold uppercase tracking-widest">
-            v1.2.5 © 2024 Klinik Dr Mohamad
         </div>
       </div>
     </div>
@@ -317,12 +306,17 @@
   <!-- Success Modal -->
   <div class="overlay" id="overlay">
     <div class="modal">
-      <div class="modal-icon-box">
-          <%= CheckCircleIcon("w-16 h-16 text-emerald-500") %>
+      <div class="flex justify-center">
+          <div class="bg-emerald-100 p-5 rounded-full">
+            <%= CheckCircleIcon("w-12 h-12 text-emerald-600") %>
+          </div>
       </div>
-      <h3>Application Sent</h3>
-      <p id="popupMsg">Your request has been submitted successfully.</p>
-      <button class="btn-submit bg-slate-900 hover:bg-slate-800" onclick="closePopup()">OK, Noted!</button>
+      <h3>Application Submitted</h3>
+      <p id="popupMsg">Your request has been successfully recorded and is awaiting administrative review.</p>
+      <div class="flex flex-col gap-3">
+          <button class="btn-submit" onclick="goToHistory()">View Leave History</button>
+          <button class="text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-slate-600 transition-colors" onclick="closePopup()">Close</button>
+      </div>
     </div>
   </div>
 
@@ -339,19 +333,25 @@
     function selectDuration(element) {
       document.querySelectorAll('.duration-tile').forEach(t => t.classList.remove('selected'));
       element.classList.add('selected');
+      const radio = element.querySelector('input[type="radio"]');
+      if (radio) {
+          radio.checked = true;
+          syncDates();
+      }
     }
 
     function syncDates() {
-      const duration = document.querySelector('input[name="duration"]:checked').value;
+      const durationInput = document.querySelector('input[name="duration"]:checked');
+      const duration = durationInput ? durationInput.value : 'FULL_DAY';
       if (duration !== 'FULL_DAY') {
         endEl.value = startEl.value;
         endEl.readOnly = true;
         endEl.style.background = '#f8fafc';
-        endEl.style.color = '#94a3b8';
+        endEl.style.opacity = '0.6';
       } else {
         endEl.readOnly = false;
         endEl.style.background = '#fff';
-        endEl.style.color = 'var(--text)';
+        endEl.style.opacity = '1';
       }
     }
 
@@ -361,13 +361,11 @@
       
       const code = (selectedOption.getAttribute('data-code') || "").toUpperCase();
       
-      // Reset Dynamic UI
       dynamicFields.innerHTML = ""; 
       dynamicAttr.style.display = "none";
       docReqLabel.style.display = "none";
       attachmentEl.required = false;
 
-      // Conditional Logic for dynamic attributes
       if (code.includes("SICK") || code === "SL") {
           addInput("clinicName", "Clinic / Hospital Name", "text", true, "e.g. Klinik Kesihatan Merlimau");
           addInput("mcSerialNumber", "MC Serial Number", "text", true, "e.g. MC12345678");
@@ -386,48 +384,66 @@
       }
       else if (code.includes("PATERNITY") || code === "PL") {
           addInput("spouseName", "Spouse Full Name", "text", true, "Name of partner");
-          addInput("spouseIC", "Spouse IC Number", "text", true, "e.g. XXXXXX-XX-XXXX");
-          addInput("hospitalLocation", "Hospital Location", "text", true, "City Name");
+          addInput("hospitalLocation", "Hospital Location", "text", true, "e.g. Melaka Gateway Hospital");
           addInput("deliveryDate", "Date of Delivery", "date", true, "");
           setRequired(false);
       }
       else if (code.includes("EMERGENCY") || code === "EL") {
-          addInput("emergencyCategory", "Category", "text", true, "e.g. Natural Disaster");
-          addInput("emergencyContact", "Emergency Phone", "tel", true, "01X-XXXXXXX");
+          addSelect("emergencyCategory", "Emergency Category", true, [
+              {v: "ACCIDENT", l: "Accident / Kemalangan"},
+              {v: "DEATH", l: "Death / Kematian (Family)"},
+              {v: "DISASTER", l: "Natural Disaster / Bencana Alam"},
+              {v: "MEDICAL_FAMILY", l: "Medical Emergency (Family Member)"},
+              {v: "URGENT_REPAIR", l: "Urgent Home Repair (Fire/Flood/Burst Pipe)"},
+              {v: "OTHER", l: "Others / Lain-lain"}
+          ]);
+          addInput("emergencyContact", "Emergency Contact Number", "tel", true, "01X-XXXXXXX");
           setRequired(false);
       }
     }
 
     function addInput(name, labelText, type, req, ph) {
         dynamicAttr.style.display = "block"; 
-        
-        var div = document.createElement('div');
-        div.style.marginBottom = "12px";
-        
-        var label = document.createElement('label');
-        label.style.display = "block";
-        label.style.fontSize = "11px";
-        label.style.fontWeight = "800";
-        label.style.color = "var(--text)";
-        label.style.textTransform = "uppercase";
-        label.textContent = labelText; 
-        
-        if (req) {
-            var star = document.createElement('span');
-            star.className = "req-star";
-            star.textContent = " *";
-            label.appendChild(star);
-        }
-        
-        var input = document.createElement('input');
+        const div = createFieldContainer(labelText, req);
+        const input = document.createElement('input');
         input.type = type;
         input.name = name;
         input.placeholder = ph;
         if (req) input.required = true;
-        
-        div.appendChild(label);
         div.appendChild(input);
         dynamicFields.appendChild(div);
+    }
+
+    function addSelect(name, labelText, req, options) {
+        dynamicAttr.style.display = "block";
+        const div = createFieldContainer(labelText, req);
+        const select = document.createElement('select');
+        select.name = name;
+        if (req) select.required = true;
+        
+        const def = new Option("-- Select Category --", "");
+        def.disabled = true; def.selected = true;
+        select.add(def);
+        
+        options.forEach(opt => {
+            select.add(new Option(opt.l, opt.v));
+        });
+        
+        div.appendChild(select);
+        dynamicFields.appendChild(div);
+    }
+
+    function createFieldContainer(labelText, req) {
+        const div = document.createElement('div');
+        const label = document.createElement('label');
+        label.textContent = labelText; 
+        if (req) {
+            const star = document.createElement('span');
+            star.className = "req-star"; star.textContent = " *";
+            label.appendChild(star);
+        }
+        div.appendChild(label);
+        return div;
     }
 
     function setRequired(val) {
@@ -435,31 +451,20 @@
         attachmentEl.required = val;
     }
 
-    form.onsubmit = function(e) {
-      const selectedOption = typeEl.options[typeEl.selectedIndex];
-      if (!selectedOption) return true;
-      const code = selectedOption.getAttribute('data-code') || "";
-      const isMandatory = code.includes("SICK") || code.includes("HOSPITAL") || code.includes("MATERNITY");
-
-      if (isMandatory && attachmentEl.files.length === 0) {
-        e.preventDefault();
-        alert("Supporting document is REQUIRED for Sick, Hospitalization or Maternity leave.");
-        return false;
-      }
-      return true;
-    };
-
-    const params = new URLSearchParams(window.location.search);
-    if(params.get("msg")) {
-      document.getElementById("popupMsg").textContent = params.get("msg");
-      document.getElementById("overlay").classList.add("show");
+    function goToHistory() {
+        window.location.href = "LeaveHistory";
     }
 
     function closePopup() {
-      document.getElementById("overlay").classList.remove("show");
-      const url = new URL(window.location.href);
-      url.searchParams.delete("msg");
-      window.history.replaceState({}, "", url.toString());
+        document.getElementById("overlay").classList.remove("show");
+        const url = new URL(window.location.href);
+        url.searchParams.delete("msg");
+        window.history.replaceState({}, "", url.toString());
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    if(params.get("msg")) {
+      document.getElementById("overlay").classList.add("show");
     }
   </script>
 </body>

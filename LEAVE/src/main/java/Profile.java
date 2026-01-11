@@ -1,5 +1,3 @@
-
-
 import bean.User;
 import dao.UserDAO;
 import jakarta.servlet.ServletException;
@@ -34,7 +32,7 @@ public class Profile extends HttpServlet {
 
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("empid") == null) {
-            response.sendRedirect("login.jsp?error=Please login.");
+            response.sendRedirect("login.jsp?error=" + url("Please login."));
             return;
         }
 
@@ -43,7 +41,7 @@ public class Profile extends HttpServlet {
             User user = userDAO.getUserById(empid);
 
             if (user == null) {
-                response.sendRedirect("login.jsp?error=User not found.");
+                response.sendRedirect("login.jsp?error=" + url("User not found."));
                 return;
             }
 
@@ -61,33 +59,36 @@ public class Profile extends HttpServlet {
 
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("empid") == null) {
-            response.sendRedirect("login.jsp?error=Please login.");
+            response.sendRedirect("login.jsp?error=" + url("Please login."));
             return;
         }
 
         int empid = Integer.parseInt(String.valueOf(session.getAttribute("empid")));
-        String email = request.getParameter("email");
+        
+        // Retrieve only editable fields: Phone and Detailed Address
         String phone = request.getParameter("phone");
-        String address = request.getParameter("address");
-
-        if (email == null || email.isBlank()) {
-            response.sendRedirect("Profile?edit=1&error=Email is required.");
-            return;
-        }
+        String street = request.getParameter("street");
+        String city = request.getParameter("city");
+        String postalCode = request.getParameter("postalCode");
+        String state = request.getParameter("state");
 
         try {
             User user = new User();
             user.setEmpId(empid);
-            user.setEmail(email);
-            user.setPhone(phone);
-            user.setAddress(address);
+            user.setPhone(phone != null ? phone.trim() : "");
+            
+            // Setting the new detailed address fields
+            user.setStreet(street != null ? street.trim() : "");
+            user.setCity(city != null ? city.trim() : "");
+            user.setPostalCode(postalCode != null ? postalCode.trim() : "");
+            user.setState(state != null ? state.trim() : "");
 
             // Handle Profile Picture Upload
             Part profilePicPart = request.getPart("profilePic");
             if (profilePicPart != null && profilePicPart.getSize() > 0) {
                 String contentType = profilePicPart.getContentType();
                 if (contentType == null || !contentType.startsWith("image/")) {
-                    response.sendRedirect("Profile?edit=1&error=Profile picture must be an image.");
+                    response.sendRedirect("Profile?edit=1&error=" + url("Profile picture must be an image."));
                     return;
                 }
 
@@ -103,19 +104,23 @@ public class Profile extends HttpServlet {
                 String relativePath = "uploads/" + fileName;
                 
                 user.setProfilePic(relativePath);
-                session.setAttribute("profilePic", relativePath); // Update topbar
+                session.setAttribute("profilePic", relativePath); // Update topbar icon
             }
 
+            // Update profile via DAO (Ensure your DAO method is updated to handle these fields)
             if (userDAO.updateProfile(user)) {
-                response.sendRedirect("Profile?msg=" + URLEncoder.encode("Profile updated successfully.", StandardCharsets.UTF_8));
+                response.sendRedirect("Profile?msg=" + url("Profile updated successfully."));
             } else {
-                response.sendRedirect("Profile?error=Update failed.");
+                response.sendRedirect("Profile?error=" + url("Update failed."));
             }
 
-        } catch (java.sql.SQLIntegrityConstraintViolationException e) {
-            response.sendRedirect("Profile?edit=1&error=Email already exists.");
         } catch (Exception e) {
-            throw new ServletException("Error updating profile", e);
+            e.printStackTrace();
+            response.sendRedirect("Profile?error=" + url("Error updating profile: " + e.getMessage()));
         }
+    }
+
+    private String url(String s) {
+        return URLEncoder.encode(s, StandardCharsets.UTF_8);
     }
 }

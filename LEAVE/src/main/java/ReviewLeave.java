@@ -13,8 +13,8 @@ import java.util.*;
  * Fetches all PENDING and CANCELLATION_REQUESTED leave applications.
  * Formats all dates and timestamps to DD/MM/YYYY format.
  */
-@WebServlet("/ManagerDashboardServlet")
-public class ManagerDashboardServlet extends HttpServlet {
+@WebServlet("/ReviewLeave")
+public class ReviewLeave extends HttpServlet {
     private static final long serialVersionUID = 1L;
 
     @Override
@@ -107,6 +107,6 @@ public class ManagerDashboardServlet extends HttpServlet {
         request.setAttribute("leaves", leaves);
         request.setAttribute("pendingCount", pendingCount);
         request.setAttribute("cancelReqCount", cancelReqCount);
-        request.getRequestDispatcher("/managerDashboard.jsp").forward(request, response);
+        request.getRequestDispatcher("/reviewLeave.jsp").forward(request, response);
     }
 }

@@ -2,6 +2,7 @@
 <%@ page import="java.util.*" %>
 <%@ page import="java.text.SimpleDateFormat" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<%@ include file="icon.jsp" %>
 
 <%
     if (session.getAttribute("empid") == null ||
@@ -19,7 +20,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Employee Directory | Admin Access</title>
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
@@ -27,150 +27,84 @@
     :root {
       --bg: #f8fafc;
       --card: #fff;
-      --border: #e2e8f0;
+      --border: #cbd5e1;
       --text: #1e293b;
       --muted: #64748b;
-      --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-      --radius: 16px;
-      --primary: #2563eb;
+      --blue-primary: #2563eb;
+      --blue-light: #eff6ff;
+      --blue-hover: #1d4ed8;
       --red: #ef4444;
-      --orange: #f97316;
-      --blue: #3b82f6;
-      --teal: #14b8a6;
-      --purple: #a855f7;
-      --indigo: #6366f1;
+      --green: #10b981;
+      --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+      --radius: 16px;
     }
 
     * { 
       box-sizing: border-box; 
-      font-family: 'Inter', Arial, sans-serif !important; 
+      font-family: 'Inter', sans-serif !important; 
     }
 
-    body { 
-      margin: 0; 
-      background: var(--bg); 
-      color: var(--text);
-      overflow-x: hidden;
-    }
+    body { background: var(--bg); color: var(--text); margin: 0; }
     
-    main { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .pageWrap { padding: 32px 40px; max-width: 1240px; margin: 0 auto; }
 
-    .pageWrap { 
-      padding: 32px 40px; 
-      max-width: 1200px; 
-      margin: 0 auto;
-    }
+    .title { font-size: 26px; font-weight: 800; margin: 0; text-transform: uppercase; color: var(--text); }
+    .sub-label { color: var(--blue-primary); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; display: block; }
 
-    /* Consistent Header Styling */
-    h2.title { 
-      font-size: 26px; 
-      font-weight: 800; 
-      margin: 0; 
-      color: var(--text); 
-      text-transform: uppercase; 
-      letter-spacing: -0.025em;
-    }
-    
-    .sub-label { 
-      color: var(--indigo); 
-      font-size: 11px; 
-      font-weight: 800; 
-      text-transform: uppercase; 
-      letter-spacing: 0.1em;
-      margin-top: 4px;
-      display: block;
-    }
-
-    /* Tabs Navigation */
     .tabs { display: flex; gap: 12px; margin: 24px 0; }
     .tab {
-      text-decoration: none; font-weight: 800; font-size: 12px; padding: 10px 16px;
-      border-radius: 12px; border: 1px solid var(--border); background: #fff; color: var(--muted);
-      text-transform: uppercase; transition: 0.2s;
+      text-decoration: none; font-weight: 800; font-size: 12px; padding: 10px 18px;
+      border-radius: 10px; border: 1px solid var(--border); background: #fff; color: var(--muted);
+      text-transform: uppercase; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px;
     }
-    .tab.active { 
-      border-color: var(--indigo); 
-      background: #f5f3ff; 
-      color: var(--indigo); 
-    }
-    .tab:hover:not(.active) {
-      border-color: var(--text);
-      color: var(--text);
-    }
+    .tab.active { border-color: var(--blue-primary); background: var(--blue-light); color: var(--blue-primary); }
 
-    /* Card & Table Styles */
-    .card { 
-      background: var(--card); 
-      border: 1px solid var(--border); 
-      border-radius: var(--radius); 
-      box-shadow: var(--shadow); 
-      overflow: hidden; 
-    }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+            .cardHead span { font-weight: 800; font-size: 15px; color: var(--text); text-transform: uppercase; }
     
-    .cardHead { 
-      padding: 20px 24px; 
-      border-bottom: 1px solid #f1f5f9; 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center;
-    }
-    
-    .cardHead span:first-child { font-weight: 800; font-size: 15px; color: var(--text); text-transform: uppercase; }
+    .cardHead { padding: 20px 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
 
     table { width: 100%; border-collapse: collapse; }
-    th, td { border-bottom: 1px solid #f1f5f9; padding: 16px 24px; text-align: left; }
-    th { 
-      background: #f8fafc; 
-      font-size: 11px; 
-      text-transform: uppercase; 
-      color: var(--muted); 
-      font-weight: 800;
-      letter-spacing: 0.05em;
-    }
+    th, td { border-bottom: 1px solid #f1f5f9; padding: 18px 24px; text-align: left; }
+    th { background: #f8fafc; font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 800; letter-spacing: 0.05em; }
     
-    .badge { 
-      display: inline-flex; 
-      padding: 4px 10px; 
-      border-radius: 8px; 
-      font-size: 10px; 
-      font-weight: 800; 
-      text-transform: uppercase; 
-      letter-spacing: 0.02em;
-    }
-    .badge-admin { background: #eff6ff; color: var(--blue); border: 1px solid #dbeafe; }
-    .badge-emp { background: #f8fafc; color: var(--muted); border: 1px solid #e2e8f0; }
-
-    /* Updated Delete Button Style */
-    .btnDel {
-      border: 1px solid #fee2e2; 
-      background: #fff; 
-      color: var(--red);
-      font-weight: 800; 
-      font-size: 11px; 
-      padding: 8px 14px; 
-      border-radius: 10px;
-      cursor: pointer; 
-      transition: all 0.2s; 
-      text-transform: uppercase;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .btnDel:hover { 
-      background: var(--red); 
-      color: #fff; 
-      border-color: var(--red);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2);
+    .row-inactive { 
+      background-color: #f8fafc; 
+      opacity: 0.6; 
+      filter: grayscale(1);
     }
 
-    .msg, .err { padding: 14px 18px; border-radius: 12px; font-size: 13px; margin-bottom: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
-    .msg { background: #f0fdfa; border: 1px solid #ccfbf1; color: #0f766e; }
-    .err { background: #fef2f2; border: 1px solid #fee2e2; color: #b91c1c; }
+    .badge { padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; border: 1px solid transparent; }
+    .badge-admin { background: #eff6ff; color: var(--blue-primary); border-color: #dbeafe; }
+    .badge-active { background: #ecfdf5; color: var(--green); border-color: #d1fae5; }
+    .badge-inactive { background: #fef2f2; color: var(--red); border-color: #fee2e2; }
 
-    /* Custom Scrollbar */
-    .pageWrap::-webkit-scrollbar { width: 6px; }
-    .pageWrap::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    .btnAction {
+      font-weight: 800; font-size: 11px; padding: 8px 16px; border-radius: 8px;
+      cursor: pointer; transition: 0.2s; text-transform: uppercase;
+      display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent;
+    }
+    .btnDeactivate { color: var(--red); border-color: #fee2e2; background: #fff; }
+    .btnDeactivate:hover { background: var(--red); color: #fff; border-color: var(--red); }
+    
+    .btnActivate { color: var(--green); border-color: #d1fae5; background: #fff; }
+    .btnActivate:hover { background: var(--green); color: #fff; border-color: var(--green); }
+
+    /* Modal Styling */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .modal-content {
+      background: white; width: 400px; border-radius: 16px; padding: 32px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); text-align: center;
+      transform: translateY(20px); transition: 0.3s;
+    }
+    .modal-active { display: flex; }
+
+    .icon-sm { width: 14px; height: 14px; }
+    .icon-md { width: 18px; height: 18px; }
   </style>
 </head>
 
@@ -181,58 +115,55 @@
         <jsp:include page="topbar.jsp" />
 
         <div class="pageWrap">
-            <!-- Header Section -->
             <div class="mb-8">
-                <h2 class="title">EMPLOYEE DIRECTORY</h2>
-                <span class="sub-label">View and manage registered employees in the system.</span>
+                <h2 class="title">Employee Directory</h2>
+                <span class="sub-label">List of employee record account permissions and status</span>
             </div>
 
-            <!-- Navigation Tabs -->
             <div class="tabs">
                 <a class="tab" href="RegisterEmployeeServlet">
-                    <i class="fa fa-user-plus mr-2"></i>Register
+                    <%= PlusIcon("icon-sm") %>Register
                 </a>
-                <a class="tab active" href="EmployeeDirectoryServlet">
-                    <i class="fa fa-list mr-2"></i>Directory
+                <a class="tab active" href="EmployeeDirectory">
+                    <%= UsersIcon("icon-sm") %>Directory
                 </a>
             </div>
 
-            <!-- Notifications -->
             <c:if test="${not empty param.msg}">
-                <div class="msg shadow-sm"><i class="fa fa-check-circle"></i> ${param.msg}</div>
-            </c:if>
-            <c:if test="${not empty param.error}">
-                <div class="err shadow-sm"><i class="fa fa-exclamation-triangle"></i> ${param.error}</div>
+                <div class="msg bg-emerald-50 border border-emerald-100 p-4 rounded-xl text-emerald-700 font-bold mb-6 flex items-center gap-2">
+                    <%= CheckCircleIcon("icon-md") %> ${param.msg}
+                </div>
             </c:if>
 
-            <!-- Table Card -->
             <div class="card">
                 <div class="cardHead">
-                    <span>Active Personnel</span>
-                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Administrator Access Only</span>
+                    <span>Staff Records</span>
+                    <%= BriefcaseIcon("w-6 h-6 text-blue-200") %>
                 </div>
                 
                 <div style="overflow-x:auto;">
                     <table>
                         <thead>
                             <tr>
-                                <th>Name / Designation</th>
-                                <th>Contact Details</th>
-                                <th>Employment Date</th>
-                                <th style="width:160px; text-align: center;">Management</th>
+                                <th>Staff Profile</th>
+                                <th>Contact & Access</th>
+                                <th>Join Date</th>
+                                <th style="text-align: center;">Status</th>
+                                <th style="text-align: right;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                         <%
                             List<Map<String,Object>> users = (List<Map<String,Object>>) request.getAttribute("users");
                             SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+                            Calendar cal = Calendar.getInstance();
 
                             if (users == null || users.isEmpty()) {
                         %>
                             <tr>
-                                <td colspan="4" style="text-align:center; padding:48px; color: var(--muted);">
-                                    <i class="fa fa-folder-open fa-2x mb-3 block opacity-20"></i>
-                                    No employees found in the directory.
+                                <td colspan="5" style="text-align:center; padding:48px; color: var(--muted);">
+                                    <%= InfoIcon("w-10 h-10 mx-auto mb-2 opacity-20") %>
+                                    No database entries found.
                                 </td>
                             </tr>
                         <%
@@ -243,45 +174,50 @@
                                     String email = String.valueOf(u.get("email"));
                                     String role = String.valueOf(u.get("role"));
                                     String phone = String.valueOf(u.get("phone"));
-                                    Object hiredate = u.get("hiredate");
+                                    String status = String.valueOf(u.get("status") != null ? u.get("status") : "ACTIVE");
+                                    Date hiredate = (Date) u.get("hiredate");
                                     
-                                    // Formatting date to DD/MM/YYYY
-                                    String formattedDate = (hiredate != null) ? sdf.format(hiredate) : "---";
+                                    String joinYear = "0000";
+                                    if (hiredate != null) {
+                                        cal.setTime(hiredate);
+                                        joinYear = String.valueOf(cal.get(Calendar.YEAR));
+                                    }
+                                    String customId = "EMP-" + joinYear + "-0" + empid;
 
+                                    boolean isActive = "ACTIVE".equalsIgnoreCase(status);
                                     boolean isAdmin = "ADMIN".equalsIgnoreCase(role);
                         %>
-                            <tr class="hover:bg-slate-50 transition-colors">
+                            <tr class="<%= !isActive ? "row-inactive" : "" %>">
                                 <td>
                                     <div class="font-bold text-slate-800"><%= fullname %></div>
-                                    <div class="mt-1.5 flex items-center gap-2">
+                                    <div class="mt-1 flex items-center gap-2">
                                         <span class="badge <%= isAdmin ? "badge-admin" : "badge-emp" %>">
                                             <%= role %>
                                         </span>
-                                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">ID: <%= empid %></span>
+                                        <span class="text-[10px] font-bold text-slate-400 uppercase"><%= customId %></span>
                                     </div>
                                 </td>
                                 <td>
                                     <div class="text-[13px] font-semibold text-slate-700"><%= email %></div>
-                                    <div class="text-[11px] text-slate-400 mt-1 font-medium">
-                                        <i class="fa fa-phone mr-1 opacity-50"></i>
-                                        <%= (phone == null || phone.isBlank()) ? "Not provided" : phone %>
-                                    </div>
+                                    <div class="text-[11px] text-slate-400 mt-1"><%= (phone == null || phone.isBlank()) ? "---" : phone %></div>
                                 </td>
                                 <td class="text-[13px] font-bold text-slate-600">
-                                    <%= formattedDate %>
+                                    <%= hiredate != null ? sdf.format(hiredate) : "---" %>
                                 </td>
                                 <td style="text-align: center;">
+                                    <span class="badge <%= isActive ? "badge-active" : "badge-inactive" %>">
+                                        <%= status %>
+                                    </span>
+                                </td>
+                                <td style="text-align: right;">
                                     <% if (!isAdmin) { %>
-                                        <form action="DeleteEmployeeServlet" method="post" class="inline-block"
-                                              onsubmit="return confirm('WARNING: Are you sure you want to delete this employee? This action cannot be undone.');">
-                                            <input type="hidden" name="empid" value="<%= empid %>">
-                                            <button class="btnDel" type="submit">
-                                                <i class="fa fa-trash-can"></i> Delete Staff
-                                            </button>
-                                        </form>
+                                        <button class="btnAction <%= isActive ? "btnDeactivate" : "btnActivate" %>" 
+                                                onclick="showConfirmModal('<%= empid %>', '<%= isActive ? "INACTIVE" : "ACTIVE" %>', '<%= fullname %>')">
+                                            <%= isActive ? XCircleIcon("icon-sm") + " Deactivate" : CheckCircleIcon("icon-sm") + " Reactivate" %>
+                                        </button>
                                     <% } else { %>
-                                        <span class="text-[10px] font-bold text-slate-300 uppercase italic tracking-widest">
-                                            <i class="fa fa-shield-halved mr-1"></i>Protected
+                                        <span class="text-[10px] font-bold text-blue-300 uppercase italic">
+                                            <%= ShieldCheckIcon("icon-sm inline mr-1") %>System Root
                                         </span>
                                     <% } %>
                                 </td>
@@ -295,6 +231,70 @@
                 </div>
             </div>
         </div>
+
+        <!-- Confirmation Modal -->
+        <div id="confirmModal" class="modal-overlay">
+            <div class="modal-content">
+                <div id="modalIconContainer" class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <!-- Icon injected by JS -->
+                </div>
+                <h3 id="modalTitle" class="text-xl font-800 text-slate-800 mb-2 uppercase tracking-tight">Are you sure?</h3>
+                <p id="modalBody" class="text-slate-500 text-sm mb-8">This will change the access status for this employee.</p>
+                
+                <form id="modalForm" action="ToggleEmployeeStatus" method="post">
+                    <input type="hidden" name="empid" id="modalEmpId">
+                    <input type="hidden" name="targetStatus" id="modalTargetStatus">
+                    
+                    <div class="flex gap-3">
+                        <button type="button" class="flex-1 px-4 py-3 rounded-xl border border-slate-200 font-800 text-xs uppercase text-slate-600" onclick="closeModal()">Cancel</button>
+                        <button type="submit" id="modalSubmitBtn" class="flex-1 px-4 py-3 rounded-xl font-800 text-xs uppercase text-white shadow-lg">Confirm</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </main>
+
+    <script>
+        function showConfirmModal(id, target, name) {
+            const modal = document.getElementById('confirmModal');
+            const formId = document.getElementById('modalEmpId');
+            const formStatus = document.getElementById('modalTargetStatus');
+            const body = document.getElementById('modalBody');
+            const submitBtn = document.getElementById('modalSubmitBtn');
+            const iconBox = document.getElementById('modalIconContainer');
+            const title = document.getElementById('modalTitle');
+
+            formId.value = id;
+            formStatus.value = target;
+
+            if (target === 'INACTIVE') {
+                title.innerText = "Deactivate Staff?";
+                body.innerText = "Are you sure you want to deactivate " + name + "? They will no longer be able to log in to the system.";
+                submitBtn.style.backgroundColor = "#ef4444";
+                iconBox.style.backgroundColor = "#fee2e2";
+                iconBox.innerHTML = `<%= XCircleIcon("w-8 h-8 text-red-500") %>`;
+            } else {
+                title.innerText = "Reactivate Staff?";
+                body.innerText = "Are you sure you want to reactivate " + name + "? Their system access will be restored immediately.";
+                submitBtn.style.backgroundColor = "#10b981";
+                iconBox.style.backgroundColor = "#ecfdf5";
+                iconBox.innerHTML = `<%= CheckCircleIcon("w-8 h-8 text-emerald-500") %>`;
+            }
+
+            modal.classList.add('modal-active');
+        }
+
+        function closeModal() {
+            document.getElementById('confirmModal').classList.remove('modal-active');
+        }
+
+        // Close modal when clicking overlay
+        window.onclick = function(event) {
+            const modal = document.getElementById('confirmModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
 </body>
 </html>
