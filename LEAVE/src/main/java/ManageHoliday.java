@@ -11,8 +11,8 @@ import bean.Holiday;
  * Unified Controller for Holiday Management (View, Add, Update, Delete).
  * Restricts access to ADMIN role.
  */
-@WebServlet("/ManageHolidays")
-public class ManageHolidays extends HttpServlet {
+@WebServlet("/ManageHoliday")
+public class ManageHoliday extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private final HolidayDAO holidayDAO = new HolidayDAO();
 
@@ -51,7 +51,7 @@ public class ManageHolidays extends HttpServlet {
             if ("DELETE".equals(action)) {
                 int id = Integer.parseInt(request.getParameter("holidayId"));
                 holidayDAO.deleteHoliday(id);
-                response.sendRedirect("ManageHolidays?msg=Holiday+deleted+successfully");
+                response.sendRedirect("ManageHoliday?msg=Holiday+deleted+successfully");
                 return;
             }
 
@@ -67,15 +67,15 @@ public class ManageHolidays extends HttpServlet {
 
             if ("ADD".equals(action)) {
                 holidayDAO.addHoliday(h);
-                response.sendRedirect("ManageHolidays?msg=Holiday+added+successfully");
+                response.sendRedirect("ManageHoliday?msg=Holiday+added+successfully");
             } else if ("UPDATE".equals(action)) {
                 h.setId(Integer.parseInt(request.getParameter("holidayId")));
                 holidayDAO.updateHoliday(h);
-                response.sendRedirect("ManageHolidays?msg=Holiday+updated+successfully");
+                response.sendRedirect("ManageHoliday?msg=Holiday+updated+successfully");
             }
 
         } catch (Exception e) {
-            response.sendRedirect("ManageHolidays?error=" + java.net.URLEncoder.encode(e.getMessage(), "UTF-8"));
+            response.sendRedirect("ManageHoliday?error=" + java.net.URLEncoder.encode(e.getMessage(), "UTF-8"));
         }
     }
 }

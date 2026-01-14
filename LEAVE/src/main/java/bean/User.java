@@ -9,10 +9,10 @@ public class User implements Serializable {
     private int empId;
     private String fullName;
     private String email;
+    private String password; // Added for registration
     private String role;
     private String phone;
     
-    // New Detailed Address Fields
     private String street;
     private String city;
     private String postalCode;
@@ -22,7 +22,7 @@ public class User implements Serializable {
     private String icNumber;
     private String gender;
     private String profilePic;
-    private String status; // Added to track active/inactive state
+    private String status;
 
     public User() {}
 
@@ -36,13 +36,15 @@ public class User implements Serializable {
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
 
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
 
-    // Address Details Getters/Setters
     public String getStreet() { return street; }
     public void setStreet(String street) { this.street = street; }
 

@@ -121,7 +121,7 @@
             </div>
 
             <div class="tabs">
-                <a class="tab" href="RegisterEmployeeServlet">
+                <a class="tab" href="RegisterEmployee">
                     <%= PlusIcon("icon-sm") %>Register
                 </a>
                 <a class="tab active" href="EmployeeDirectory">

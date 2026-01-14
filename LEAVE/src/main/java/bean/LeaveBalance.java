@@ -1,6 +1,7 @@
 package bean;
 
 public class LeaveBalance {
+    private int empId;
     private int leaveTypeId;
     private String typeCode;
     private String description;
@@ -13,6 +14,10 @@ public class LeaveBalance {
     public LeaveBalance() {}
 
     // Getters and Setters
+    
+    public int getEmpId() { return empId; }
+    public void setEmpId(int empId) { this.empId = empId; }
+    
     public int getLeaveTypeId() { return leaveTypeId; }
     public void setLeaveTypeId(int leaveTypeId) { this.leaveTypeId = leaveTypeId; }
 

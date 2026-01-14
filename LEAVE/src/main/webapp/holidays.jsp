@@ -10,7 +10,7 @@
         response.sendRedirect("login.jsp"); return;
     }
 
-    // Retrieve data from Controller (ManageHolidays)
+    // Retrieve data from Controller (ManageHoliday)
     List<Holiday> holidays = (List<Holiday>) request.getAttribute("holidays");
     String error = request.getParameter("error");
     String msg = request.getParameter("msg");
@@ -169,7 +169,7 @@
                                             <button onclick="openModal('UPDATE', '<%= h.getId() %>', '<%= h.getName() %>', '<%= dateIso %>', '<%= h.getType() %>')" class="action-btn btn-edit" title="Edit">
                                                 <%= EditIcon("w-3.5 h-3.5") %>
                                             </button>
-                                            <form action="ManageHolidays" method="POST" id="formDelete_<%= h.getId() %>" style="display:inline">
+                                            <form action="ManageHoliday" method="POST" id="formDelete_<%= h.getId() %>" style="display:inline">
                                                 <input type="hidden" name="action" value="DELETE">
                                                 <input type="hidden" name="holidayId" value="<%= h.getId() %>">
                                                 <button type="button" onclick="triggerConfirm('DELETE', 'formDelete_<%= h.getId() %>')" class="action-btn btn-delete" title="Delete">
@@ -190,7 +190,7 @@
     <!-- Unified Modal for Add/Update -->
     <div class="modal-overlay" id="holidayModal">
         <div class="modal-content">
-            <form action="ManageHolidays" method="POST" id="holidayForm">
+            <form action="ManageHoliday" method="POST" id="holidayForm">
                 <input type="hidden" name="action" id="modalAction" value="ADD">
                 <input type="hidden" name="holidayId" id="modalId">
                 

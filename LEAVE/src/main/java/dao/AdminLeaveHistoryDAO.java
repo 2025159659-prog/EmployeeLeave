@@ -3,24 +3,20 @@ package dao;
 import bean.LeaveRecord;
 import util.DatabaseConnection;
 import java.sql.*;
+import java.sql.Date;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
 /**
- * LeaveDAO handles all database operations for leave management.
- * Optimized for MVC pattern and high-performance administrative views.
+ * AdminLeaveHistoryDAO handles database operations for the admin leave history view.
  */
 public class AdminLeaveHistoryDAO {
 
     private final SimpleDateFormat sdfDate = new SimpleDateFormat("dd/MM/yyyy");
     private final SimpleDateFormat sdfTime = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 
-    /**
-     * ADMIN: Fetch all years where leaves were requested for the filter dropdown.
-     * This method is used by the LeaveEmpHistory servlet to populate filters.
-     */
     public List<String> getFilterYears() throws Exception {
         List<String> years = new ArrayList<>();
         String sql = "SELECT DISTINCT EXTRACT(YEAR FROM START_DATE) AS YR FROM LEAVE_REQUESTS ORDER BY YR DESC";
@@ -35,15 +31,21 @@ public class AdminLeaveHistoryDAO {
     }
 
     /**
-     * ADMIN: Fetch global leave history with employee details and attachments.
-     * Includes a subquery to fetch the attachment filename for the "View Data" popup.
+     * Fetches global leave history. 
+     * IMPORTANT: Ensure your LEAVE_REQUESTS table has these columns:
+     * MEDICAL_FACILITY, REF_SERIAL_NO, EVENT_DATE, DISCHARGE_DATE, EMERGENCY_CATEGORY, EMERGENCY_CONTACT, SPOUSE_NAME
      */
     public List<LeaveRecord> getAllHistory(String status, String month, String year) throws Exception {
         List<LeaveRecord> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder();
         
-        sql.append("SELECT lr.*, u.FULLNAME, u.EMPID as USER_ID, u.HIREDATE, u.PROFILE_PICTURE, lt.TYPE_CODE, ls.STATUS_CODE, ")
-           // Subquery to fetch the attachment filename for the specific leave request
+        sql.append("SELECT lr.LEAVE_ID, lr.EMPID, lr.START_DATE, lr.END_DATE, lr.DURATION, lr.DURATION_DAYS, ")
+           .append("lr.APPLIED_ON, lr.REASON, lr.MANAGER_COMMENT, ")
+           // Explicitly selecting metadata columns to ensure they are available in ResultSet
+           .append("lr.MEDICAL_FACILITY, lr.REF_SERIAL_NO, lr.EVENT_DATE, lr.DISCHARGE_DATE, ")
+           .append("lr.EMERGENCY_CATEGORY, lr.EMERGENCY_CONTACT, lr.SPOUSE_NAME, ")
+           .append("u.FULLNAME, u.EMPID as USER_ID, u.HIREDATE, u.PROFILE_PICTURE, ")
+           .append("lt.TYPE_CODE, ls.STATUS_CODE, ")
            .append("(SELECT a.FILE_NAME FROM LEAVE_REQUEST_ATTACHMENTS a WHERE a.LEAVE_ID = lr.LEAVE_ID FETCH FIRST 1 ROW ONLY) AS ATTACHMENT_NAME ")
            .append("FROM LEAVE_REQUESTS lr ")
            .append("JOIN USERS u ON lr.EMPID = u.EMPID ")
@@ -51,7 +53,6 @@ public class AdminLeaveHistoryDAO {
            .append("JOIN LEAVE_STATUSES ls ON lr.STATUS_ID = ls.STATUS_ID ")
            .append("WHERE 1=1 ");
 
-        // Dynamic Filtering logic
         if (status != null && !status.isEmpty() && !"ALL".equalsIgnoreCase(status)) {
             sql.append(" AND UPPER(ls.STATUS_CODE) = ? ");
         }
@@ -87,10 +88,6 @@ public class AdminLeaveHistoryDAO {
         return list;
     }
 
-    /**
-     * Helper: Maps SQL ResultSet to LeaveRecord Bean.
-     * Ensures primary data, staff metadata (Hire Date, Photo), and dynamic attributes are populated.
-     */
     private LeaveRecord mapResultSetToRecord(ResultSet rs) throws SQLException {
         LeaveRecord r = new LeaveRecord();
         r.setLeaveId(rs.getInt("LEAVE_ID"));
@@ -104,33 +101,33 @@ public class AdminLeaveHistoryDAO {
         r.setDurationDays(rs.getDouble("DURATION_DAYS"));
         r.setDuration(rs.getString("DURATION"));
         
-        // Formatting Dates for consistent UI display in JSP
         if (rs.getDate("START_DATE") != null) r.setStartDate(sdfDate.format(rs.getDate("START_DATE")));
         if (rs.getDate("END_DATE") != null) r.setEndDate(sdfDate.format(rs.getDate("END_DATE")));
         if (rs.getTimestamp("APPLIED_ON") != null) r.setAppliedOn(sdfTime.format(rs.getTimestamp("APPLIED_ON")));
         
         r.setReason(rs.getString("REASON"));
-        r.setAdminComment(rs.getString("ADMIN_COMMENT"));
+        r.setManagerComment(rs.getString("MANAGER_COMMENT"));
         
-        // Metadata for "View Data" Details Popup
+        // Populate Metadata for "View Data" Details Popup
         r.setMedicalFacility(rs.getString("MEDICAL_FACILITY"));
         r.setRefSerialNo(rs.getString("REF_SERIAL_NO"));
         
-        java.sql.Date evt = rs.getDate("EVENT_DATE");
+        Date evt = rs.getDate("EVENT_DATE");
         r.setEventDate(evt != null ? sdfDate.format(evt) : "");
         
-        java.sql.Date dis = rs.getDate("DISCHARGE_DATE");
+        Date dis = rs.getDate("DISCHARGE_DATE");
         r.setDischargeDate(dis != null ? sdfDate.format(dis) : "");
         
         r.setEmergencyCategory(rs.getString("EMERGENCY_CATEGORY"));
         r.setEmergencyContact(rs.getString("EMERGENCY_CONTACT"));
         r.setSpouseName(rs.getString("SPOUSE_NAME"));
         
-        // Populate the attachment filename from the subquery result
         r.setAttachment(rs.getString("ATTACHMENT_NAME"));
         
         return r;
     }
+    
+
 
     /**
      * Utility: Calculate working days (excluding weekends and holidays).

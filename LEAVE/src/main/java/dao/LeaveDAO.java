@@ -1,6 +1,8 @@
 package dao;
 
 import bean.LeaveRequest;
+import bean.LeaveBalance;
+import bean.LeaveRecord;
 import util.DatabaseConnection;
 import jakarta.servlet.http.Part;
 import java.io.InputStream;
@@ -8,12 +10,10 @@ import java.sql.*;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.Date;
 
 public class LeaveDAO {
 
-    /**
-     * Fetch all leave types for dropdown selection.
-     */
     public List<Map<String, Object>> getAllLeaveTypes() throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
         String sql = "SELECT LEAVE_TYPE_ID, TYPE_CODE, DESCRIPTION FROM LEAVE_TYPES ORDER BY TYPE_CODE";
@@ -31,9 +31,6 @@ public class LeaveDAO {
         return list;
     }
 
-    /**
-     * Fetch a specific leave request by ID and EmpID.
-     */
     public LeaveRequest getLeaveById(int leaveId, int empId) throws Exception {
         String sql = "SELECT lr.*, ls.STATUS_CODE FROM LEAVE_REQUESTS lr " +
                      "JOIN LEAVE_STATUSES ls ON lr.STATUS_ID = ls.STATUS_ID " +
@@ -60,6 +57,13 @@ public class LeaveDAO {
                     lr.setEmergencyCategory(rs.getString("EMERGENCY_CATEGORY"));
                     lr.setEmergencyContact(rs.getString("EMERGENCY_CONTACT"));
                     lr.setSpouseName(rs.getString("SPOUSE_NAME"));
+                    
+                    Date evt = rs.getDate("EVENT_DATE");
+                    if (evt != null) lr.setEventDate(((java.sql.Date) evt).toLocalDate());
+                    
+                    Date dis = rs.getDate("DISCHARGE_DATE");
+                    if (dis != null) lr.setDischargeDate(((java.sql.Date) dis).toLocalDate());
+                    
                     return lr;
                 }
             }
@@ -67,9 +71,6 @@ public class LeaveDAO {
         return null;
     }
 
-    /**
-     * Calculate working days excluding Weekends and Holidays.
-     */
     public double calculateWorkingDays(LocalDate start, LocalDate end) throws Exception {
         double count = 0;
         Set<LocalDate> holidays = new HashSet<>();
@@ -85,7 +86,6 @@ public class LeaveDAO {
                 }
             }
         }
-
         LocalDate curr = start;
         while (!curr.isAfter(end)) {
             DayOfWeek dow = curr.getDayOfWeek();
@@ -97,9 +97,6 @@ public class LeaveDAO {
         return count;
     }
 
-    /**
-     * Submit a new leave request (Transactional with Balance Update).
-     */
     public boolean submitRequest(LeaveRequest req, Part filePart) throws Exception {
         Connection con = null;
         try {
@@ -177,16 +174,12 @@ public class LeaveDAO {
         }
     }
 
-    /**
-     * Updated existing leave and correctly adjusted balances.
-     */
     public boolean updateLeave(LeaveRequest req, int empId) throws Exception {
         Connection con = null;
         try {
             con = DatabaseConnection.getConnection();
             con.setAutoCommit(false);
 
-            // 1. Get existing data to calculate balance difference
             double oldDuration = 0;
             int oldTypeId = 0;
             String checkSql = "SELECT DURATION_DAYS, LEAVE_TYPE_ID FROM LEAVE_REQUESTS WHERE LEAVE_ID = ? AND EMPID = ?";
@@ -201,7 +194,6 @@ public class LeaveDAO {
                 }
             }
 
-            // 2. Update the Leave Request record
             String sql = "UPDATE LEAVE_REQUESTS SET LEAVE_TYPE_ID=?, START_DATE=?, END_DATE=?, DURATION=?, " +
                          "HALF_SESSION=?, DURATION_DAYS=?, REASON=?, MEDICAL_FACILITY=?, REF_SERIAL_NO=?, " +
                          "EVENT_DATE=?, DISCHARGE_DATE=?, EMERGENCY_CATEGORY=?, EMERGENCY_CONTACT=?, SPOUSE_NAME=? " +
@@ -232,7 +224,6 @@ public class LeaveDAO {
                 }
             }
 
-            // 3. Balance adjustment logic
             if (oldTypeId == req.getLeaveTypeId()) {
                 double diff = req.getDurationDays() - oldDuration;
                 String upd = "UPDATE LEAVE_BALANCES SET PENDING = PENDING + ?, TOTAL = TOTAL - ? WHERE EMPID = ? AND LEAVE_TYPE_ID = ?";
@@ -272,9 +263,6 @@ public class LeaveDAO {
         }
     }
 
-    /**
-     * Delete a pending leave request and restore the balance.
-     */
     public boolean deleteLeave(int leaveId, int empId) throws Exception {
         Connection con = null;
         try {
@@ -323,14 +311,13 @@ public class LeaveDAO {
         }
     }
 
-    /**
-     * Fetch filtered leave history for a specific employee.
-     */
     public List<Map<String, Object>> getLeaveHistory(int empId, String status, String year) throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder(
             "SELECT lr.LEAVE_ID, lr.START_DATE, lr.END_DATE, lr.DURATION, lr.DURATION_DAYS, " +
-            "lr.REASON, lr.ADMIN_COMMENT, lr.APPLIED_ON, lt.TYPE_CODE, ls.STATUS_CODE, att.FILE_NAME " +
+            "lr.REASON, lr.MANAGER_COMMENT, lr.APPLIED_ON, lt.TYPE_CODE, ls.STATUS_CODE, att.FILE_NAME, " +
+            "lr.LEAVE_TYPE_ID, lr.MEDICAL_FACILITY, lr.REF_SERIAL_NO, lr.EMERGENCY_CATEGORY, lr.EMERGENCY_CONTACT, " +
+            "lr.SPOUSE_NAME, lr.EVENT_DATE, lr.DISCHARGE_DATE " +
             "FROM LEAVE_REQUESTS lr " +
             "JOIN LEAVE_TYPES lt ON lr.LEAVE_TYPE_ID = lt.LEAVE_TYPE_ID " +
             "JOIN LEAVE_STATUSES ls ON lr.STATUS_ID = ls.STATUS_ID " +
@@ -370,11 +357,90 @@ public class LeaveDAO {
                     m.put("totalDays", rs.getDouble("DURATION_DAYS"));
                     m.put("reason", rs.getString("REASON"));
                     m.put("status", rs.getString("STATUS_CODE"));
-                    m.put("adminComment", rs.getString("ADMIN_COMMENT"));
+                    m.put("managerComment", rs.getString("MANAGER_COMMENT"));
                     m.put("appliedOn", rs.getTimestamp("APPLIED_ON").toString());
                     m.put("fileName", rs.getString("FILE_NAME"));
                     m.put("hasFile", rs.getString("FILE_NAME") != null);
+                    
+                    m.put("leaveTypeId", rs.getString("LEAVE_TYPE_ID"));
+                    m.put("medicalFacility", rs.getString("MEDICAL_FACILITY"));
+                    m.put("refSerialNo", rs.getString("REF_SERIAL_NO"));
+                    m.put("emergencyCategory", rs.getString("EMERGENCY_CATEGORY"));
+                    m.put("emergencyContact", rs.getString("EMERGENCY_CONTACT"));
+                    m.put("spouseName", rs.getString("SPOUSE_NAME"));
+                    
+                    Date evt = rs.getDate("EVENT_DATE");
+                    m.put("eventDate", evt != null ? evt.toString() : "");
+                    
+                    Date dis = rs.getDate("DISCHARGE_DATE");
+                    m.put("dischargeDate", dis != null ? dis.toString() : "");
+                    
                     list.add(m);
+                }
+            }
+        }
+        return list;
+    }
+
+    public List<LeaveRecord> getAllLeaveRecordsForAdmin(String status, String year, String month) throws Exception {
+        List<LeaveRecord> list = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(
+            "SELECT lr.*, e.FULLNAME, e.PROFILE_PIC, e.HIRE_DATE, lt.TYPE_CODE, ls.STATUS_CODE, att.FILE_NAME as ATTACHMENT_NAME " +
+            "FROM LEAVE_REQUESTS lr " +
+            "JOIN EMPLOYEES e ON lr.EMPID = e.EMPID " +
+            "JOIN LEAVE_TYPES lt ON lr.LEAVE_TYPE_ID = lt.LEAVE_TYPE_ID " +
+            "JOIN LEAVE_STATUSES ls ON lr.STATUS_ID = ls.STATUS_ID " +
+            "LEFT JOIN LEAVE_REQUEST_ATTACHMENTS att ON lr.LEAVE_ID = att.LEAVE_ID " +
+            "WHERE 1=1 "
+        );
+
+        if (status != null && !status.equalsIgnoreCase("ALL")) sql.append(" AND ls.STATUS_CODE = ? ");
+        if (year != null && !year.isEmpty()) sql.append(" AND TO_CHAR(lr.START_DATE, 'YYYY') = ? ");
+        if (month != null && !month.isEmpty()) sql.append(" AND TO_CHAR(lr.START_DATE, 'MM') = ? ");
+        
+        sql.append(" ORDER BY lr.APPLIED_ON DESC");
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql.toString())) {
+            
+            int idx = 1;
+            if (status != null && !status.equalsIgnoreCase("ALL")) ps.setString(idx++, status.toUpperCase());
+            if (year != null && !year.isEmpty()) ps.setString(idx++, year);
+            if (month != null && !month.isEmpty()) ps.setString(idx++, month);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    LeaveRecord r = new LeaveRecord();
+                    r.setLeaveId(rs.getInt("LEAVE_ID"));
+                    r.setEmpId(rs.getInt("EMPID"));
+                    r.setFullName(rs.getString("FULLNAME"));
+                    r.setProfilePic(rs.getString("PROFILE_PIC"));
+                    r.setHireDate(rs.getDate("HIRE_DATE"));
+                    r.setTypeCode(rs.getString("TYPE_CODE"));
+                    r.setStatusCode(rs.getString("STATUS_CODE"));
+                    r.setDurationDays(rs.getDouble("DURATION_DAYS"));
+                    r.setDuration(rs.getString("DURATION"));
+                    r.setStartDate(rs.getDate("START_DATE").toString());
+                    r.setEndDate(rs.getDate("END_DATE").toString());
+                    r.setAppliedOn(rs.getTimestamp("APPLIED_ON").toString());
+                    r.setReason(rs.getString("REASON"));
+                    r.setManagerComment(rs.getString("MANAGER_COMMENT"));
+                    r.setAttachment(rs.getString("ATTACHMENT_NAME"));
+
+                    r.setLeaveTypeId(rs.getString("LEAVE_TYPE_ID"));
+                    r.setMedicalFacility(rs.getString("MEDICAL_FACILITY"));
+                    r.setRefSerialNo(rs.getString("REF_SERIAL_NO"));
+                    r.setEmergencyCategory(rs.getString("EMERGENCY_CATEGORY"));
+                    r.setEmergencyContact(rs.getString("EMERGENCY_CONTACT"));
+                    r.setSpouseName(rs.getString("SPOUSE_NAME"));
+                    
+                    Date evt = rs.getDate("EVENT_DATE");
+                    r.setEventDate(evt != null ? evt.toString() : "");
+                    
+                    Date dis = rs.getDate("DISCHARGE_DATE");
+                    r.setDischargeDate(dis != null ? dis.toString() : "");
+                    
+                    list.add(r);
                 }
             }
         }
@@ -408,5 +474,36 @@ public class LeaveDAO {
             ps.setInt(2, empId);
             return ps.executeUpdate() > 0;
         }
+    }
+
+    public Map<Integer, Map<Integer, LeaveBalance>> getLeaveBalanceIndex() throws Exception {
+        Map<Integer, Map<Integer, LeaveBalance>> index = new HashMap<>();
+        String sql = "SELECT b.EMPID, b.LEAVE_TYPE_ID, t.TYPE_CODE, t.DESCRIPTION, " +
+                     "b.ENTITLEMENT, b.CARRIED_FWD, b.USED, b.PENDING, b.TOTAL " +
+                     "FROM LEAVE_BALANCES b " +
+                     "JOIN LEAVE_TYPES t ON b.LEAVE_TYPE_ID = t.LEAVE_TYPE_ID";
+        
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                int empId = rs.getInt("EMPID");
+                int typeId = rs.getInt("LEAVE_TYPE_ID");
+                LeaveBalance lb = new LeaveBalance();
+                lb.setEmpId(empId);
+                lb.setLeaveTypeId(typeId);
+                lb.setTypeCode(rs.getString("TYPE_CODE"));
+                lb.setDescription(rs.getString("DESCRIPTION"));
+                lb.setEntitlement(rs.getInt("ENTITLEMENT"));
+                lb.setCarriedForward(rs.getInt("CARRIED_FWD"));
+                lb.setUsed(rs.getDouble("USED"));
+                lb.setPending(rs.getDouble("PENDING"));
+                double total = rs.getDouble("TOTAL");
+                double avail = total - lb.getUsed() - lb.getPending();
+                lb.setTotalAvailable(avail < 0 ? 0 : avail);
+                index.computeIfAbsent(empId, k -> new HashMap<>()).put(typeId, lb);
+            }
+        }
+        return index;
     }
 }

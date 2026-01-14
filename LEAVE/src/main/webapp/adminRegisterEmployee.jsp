@@ -124,7 +124,6 @@
             letter-spacing: 0.05em;
         }
 
-        /* Input specific changes: 18px horizontal padding for the typing gap */
         input, select {
             width: 100%; 
             height: 48px;
@@ -183,16 +182,85 @@
         .msg { background: #f0fdfa; border: 1px solid #ccfbf1; color: #0f766e; }
         .err { background: #fef2f2; border: 1px solid #fee2e2; color: #b91c1c; }
 
+        /* ✅ Custom Modal Styles */
+        .confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .confirm-overlay.show { display: flex; }
+        
+        .confirm-modal {
+            background: white;
+            width: 100%;
+            max-width: 450px;
+            border-radius: 20px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp { 
+            from { opacity: 0; transform: translateY(20px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+
+        .confirm-header {
+            padding: 24px;
+            text-align: center;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .confirm-body { padding: 32px 24px; text-align: center; }
+        .confirm-footer {
+            padding: 16px 24px;
+            background: #f8fafc;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+
         @media (max-width: 768px) { 
             .grid-form { grid-template-columns: 1fr; } 
             .span2 { grid-column: span 1; } 
         }
         
-        /* Icon Sizing */
         .icon-sm { width: 16px; height: 16px; }
         .icon-md { width: 20px; height: 20px; }
         .icon-lg { width: 24px; height: 24px; }
     </style>
+    
+    <script>
+        /**
+         * Custom Modal Confirmation logic
+         */
+        function showConfirmModal(event) {
+            event.preventDefault(); // Prevent immediate submission
+            
+            const nameInput = document.querySelector('input[name="fullname"]');
+            const name = nameInput ? nameInput.value.trim() : "this user";
+            
+            // Set the name in the modal text
+            document.getElementById('confirmNameText').textContent = name.toUpperCase();
+            
+            // Show the modal
+            document.getElementById('confirmOverlay').classList.add('show');
+            return false;
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmOverlay').classList.remove('show');
+        }
+
+        function proceedWithRegistration() {
+            document.getElementById('registrationForm').submit();
+        }
+    </script>
 </head>
 
 <body class="flex">
@@ -208,7 +276,7 @@
             </div>
 
             <div class="tabs">
-                <a class="tab active" href="RegisterEmployeeServlet">
+                <a class="tab active" href="RegisterEmployee">
                     <%= PlusIcon("icon-sm mr-2") %>Register
                 </a>
                 <a class="tab" href="EmployeeDirectory">
@@ -230,7 +298,7 @@
                 </div>
 
                 <div class="cardBody">
-                    <form action="RegisterEmployeeServlet" method="post">
+                    <form id="registrationForm" action="RegisterEmployee" method="post" onsubmit="return showConfirmModal(event)">
                         <div class="grid-form">
                             <div class="field span2">
                                 <label>Full Name as per IC *</label>
@@ -329,5 +397,32 @@
             </div>
         </div>
     </main>
+
+    <!-- ✅ Custom Confirmation Modal -->
+    <div id="confirmOverlay" class="confirm-overlay">
+        <div class="confirm-modal">
+            <div class="confirm-header">
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <%= UsersIcon("w-6 h-6 text-blue-600") %>
+                </div>
+                <h3 class="text-lg font-extrabold text-slate-900 uppercase">Confirm Registration</h3>
+            </div>
+            <div class="confirm-body">
+                <p class="text-sm text-slate-500 font-medium leading-relaxed">
+                    ARE YOU SURE WANT TO REGISTER <br>
+                    <span id="confirmNameText" class="text-blue-600 font-black"></span> <br>
+                    AS A NEW EMPLOYEE?
+                </p>
+            </div>
+            <div class="confirm-footer">
+                <button type="button" onclick="closeConfirmModal()" class="btn btnGhost px-6 py-2.5">
+                    No, Cancel
+                </button>
+                <button type="button" onclick="proceedWithRegistration()" class="btn btnPrimary px-6 py-2.5">
+                    Yes, Register
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

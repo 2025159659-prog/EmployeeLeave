@@ -2,6 +2,7 @@
 <%@ page import="java.util.*" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
 
+
 <%
     // =========================
     // SECURITY GUARD - MANAGER ONLY
@@ -15,6 +16,8 @@
     Integer pendingCount = (Integer) request.getAttribute("pendingCount");
     Integer cancelReqCount = (Integer) request.getAttribute("cancelReqCount");
     String msg = request.getParameter("msg");
+    
+    Calendar cal = Calendar.getInstance();
 %>
 
 <!DOCTYPE html>
@@ -38,14 +41,14 @@
         /* Main Table Layout */
         .card { background:var(--card); border:1px solid var(--border); border-radius:24px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.05); overflow:hidden; }
         table { width:100%; border-collapse:collapse; }
-        th, td { border-bottom:1px solid #f1f5f9; padding:18px; text-align:left; vertical-align:middle; }
+        th, td { border-bottom:1px solid #f1f5f9; padding:18px; text-align:left; vertical-align:middle; font-size: 14px; }
         th { background:#f8fafc; font-size:11px; text-transform:uppercase; color:#64748b; font-weight:800; letter-spacing:0.05em; }
 
         .badge { display:inline-block; font-size:10px; font-weight:700; padding:4px 12px; border-radius:999px; text-transform:uppercase; }
         .badge.pending { background:#fff7ed; color:#9a3412; border: 1px solid #fed7aa; }
         .badge.cancel { background:#fef2f2; color:#991b1b; border: 1px solid #fecaca; }
 
-        /* MODAL FLOW: Updated to 800px */
+        /* MODAL FLOW */
         .modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.6); display:none; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px); padding: 20px; }
         .modal-overlay.show { display:flex; }
         .modal-content { background:white; width:100%; max-width:800px; border-radius:32px; padding:0; overflow:hidden; animation:slideUp 0.3s ease; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); position: relative; }
@@ -59,17 +62,17 @@
         select, textarea { width:100%; border:1px solid #cbd5e1; border-radius:12px; padding:12px; font-size:14px; margin-top:8px; background:#fff; outline:none; transition:0.2s; }
         select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(37,99,235,0.1); }
 
-        .btn-submit { width:100%; background:var(--primary); color:white; padding:16px; border-radius:14px; font-weight:800; margin-top:24px; text-transform:uppercase; cursor:pointer; border:none; transition:0.2s; letter-spacing: 0.1em; }
+        /* BUTTONS */
+        .btn-submit { background:var(--primary); color:white; padding:16px; border-radius:14px; font-weight:800; text-transform:uppercase; cursor:pointer; border:none; transition:0.2s; letter-spacing: 0.1em; display:flex; align-items:center; justify-content:center; gap:8px; font-size:12px; }
         .btn-submit:hover { background:#1d4ed8; transform:translateY(-1px); box-shadow: 0 10px 15px -3px rgba(37,99,235,0.3); }
+        
+        .btn-cancel { background:#f1f5f9; color:#64748b; padding:16px; border-radius:14px; font-weight:800; text-transform:uppercase; cursor:pointer; border:none; transition:0.2s; letter-spacing: 0.1em; display:flex; align-items:center; justify-content:center; gap:8px; font-size:12px; }
+        .btn-cancel:hover { background:#e2e8f0; color:#1e293b; }
 
-        /* Close Button */
         .btn-close { position: absolute; top: 24px; right: 24px; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #94a3b8; transition: 0.2s; z-index: 10; }
         .btn-close:hover { background: #fef2f2; border-color: #fecaca; color: var(--red); }
 
-        /* Metadata Container: Single column list */
         .dynamic-meta-container { background: #f8fafc; border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-top: 10px; margin-bottom: 24px; }
-        
-        /* Auto-hide Message box */
         #statusAlert { transition: opacity 0.5s ease-out, transform 0.5s ease-out; }
         #statusAlert.hide { opacity: 0; transform: translateY(-10px); pointer-events: none; }
     </style>
@@ -86,10 +89,9 @@
                     <h2 class="text-3xl font-black text-slate-800 tracking-tight uppercase">REVIEW DASHBOARD</h2>
                     <p class="text-slate-400 font-bold text-sm mt-1 uppercase tracking-widest">Management Approval Console</p>
                 </div>
-                
             </div>
 
-            <!-- Success Message (Auto-dismisses) -->
+            <!-- Success Message -->
             <% if (msg != null && !msg.isBlank()) { %>
                 <div id="statusAlert" class="bg-emerald-50 border-2 border-emerald-100 text-emerald-700 p-5 rounded-2xl mb-8 flex items-center gap-4 font-black text-sm">
                     <div class="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center shrink-0"><i class="fas fa-check"></i></div>
@@ -123,28 +125,63 @@
                     <table class="w-full">
                         <thead>
                             <tr>
-                                <th>Employee</th><th>Leave Type</th><th>Dates (Start - End)</th><th>Duration</th><th>Days</th><th>Status</th><th>Applied On</th><th>Action</th>
+                                <th>Employee</th>
+                                <th>Leave Type</th>
+                                <th>Dates</th>
+                                <th>Days</th>
+                                <th>Status</th>
+                                <th>Applied On</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             <% if (leaves == null || leaves.isEmpty()) { %>
-                                <tr><td colspan="8" class="text-center py-24 text-slate-300 font-bold tracking-widest uppercase text-xs italic">All Clear! No pending tasks in queue.</td></tr>
+                                <tr><td colspan="7" class="text-center py-24 text-slate-300 font-bold tracking-widest uppercase text-xs italic">All Clear! No pending tasks in queue.</td></tr>
                             <% } else { for (Map<String, Object> r : leaves) { 
                                 boolean isCancel = "CANCELLATION_REQUESTED".equals(r.get("status"));
+                                
+                                
+                                // FORMAT EMP ID: EMP-hireyear-empID
+                                String joinYear = "0000";
+                                Object hDate = r.get("hireDate");
+                                if(hDate != null) { 
+                                    cal.setTime((java.util.Date)hDate); 
+                                    joinYear = String.valueOf(cal.get(Calendar.YEAR)); 
+                                }
+                                String displayEmpId = "EMP-" + joinYear + "-" + String.format("%02d", Integer.parseInt(r.get("empid").toString()));
+                                
+                                // Profile Pic Logic
+                                String pPic = (String) r.get("profilePic");
+                                String fName = (String) r.get("fullname");
                             %>
-                                <tr class="hover:bg-slate-50/80 transition-colors">
-                                    <td><div class="font-black text-slate-800"><%= r.get("fullname") %></div><div class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">ID: <%= r.get("empid") %></div></td>
+                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200 flex items-center justify-center">
+                                                <% if (pPic != null && !pPic.isEmpty()) { %>
+                                                    <img src="<%= request.getContextPath() + "/" + pPic %>" class="w-full h-full object-cover">
+                                                <% } else { %>
+                                                    <div class="text-slate-400 font-bold text-xs uppercase">
+                                                        <%= (fName != null) ? fName.substring(0,1) : "?" %>
+                                                    </div>
+                                                <% } %>
+                                            </div>
+                                            <div>
+                                                <div class="font-bold text-slate-800 text-sm"><%= fName %></div>
+                                                <div class="text-[10px] text-blue-600 font-bold uppercase tracking-tighter"><%= displayEmpId %></div>
+                                            </div>
+                                        </div>
+                                    </td>
                                     <td><span class="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-[9px] font-black uppercase border border-slate-200"><%= r.get("leaveType") %></span></td>
                                     <td class="text-xs font-bold text-slate-600"><%= r.get("startDate") %> — <%= r.get("endDate") %></td>
-                                    <td class="text-[9px] font-black uppercase text-slate-400 tracking-tighter"><%= r.get("duration") %></td>
                                     <td class="font-black text-blue-600 text-sm"><%= r.get("days") %></td>
                                     <td><span class="badge <%= isCancel ? "cancel" : "pending" %>"><%= r.get("status").toString().replace("_", " ") %></span></td>
                                     <td class="text-[10px] text-slate-400 font-bold"><%= r.get("appliedOn") %></td>
                                     <td>
-                                        <button onclick="openReview(this)" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-[10px] font-black hover:bg-blue-600 transition-all shadow-md shadow-slate-100 uppercase"
+                                        <button onclick="openReview(this)" class="bg-slate-900 text-white w-9 h-9 rounded-xl flex items-center justify-center hover:bg-blue-600 transition-all shadow-md shadow-slate-100"
                                                 data-id="<%= r.get("leaveId") %>" 
                                                 data-name="<%= r.get("fullname") %>" 
-                                                data-empid="<%= r.get("empid") %>"
+                                                data-empid="<%= displayEmpId %>"
                                                 data-type="<%= r.get("leaveType") %>" 
                                                 data-start="<%= r.get("startDate") %>"
                                                 data-end="<%= r.get("endDate") %>"
@@ -160,7 +197,9 @@
                                                 data-dis="<%= r.get("dischargeDate") %>"
                                                 data-cat="<%= r.get("emergencyCategory") %>" 
                                                 data-cnt="<%= r.get("emergencyContact") %>"
-                                                data-spo="<%= r.get("spouseName") %>">Review</button>
+                                                data-spo="<%= r.get("spouseName") %>">
+                                            <i class="fas fa-eye text-[10px]"></i>
+                                        </button>
                                     </td>
                                 </tr>
                             <% } } %>
@@ -219,9 +258,18 @@
                     </div>
                 </div>
 
-                <div class="info-item">
-                    <span class="info-label">Applied On</span>
-                    <span class="info-value" id="modalAppliedOn"></span>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12">
+                    <div class="info-item">
+                        <span class="info-label">Applied On</span>
+                        <span class="info-value" id="modalAppliedOn"></span>
+                    </div>
+                    <!-- ATTACHMENT ACTION -->
+                    <div id="attachBox" class="mb-8 hidden">
+                        <span class="info-label">Supporting Document</span>
+                        <a id="modalAttachLink" href="#" target="_blank" class="inline-flex items-center gap-3 bg-white border-2 border-slate-100 px-5 py-3 rounded-2xl text-[11px] font-black text-slate-600 hover:border-blue-200 hover:text-blue-600 transition-all">
+                            <i class="fas fa-file-medical text-red-500 text-lg"></i> VIEW ATTACHMENT <i class="fas fa-external-link-alt opacity-20 text-[9px]"></i>
+                        </a>
+                    </div>
                 </div>
 
                 <div class="info-item">
@@ -229,7 +277,7 @@
                     <p class="text-sm text-slate-500 mb-6 bg-slate-50 p-5 rounded-2xl border border-slate-100 font-medium leading-relaxed" id="modalReason"></p>
                 </div>
 
-                <!-- Integrated Metadata Extraction Section - Single Column -->
+                <!-- Attributes Section -->
                 <div id="dynamicBox" class="hidden">
                     <div class="flex items-center gap-3 mb-4">
                         <div class="w-1 h-4 bg-blue-600 rounded-full"></div>
@@ -238,23 +286,22 @@
                     <div class="dynamic-meta-container space-y-4" id="dynamicGrid"></div>
                 </div>
 
-                <!-- ATTACHMENT ACTION -->
-                <div id="attachBox" class="mb-8 hidden">
-                    <span class="info-label">Supporting Document</span>
-                    <a id="modalAttachLink" href="#" target="_blank" class="inline-flex items-center gap-3 bg-white border-2 border-slate-100 px-5 py-3 rounded-2xl text-[11px] font-black text-slate-600 hover:border-blue-200 hover:text-blue-600 transition-all">
-                        <i class="fas fa-file-medical text-red-500 text-lg"></i> VIEW ATTACHMENT <i class="fas fa-external-link-alt opacity-20 text-[9px]"></i>
-                    </a>
-                </div>
-
                 <!-- Decision Section -->
-                <div class="bg-blue-50/60 p-8 rounded-[2.5rem] border border-blue-100 mt-6">
+                <div class="bg-blue-50/60 p-8 rounded-[1.5rem] border border-blue-100 mt-6">
                     <label class="info-label text-blue-500">Decision Choice</label>
                     <select name="action" id="decisionSelect" required class="font-bold text-slate-700"></select>
                     
-                    <label class="info-label text-blue-500 mt-6">Response Comment</label>
                     <textarea name="comment" placeholder="Provide feedback for the staff..." class="h-24 resize-none font-medium"></textarea>
                     
-                    <button type="submit" class="btn-submit shadow-xl shadow-blue-200 uppercase tracking-widest">Submit Review</button>
+                    <!-- UPDATED BUTTONS WITH ICONS AND EQUAL SIZE -->
+                    <div class="flex gap-4 mt-8">
+                        <button type="submit" class="btn-submit flex-1">
+                            <i class="fas fa-paper-plane"></i> Submit Review
+                        </button>
+                        <button type="button" onclick="closeReview()" class="btn-cancel flex-1">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
                 </div>
             </div>
         </form>
@@ -264,13 +311,11 @@
 <script>
     const CTX = "<%=request.getContextPath()%>";
 
-    // Auto-dismiss the success message after 3 seconds
     window.onload = function() {
         const alert = document.getElementById('statusAlert');
         if (alert) {
             setTimeout(() => {
                 alert.classList.add('hide');
-                // Optional: Clean URL params after showing
                 setTimeout(() => {
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }, 500);
@@ -291,14 +336,12 @@
         document.getElementById('modalAppliedOn').textContent = d.applied;
         document.getElementById('modalReason').textContent = d.reason || "Staff did not provide a detailed reason.";
 
-        // Attachment link
         const abox = document.getElementById('attachBox');
         if(d.attachment && d.attachment !== "") {
             abox.classList.remove('hidden');
             document.getElementById('modalAttachLink').href = CTX + "/ViewAttachment?id=" + d.id;
         } else { abox.classList.add('hidden'); }
 
-        // Dynamic Dropdown Logic
         const sel = document.getElementById('decisionSelect');
         sel.innerHTML = "";
         if(d.status === "PENDING") {
@@ -307,7 +350,6 @@
             sel.innerHTML = '<option value="APPROVE_CANCEL">Approve Cancellation</option><option value="REJECT_CANCEL">Maintain Approval (Reject Cancel)</option>';
         }
 
-        // Dynamic Attributes Logic (Single Column)
         const dBox = document.getElementById('dynamicBox');
         const grid = document.getElementById('dynamicGrid');
         grid.innerHTML = "";

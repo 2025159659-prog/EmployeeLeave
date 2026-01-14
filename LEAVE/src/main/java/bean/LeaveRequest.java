@@ -37,7 +37,7 @@ public class LeaveRequest implements Serializable {
 
     // Audit and Joined Metadata
     private Timestamp appliedOn;    // When the request was submitted
-    private String adminComment;    // Remarks from the manager/admin
+    private String managerComment;    // Remarks from the manager/admin
     private String typeCode;        // Joined from LEAVE_TYPES (e.g., 'AL', 'MC')
     private String statusCode;      // Joined from LEAVE_STATUSES (e.g., 'PENDING')
     private String fileName;        // Joined from LEAVE_REQUEST_ATTACHMENTS
@@ -100,8 +100,8 @@ public class LeaveRequest implements Serializable {
     public Timestamp getAppliedOn() { return appliedOn; }
     public void setAppliedOn(Timestamp appliedOn) { this.appliedOn = appliedOn; }
 
-    public String getAdminComment() { return adminComment; }
-    public void setAdminComment(String adminComment) { this.adminComment = adminComment; }
+    public String getManagerComment() { return managerComment; }
+    public void setManagerComment(String managerComment) { this.managerComment = managerComment; }
 
     public String getTypeCode() { return typeCode; }
     public void setTypeCode(String typeCode) { this.typeCode = typeCode; }

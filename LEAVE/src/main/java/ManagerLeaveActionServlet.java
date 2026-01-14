@@ -61,7 +61,7 @@ public class ManagerLeaveActionServlet extends HttpServlet {
             }
 
             // Update Request Status
-            String updSql = "UPDATE LEAVE_REQUESTS SET STATUS_ID = (SELECT STATUS_ID FROM LEAVE_STATUSES WHERE STATUS_CODE=?), ADMIN_COMMENT=? WHERE LEAVE_ID=?";
+            String updSql = "UPDATE LEAVE_REQUESTS SET STATUS_ID = (SELECT STATUS_ID FROM LEAVE_STATUSES WHERE STATUS_CODE=?), MANAGER_COMMENT=? WHERE LEAVE_ID=?";
             try (PreparedStatement ps = con.prepareStatement(updSql)) {
                 ps.setString(1, finalStatus); ps.setString(2, comment); ps.setInt(3, leaveId);
                 ps.executeUpdate();

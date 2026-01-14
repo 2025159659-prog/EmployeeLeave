@@ -1,4 +1,3 @@
-
 import bean.LeaveRequest;
 import dao.LeaveDAO;
 import jakarta.servlet.ServletException;
@@ -9,10 +8,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Controller for editing an existing pending leave request.
- * Handles fetching data (GET) for the modal and updating data (POST).
- */
 @WebServlet("/EditLeave")
 public class EditLeave extends HttpServlet {
     private static final long serialVersionUID = 1L;
@@ -27,30 +22,26 @@ public class EditLeave extends HttpServlet {
         }
 
         try {
+            int empId = (Integer) session.getAttribute("empid");
             String idParam = request.getParameter("id");
             if (idParam == null) {
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 return;
             }
 
-            int leaveId = Integer.parseInt(idParam);
-            int empId = (Integer) session.getAttribute("empid");
-
-            // 1. Fetch the specific leave request from DAO
-            LeaveRequest lr = leaveDAO.getLeaveById(leaveId, empId);
-            if (lr == null) {
-                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                return;
-            }
-
-            // 2. Security Check: Only PENDING leaves can be edited
-            if (!"PENDING".equalsIgnoreCase(lr.getStatusCode())) {
+            LeaveRequest lr = leaveDAO.getLeaveById(Integer.parseInt(idParam), empId);
+            if (lr == null || !"PENDING".equalsIgnoreCase(lr.getStatusCode())) {
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 response.getWriter().print("Error: Only PENDING requests can be edited.");
                 return;
             }
 
-            // 3. Construct JSON response for the frontend Modal
+            // GENDER LOGIC
+            Object genderObj = session.getAttribute("gender");
+            String gen = (genderObj != null) ? String.valueOf(genderObj).trim().toUpperCase() : ""; 
+            boolean isFemale = gen.startsWith("F") || gen.startsWith("P") || gen.contains("FEMALE");
+            boolean isMale = !isFemale;
+
             response.setContentType("application/json");
             StringBuilder json = new StringBuilder();
             json.append("{")
@@ -61,23 +52,35 @@ public class EditLeave extends HttpServlet {
                 .append("\"duration\":\"").append(lr.getDuration()).append("\",")
                 .append("\"halfSession\":\"").append(lr.getHalfSession() == null ? "" : lr.getHalfSession()).append("\",")
                 .append("\"reason\":\"").append(esc(lr.getReason())).append("\",")
+                // Metadata for pre-filling
+                .append("\"med\":\"").append(esc(lr.getMedicalFacility())).append("\",")
+                .append("\"ref\":\"").append(esc(lr.getRefSerialNo())).append("\",")
+                .append("\"cat\":\"").append(esc(lr.getEmergencyCategory())).append("\",")
+                .append("\"cnt\":\"").append(esc(lr.getEmergencyContact())).append("\",")
+                .append("\"spo\":\"").append(esc(lr.getSpouseName())).append("\",")
                 .append("\"leaveTypes\":[");
             
-            // Include available leave types for the dropdown
             List<Map<String, Object>> types = leaveDAO.getAllLeaveTypes();
-            for (int i = 0; i < types.size(); i++) {
-                Map<String, Object> t = types.get(i);
+            boolean first = true;
+            for (Map<String, Object> t : types) {
+                String code = t.get("code").toString().toUpperCase();
+                String desc = (t.get("desc") != null) ? t.get("desc").toString().toUpperCase() : "";
+                
+                boolean isMat = code.contains("MATERNITY") || code.equals("ML") || desc.contains("MATERNITY");
+                boolean isPat = code.contains("PATERNITY") || code.equals("PL") || desc.contains("PATERNITY");
+
+                if ((isMat && !isFemale) || (isPat && !isMale)) continue;
+
+                if (!first) json.append(",");
                 json.append("{\"id\":").append(t.get("id"))
                     .append(",\"code\":\"").append(esc(t.get("code").toString()))
                     .append("\",\"desc\":\"").append(esc(t.get("desc").toString())).append("\"}");
-                if (i < types.size() - 1) json.append(",");
+                first = false;
             }
             json.append("]}");
-
             response.getWriter().print(json.toString());
 
         } catch (Exception e) {
-            e.printStackTrace();
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             response.getWriter().print("System Error: " + e.getMessage());
         }
@@ -93,61 +96,44 @@ public class EditLeave extends HttpServlet {
 
         try {
             int empId = (Integer) session.getAttribute("empid");
-            
-            // 1. Extract data into LeaveRequest Bean
             LeaveRequest lr = new LeaveRequest();
             lr.setLeaveId(Integer.parseInt(request.getParameter("leaveId")));
             lr.setLeaveTypeId(Integer.parseInt(request.getParameter("leaveType")));
             lr.setReason(request.getParameter("reason"));
             
-            String durationType = request.getParameter("duration"); // FULL_DAY or HALF_DAY
+            String durationType = request.getParameter("duration"); 
             LocalDate start = LocalDate.parse(request.getParameter("startDate"));
-            
-            // Logic: For half days, start and end date are the same
             LocalDate end = "HALF_DAY".equalsIgnoreCase(durationType) ? start : LocalDate.parse(request.getParameter("endDate"));
 
             lr.setStartDate(start);
             lr.setEndDate(end);
             lr.setDuration(durationType);
-            lr.setHalfSession(request.getParameter("halfSession")); // AM or PM
+            lr.setHalfSession(request.getParameter("halfSession"));
             
-            // Additional fields often required for updates in your DAO structure
+            // Capture Dynamic Metadata
             lr.setMedicalFacility(request.getParameter("medicalFacility"));
             lr.setRefSerialNo(request.getParameter("refSerialNo"));
             lr.setEmergencyCategory(request.getParameter("emergencyCategory"));
             lr.setEmergencyContact(request.getParameter("emergencyContact"));
             lr.setSpouseName(request.getParameter("spouseName"));
 
-            // 2. Re-calculate Duration Days
             double days = "HALF_DAY".equalsIgnoreCase(durationType) ? 0.5 : leaveDAO.calculateWorkingDays(start, end);
-            
             if (days <= 0) {
-                response.getWriter().print("Error: Selected dates consist only of weekends or holidays.");
+                response.getWriter().print("Error: Invalid working days.");
                 return;
             }
             lr.setDurationDays(days);
 
-            // 3. Execute Update via DAO (Passing empId separately for security)
-            if (leaveDAO.updateLeave(lr, empId)) {
-                response.getWriter().print("OK");
-            } else {
-                response.getWriter().print("Failed to update: Request might no longer be in PENDING status.");
-            }
+            if (leaveDAO.updateLeave(lr, empId)) response.getWriter().print("OK");
+            else response.getWriter().print("Update failed.");
 
         } catch (Exception e) {
-            e.printStackTrace();
             response.getWriter().print("System Error: " + e.getMessage());
         }
     }
 
     private String esc(String s) {
         if (s == null) return "";
-        return s.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\b", "\\b")
-                .replace("\f", "\\f")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
+        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "");
     }
 }

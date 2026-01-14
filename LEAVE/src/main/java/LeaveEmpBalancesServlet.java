@@ -45,9 +45,9 @@ public class LeaveEmpBalancesServlet extends HttpServlet {
 
             // 2) Load all Employees (including Gender)
             String empSql =
-                    "SELECT EMPID, FULLNAME, EMAIL, GENDER, HIREDATE, PROFILE_PICTURE " +
+                    "SELECT EMPID, FULLNAME, EMAIL, ROLE, GENDER, HIREDATE, PROFILE_PICTURE " +
                     "FROM USERS " + 
-                    "WHERE UPPER(ROLE) = 'EMPLOYEE' " +
+                    "WHERE UPPER(ROLE) != 'ADMIN'" +
                     "ORDER BY FULLNAME";
             try (PreparedStatement ps = conn.prepareStatement(empSql);
                  ResultSet rs = ps.executeQuery()) {
@@ -56,6 +56,7 @@ public class LeaveEmpBalancesServlet extends HttpServlet {
                     e.put("empid", rs.getInt("EMPID"));
                     e.put("fullname", rs.getString("FULLNAME"));
                     e.put("email", rs.getString("EMAIL"));
+                    e.put("role", rs.getString("ROLE"));
                     e.put("gender", rs.getString("GENDER"));
                     e.put("hiredate", rs.getDate("HIREDATE"));
                     e.put("profilePic", rs.getString("PROFILE_PICTURE"));

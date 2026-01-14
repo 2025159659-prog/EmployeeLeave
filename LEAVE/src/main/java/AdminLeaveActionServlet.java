@@ -19,8 +19,8 @@ public class AdminLeaveActionServlet extends HttpServlet {
         // ✅ admin guard
         HttpSession session = request.getSession(false);
         Object roleObj = (session == null) ? null : session.getAttribute("role");
-        if (roleObj == null || !"ADMIN".equalsIgnoreCase(roleObj.toString())) {
-            response.sendRedirect("login.jsp?error=" + url("Please login as admin."));
+        if (roleObj == null || !"MANAGER".equalsIgnoreCase(roleObj.toString())) {
+            response.sendRedirect("login.jsp?error=" + url("Please login as manager."));
             return;
         }
 
@@ -29,7 +29,7 @@ public class AdminLeaveActionServlet extends HttpServlet {
         String comment = request.getParameter("comment");
 
         if (leaveIdStr == null || leaveIdStr.isBlank()) {
-            response.sendRedirect("AdminDashboardServlet?msg=" + url("Missing leaveId."));
+            response.sendRedirect("ReviewLeave?msg=" + url("Missing leaveId."));
             return;
         }
 
@@ -37,7 +37,7 @@ public class AdminLeaveActionServlet extends HttpServlet {
         try {
             leaveId = Integer.parseInt(leaveIdStr);
         } catch (NumberFormatException nfe) {
-            response.sendRedirect("AdminDashboardServlet?msg=" + url("Invalid leaveId."));
+            response.sendRedirect("ReviewLeave?msg=" + url("Invalid leaveId."));
             return;
         }
 
@@ -67,7 +67,7 @@ public class AdminLeaveActionServlet extends HttpServlet {
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.next()) {
                         con.rollback();
-                        response.sendRedirect("AdminDashboardServlet?msg=" + url("Leave record not found."));
+                        response.sendRedirect("ReviewLeave?msg=" + url("Leave record not found."));
                         return;
                     }
                     empId = rs.getInt("EMPID");
@@ -98,7 +98,7 @@ public class AdminLeaveActionServlet extends HttpServlet {
             String qUpdate = """
                 UPDATE LEAVE_REQUESTS
                 SET STATUS_ID = (SELECT STATUS_ID FROM LEAVE_STATUSES WHERE UPPER(STATUS_CODE)=UPPER(?)),
-                    ADMIN_COMMENT = ?
+                    MANAGER_COMMENT = ?
                 WHERE LEAVE_ID = ?
             """;
 
@@ -110,7 +110,7 @@ public class AdminLeaveActionServlet extends HttpServlet {
                 int updated = ps.executeUpdate();
                 if (updated == 0) {
                     con.rollback();
-                    response.sendRedirect("AdminDashboardServlet?msg=" + url("No row updated."));
+                    response.sendRedirect("ReviewLeave?msg=" + url("No row updated."));
                     return;
                 }
             }
@@ -152,7 +152,7 @@ public class AdminLeaveActionServlet extends HttpServlet {
             // You can keep your existing NotificationService.notifyUser(...) logic here
 
             con.commit();
-            response.sendRedirect("AdminDashboardServlet?msg=" + url("Updated: " + newStatus));
+            response.sendRedirect("ReviewLeave?msg=" + url("Updated: " + newStatus));
 
         } catch (Exception e) {
             try { if (con != null) con.rollback(); } catch (Exception ignore) {}

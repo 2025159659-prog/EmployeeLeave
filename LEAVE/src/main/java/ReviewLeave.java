@@ -8,10 +8,11 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 /**
- * ManagerDashboardServlet
+ * ReviewLeave Servlet
  * Restricted to MANAGER role.
  * Fetches all PENDING and CANCELLATION_REQUESTED leave applications.
  * Formats all dates and timestamps to DD/MM/YYYY format.
+ * Retrieves User Profile data (Name, Hire Date, Profile Pic) via SQL Join.
  */
 @WebServlet("/ReviewLeave")
 public class ReviewLeave extends HttpServlet {
@@ -38,8 +39,10 @@ public class ReviewLeave extends HttpServlet {
         SimpleDateFormat sdfDate = new SimpleDateFormat("dd/MM/yyyy");
 
         try (Connection con = DatabaseConnection.getConnection()) {
+            // SQL updated to include PROFILE_PIC, HIRE_DATE and ensure all columns from lr are retrieved
+            // Note: If ORA-00904 persists, ensure the column name in LEAVE_REQUESTS is exactly "MANAGER_COMMENT"
             String sql = 
-                "SELECT lr.*, u.FULLNAME, lt.TYPE_CODE as LEAVE_TYPE_NAME, ls.STATUS_CODE " +
+                "SELECT lr.*, u.FULLNAME, u.HIREDATE, u.PROFILE_PICTURE, lt.TYPE_CODE as LEAVE_TYPE_NAME, ls.STATUS_CODE " +
                 "FROM LEAVE_REQUESTS lr " +
                 "JOIN USERS u ON lr.EMPID = u.EMPID " +
                 "JOIN LEAVE_TYPES lt ON lr.LEAVE_TYPE_ID = lt.LEAVE_TYPE_ID " +
@@ -56,6 +59,8 @@ public class ReviewLeave extends HttpServlet {
                     r.put("leaveId", leaveId);
                     r.put("empid", rs.getInt("EMPID"));
                     r.put("fullname", rs.getString("FULLNAME"));
+                    r.put("profilePic", rs.getString("PROFILE_PICTURE"));
+                    r.put("hireDate", rs.getDate("HIREDATE")); // Storing as Date object for year extraction in JSP
                     r.put("leaveType", rs.getString("LEAVE_TYPE_NAME"));
                     
                     // Format Start and End Dates
@@ -68,6 +73,10 @@ public class ReviewLeave extends HttpServlet {
                     r.put("days", rs.getDouble("DURATION_DAYS"));
                     r.put("reason", rs.getString("REASON"));
                     r.put("status", rs.getString("STATUS_CODE"));
+                    
+                    // Retrieve Manager Comment (Resolving ORA-00904 requirement)
+                    // If the column name in your DB is different (e.g. MGR_COMMENT), update the string below.
+                    r.put("managerComment", rs.getString("MANAGER_COMMENT"));
                     
                     // Format Applied On Timestamp
                     Timestamp appliedTs = rs.getTimestamp("APPLIED_ON");
@@ -91,7 +100,11 @@ public class ReviewLeave extends HttpServlet {
                     try (PreparedStatement psA = con.prepareStatement("SELECT FILE_NAME FROM LEAVE_REQUEST_ATTACHMENTS WHERE LEAVE_ID = ?")) {
                         psA.setInt(1, leaveId);
                         try (ResultSet rsA = psA.executeQuery()) {
-                            if (rsA.next()) r.put("attachment", rsA.getString("FILE_NAME"));
+                            if (rsA.next()) {
+                                r.put("attachment", rsA.getString("FILE_NAME"));
+                            } else {
+                                r.put("attachment", "");
+                            }
                         }
                     }
 
@@ -101,6 +114,7 @@ public class ReviewLeave extends HttpServlet {
                 }
             }
         } catch (Exception e) {
+            e.printStackTrace();
             request.setAttribute("error", "Database Error: " + e.getMessage());
         }
 

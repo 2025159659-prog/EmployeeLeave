@@ -30,7 +30,8 @@ public class LoginServlet extends HttpServlet {
             return;
         }
 
-        String sql = "SELECT EMPID, FULLNAME, ROLE " +
+        // Ensure we select the STATUS column to check account standing
+        String sql = "SELECT EMPID, FULLNAME, ROLE, STATUS " +
                      "FROM USERS " +
                      "WHERE EMAIL = ? AND PASSWORD = ?";
 
@@ -42,20 +43,30 @@ public class LoginServlet extends HttpServlet {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
+                    // Retrieve status and trim any potential whitespace from DB padding
+                    String rawStatus = rs.getString("STATUS");
+                    String status = (rawStatus != null) ? rawStatus.trim() : "ACTIVE";
+
+                    // ✅ ACCOUNT STATUS CHECK
+                    // If the account is explicitly marked as INACTIVE, deny access immediately
+                    if ("INACTIVE".equalsIgnoreCase(status)) {
+                        response.sendRedirect("login.jsp?error=" + url("Your account is deactivated. Please contact the administrator."));
+                        return;
+                    }
 
                     int empid = rs.getInt("EMPID");
                     String fullname = rs.getString("FULLNAME");
-                    String role = rs.getString("ROLE"); // expected 'ADMIN' / 'EMPLOYEE'
+                    String role = rs.getString("ROLE");
 
-                    // ✅ session
+                    // ✅ Create Session
                     HttpSession session = request.getSession(true);
                     session.setAttribute("empid", empid);
                     session.setAttribute("fullname", fullname);
                     session.setAttribute("role", role);
 
-                    // ✅ redirect ikut role
+                    // ✅ Redirect based on role
                     if ("ADMIN".equalsIgnoreCase(role)) {
-                        response.sendRedirect("AdminDashboardServlet");
+                        response.sendRedirect("AdminDashboard");
                     }
                     else if ("MANAGER".equalsIgnoreCase(role)) {
                         response.sendRedirect("ReviewLeave");
@@ -65,6 +76,7 @@ public class LoginServlet extends HttpServlet {
                     }
 
                 } else {
+                    // No matching user found
                     response.sendRedirect("login.jsp?error=" + url("Invalid email or password."));
                 }
             }
