@@ -7,7 +7,7 @@ import java.time.temporal.ChronoUnit;
 
 /**
  * Comprehensive Model class representing a Leave Request.
- * Includes all fields for application, attachments, and administrative tracking.
+ * Acts as the Data Transfer Object (DTO) for the base table and all inherited tables.
  */
 public class LeaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -18,29 +18,30 @@ public class LeaveRequest implements Serializable {
     private int leaveTypeId;
     private int statusId;
 
-    // Core Leave Data
+    // Core Leave Data (Base Table: LEAVE_REQUESTS)
     private LocalDate startDate;
     private LocalDate endDate;
     private String duration;      // FULL_DAY or HALF_DAY
     private double durationDays;  // Total calculated days
-    private String halfSession;   // AM or PM (used if duration is HALF_DAY)
+    private String halfSession;   // AM or PM
     private String reason;
 
-    // Specific Form Details
-    private String medicalFacility;
-    private String refSerialNo;
-    private LocalDate eventDate;
-    private LocalDate dischargeDate;
-    private String emergencyCategory;
-    private String emergencyContact;
-    private String spouseName;
+    // Inheritance Metadata (Mapped from specific LR_* tables)
+    private String medicalFacility;   // Clinic Name / Hospital Name / Location
+    private String refSerialNo;       // MC Serial Number
+    private LocalDate eventDate;      // Admit Date / Expected Due Date / Delivery Date
+    private LocalDate dischargeDate;  // Only for Hospitalization
+    private String emergencyCategory; // Only for Emergency
+    private String emergencyContact;  // Only for Emergency
+    private String spouseName;        // Only for Paternity
+    private int weekPregnancy;        // Only for Maternity (e.g., 32 weeks)
 
-    // Audit and Joined Metadata
-    private Timestamp appliedOn;    // When the request was submitted
-    private String managerComment;    // Remarks from the manager/admin
-    private String typeCode;        // Joined from LEAVE_TYPES (e.g., 'AL', 'MC')
-    private String statusCode;      // Joined from LEAVE_STATUSES (e.g., 'PENDING')
-    private String fileName;        // Joined from LEAVE_REQUEST_ATTACHMENTS
+    // Audit and Joined Metadata for Display
+    private Timestamp appliedOn;
+    private String managerComment;
+    private String typeCode;
+    private String statusCode;
+    private String fileName;
 
     public LeaveRequest() {}
 
@@ -97,6 +98,9 @@ public class LeaveRequest implements Serializable {
     public String getSpouseName() { return spouseName; }
     public void setSpouseName(String spouseName) { this.spouseName = spouseName; }
 
+    public int getWeekPregnancy() { return weekPregnancy; }
+    public void setWeekPregnancy(int weekPregnancy) { this.weekPregnancy = weekPregnancy; }
+
     public Timestamp getAppliedOn() { return appliedOn; }
     public void setAppliedOn(Timestamp appliedOn) { this.appliedOn = appliedOn; }
 
@@ -112,10 +116,10 @@ public class LeaveRequest implements Serializable {
     public String getFileName() { return fileName; }
     public void setFileName(String fileName) { this.fileName = fileName; }
 
-    // --- MVC Helper Methods for JSP Display ---
+    // --- Helper Methods ---
 
     /**
-     * Returns a user-friendly label for the duration.
+     * Formatting helper for UI labels.
      */
     public String getDurationLabel() {
         if ("HALF_DAY".equalsIgnoreCase(this.duration)) {
@@ -126,8 +130,7 @@ public class LeaveRequest implements Serializable {
     }
 
     /**
-     * Logic to return the total days.
-     * Calculates based on dates if durationDays is not yet set.
+     * Calculation fallback if DAO hasn't provided durationDays.
      */
     public double getTotalDays() {
         if (durationDays > 0) return durationDays;

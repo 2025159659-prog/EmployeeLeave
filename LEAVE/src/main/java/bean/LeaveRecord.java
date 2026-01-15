@@ -5,7 +5,8 @@ import java.util.Date;
 
 /**
  * LeaveRecord Bean
- * Updated to include leaveTypeId for unique attribute tracking.
+ * Comprehensive data object used for Admin Leave History views.
+ * Updated to include leaveTypeId and all sub-table metadata fields.
  */
 public class LeaveRecord implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -27,10 +28,10 @@ public class LeaveRecord implements Serializable {
     private String managerComment;
     private String attachment;
 
-    // THE MISSING UNIQUE ATTRIBUTE
+    // Type Tracking
     private String leaveTypeId; 
 
-    // Metadata / Dynamic Attributes
+    // Metadata / Dynamic Attributes (Class Table Inheritance)
     private String medicalFacility;
     private String refSerialNo;
     private String eventDate;
@@ -38,6 +39,7 @@ public class LeaveRecord implements Serializable {
     private String emergencyCategory;
     private String emergencyContact;
     private String spouseName;
+    private int weekPregnancy; // Added for Maternity Leave tracking
 
     public LeaveRecord() {}
 
@@ -87,11 +89,9 @@ public class LeaveRecord implements Serializable {
     public String getAttachment() { return attachment; }
     public void setAttachment(String attachment) { this.attachment = attachment; }
 
-    // Unique Type ID Getter/Setter
     public String getLeaveTypeId() { return leaveTypeId; }
     public void setLeaveTypeId(String leaveTypeId) { this.leaveTypeId = leaveTypeId; }
 
-    // Metadata Getters/Setters
     public String getMedicalFacility() { return medicalFacility; }
     public void setMedicalFacility(String medicalFacility) { this.medicalFacility = medicalFacility; }
 
@@ -112,4 +112,7 @@ public class LeaveRecord implements Serializable {
 
     public String getSpouseName() { return spouseName; }
     public void setSpouseName(String spouseName) { this.spouseName = spouseName; }
+
+    public int getWeekPregnancy() { return weekPregnancy; }
+    public void setWeekPregnancy(int weekPregnancy) { this.weekPregnancy = weekPregnancy; }
 }

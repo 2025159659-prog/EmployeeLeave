@@ -62,7 +62,6 @@
         .title { font-size: 26px; font-weight: 800; margin: 0; text-transform: uppercase; color: var(--text); }
         .sub-label { color: var(--blue-primary); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; display: block; }
 
-        /* Filter Card Styling */
         .filter-bar { background: #fff; border: 1px solid var(--border); border-radius: 1.5rem; padding: 20px 24px; box-shadow: var(--shadow); margin-bottom: 24px; }
         .filter-group { display: flex; flex-direction: column; gap: 4px; }
         .filter-label { font-size: 10px; font-weight: 900; color: var(--muted); text-transform: uppercase; tracking-widest; margin-left: 4px; }
@@ -75,9 +74,7 @@
         select:focus { border-color: var(--blue-primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
 
         .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
-        .cardHead { padding: 20px 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
-        .cardHead span { font-weight: 800; font-size: 15px; color: var(--text); text-transform: uppercase; }
-
+        
         table { width: 100%; border-collapse: collapse; }
         th, td { border-bottom: 1px solid #f1f5f9; padding: 18px 24px; text-align: left; vertical-align: middle; }
         th { background: #f8fafc; font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 800; letter-spacing: 0.05em; }
@@ -121,7 +118,6 @@
                 </div>
             </div>
 
-            <!-- Enhanced Filter Bar -->
             <form action="leaveEmpHistory" method="get" class="filter-bar flex flex-wrap items-center gap-6">
                 <div class="filter-group">
                     <span class="filter-label">Status</span>
@@ -131,7 +127,7 @@
                         <option value="APPROVED" <%= "APPROVED".equals(currentStatus)?"selected":"" %>>Approved</option>
                         <option value="REJECTED" <%= "REJECTED".equals(currentStatus)?"selected":"" %>>Rejected</option>
                         <option value="CANCELLED" <%= "CANCELLED".equals(currentStatus)?"selected":"" %>>Cancelled</option>
-                         <option value="CANCELLATION_REQUESTED" <%= "CANCELLATION_REQUESTED".equals(currentStatus)?"selected":"" %>>Request Cancellation</option>
+                        <option value="CANCELLATION_REQUESTED" <%= "CANCELLATION_REQUESTED".equals(currentStatus)?"selected":"" %>>Request Cancellation</option>
                     </select>
                 </div>
 
@@ -219,16 +215,27 @@
                                     <td style="text-align:right">
                                         <button onclick="viewDetails(this)" class="bg-white border border-slate-200 text-slate-600 px-5 py-2 rounded-xl text-[10px] font-black hover:bg-slate-900 hover:text-white transition-all uppercase tracking-widest shadow-sm flex items-center gap-2 ml-auto"
                                                 data-id="<%= r.getLeaveId() %>"
-                                                data-name="<%= r.getFullName() %>" data-idcode="<%= displayEmpId %>"
-                                                data-type="<%= r.getTypeCode() %>" data-typeid="<%= r.getLeaveTypeId() %>"
-                                                data-start="<%= r.getStartDate() %>" data-end="<%= r.getEndDate() %>" 
-                                                data-days="<%= r.getDurationDays() %>" data-duration="<%= r.getDuration() %>" 
-                                                data-applied="<%= r.getAppliedOn() %>" data-reason="<%= r.getReason() %>" 
-                                                data-status="<%= status %>" data-attachment="<%= r.getAttachment() != null ? r.getAttachment() : "" %>"
-                                                data-med="<%= r.getMedicalFacility() %>" data-ref="<%= r.getRefSerialNo() %>"
-                                                data-evt="<%= r.getEventDate() %>" data-dis="<%= r.getDischargeDate() %>"
-                                                data-cat="<%= r.getEmergencyCategory() %>" data-cnt="<%= r.getEmergencyContact() %>"
-                                                data-spo="<%= r.getSpouseName() %>" data-comment="<%= r.getManagerComment() != null ? r.getManagerComment() : "-" %>">
+                                                data-name="<%= r.getFullName() %>" 
+                                                data-idcode="<%= displayEmpId %>"
+                                                data-type="<%= r.getTypeCode() %>" 
+                                                data-typeid="<%= r.getLeaveTypeId() %>"
+                                                data-start="<%= r.getStartDate() %>" 
+                                                data-end="<%= r.getEndDate() %>" 
+                                                data-days="<%= r.getDurationDays() %>" 
+                                                data-duration="<%= r.getDuration() %>" 
+                                                data-applied="<%= r.getAppliedOn() %>" 
+                                                data-reason="<%= r.getReason() %>" 
+                                                data-status="<%= status %>" 
+                                                data-attachment="<%= r.getAttachment() != null ? r.getAttachment() : "" %>"
+                                                data-med="<%= r.getMedicalFacility() %>" 
+                                                data-ref="<%= r.getRefSerialNo() %>"
+                                                data-pre="<%= r.getWeekPregnancy() %>" 
+                                                data-evt="<%= r.getEventDate() %>" 
+                                                data-dis="<%= r.getDischargeDate() %>"
+                                                data-cat="<%= r.getEmergencyCategory() %>" 
+                                                data-cnt="<%= r.getEmergencyContact() %>"
+                                                data-spo="<%= r.getSpouseName() %>" 
+                                                data-comment="<%= r.getManagerComment() != null ? r.getManagerComment() : "-" %>">
                                             <%= EyeIcon("w-3 h-3") %> View
                                         </button>
                                     </td>
@@ -242,7 +249,6 @@
     </main>
 </div>
 
-<!-- DETAIL POPUP MODAL -->
 <div class="modal-overlay" id="detailModal">
     <div class="modal-content">
         <button type="button" class="btn-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
@@ -311,7 +317,7 @@
                 <p class="text-sm text-slate-500 mb-6 bg-slate-50 p-5 rounded-2xl border border-slate-100 font-medium leading-relaxed italic" id="popReason"></p>
             </div>
 
-            <!-- ✅ REDESIGNED: Metadata Section AFTER Employee Reason -->
+            <!-- Dynamic Metadata Section -->
             <div id="dynamicBox" class="hidden">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="w-1 h-4 bg-blue-600 rounded-full"></div>
@@ -321,7 +327,7 @@
             </div>
 
             <div class="info-item">
-                <span class="info-label">Administrative Remark</span>
+                <span class="info-label">Manager Remark</span>
                 <p class="text-sm text-blue-600 italic font-semibold" id="popComment"></p>
             </div>
         </div>
@@ -369,28 +375,47 @@
         let count = 0;
         
         const addAttr = (label, val) => {
-            if(val && val !== "null" && val !== "" && val !== "undefined" && val !== "N/A") {
+            if(val && val !== "null" && val !== "" && val !== "undefined" && val !== "N/A" && val !== "0") {
                 grid.innerHTML += '<div class="info-item border-b border-slate-100 pb-2 flex justify-between items-center"><span class="info-label text-slate-400 mb-0">'+label+'</span><span class="info-value mb-0 text-slate-600 font-bold">'+val+'</span></div>';
                 count++;
             }
         };
 
-        addAttr("Medical Facility Name", d.med);
-        addAttr("MC Serial No", d.ref);
-        addAttr("Event Date", d.evt);
-        addAttr("Discharge Date", d.dis);
-        addAttr("Emergency Category", d.cat);
-        addAttr("Emergency Phone", d.cnt);
-        addAttr("Spouse Name", d.spo);
+        const code = (d.type || "").toUpperCase();
+        if (code.includes("SICK")) 
+        { 
+        	addAttr("Clinic Name ", d.med); 
+       		addAttr("MC Serial No", d.ref); 
+        }
+        else if (code.includes("HOSPITAL")) 
+        { 
+        	addAttr("Hospital Name", d.med); 
+        	addAttr("Admit Date", d.evt); 
+        	addAttr("Discharge Date", d.dis); 
+        	}
+        else if (code.includes("MATERNITY")) 
+        { 
+        	addAttr("Consulation Clinic ", d.med); 
+            addAttr("Expected Due Date", d.evt); 
+            addAttr("Week Pregenancy", d.pre); 
+        }
+        else if (code.includes("PATERNITY")) 
+        { 
+        	addAttr("Spouse Name", d.spo); 
+            addAttr("Medical Location ", d.med); 
+            addAttr("Date of Birth", d.evt); 
+        }
+        else if (code.includes("EMERGENCY")) 
+        { 
+        	addAttr("Emergency Category", d.cat); 
+            addAttr("Emergency Contact", d.cnt); 
+        }
 
-        dBox.classList.toggle('hidden', count === 0);
+        document.getElementById('dynamicBox').classList.toggle('hidden', count === 0);
         document.getElementById('detailModal').classList.add('show');
     }
-
-    function closeModal() {
-        document.getElementById('detailModal').classList.remove('show');
-    }
     
+    function closeModal() { document.getElementById('detailModal').classList.remove('show'); }
     window.onclick = (e) => { if (e.target == document.getElementById('detailModal')) closeModal(); }
 </script>
 

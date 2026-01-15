@@ -10,12 +10,12 @@
         response.sendRedirect("login.jsp"); return;
     }
 
-    // Retrieve data from Controller (ManageHoliday)
+    // Data from Controller
     List<Holiday> holidays = (List<Holiday>) request.getAttribute("holidays");
     String error = request.getParameter("error");
     String msg = request.getParameter("msg");
+    String highlightId = request.getParameter("id"); // Captured from redirect URL
 
-    // Formatter for display
     DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 %>
 
@@ -52,31 +52,46 @@
         .title { font-size: 26px; font-weight: 800; margin: 0; text-transform: uppercase; color: var(--text); }
         .sub-label { color: var(--blue-primary); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; display: block; }
 
-        /* Card Layout Pattern */
         .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-top: 24px; }
         .cardHead { padding: 20px 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
         .cardHead span { font-weight: 800; font-size: 15px; color: var(--text); text-transform: uppercase; }
 
-        /* Table Design */
         table { width: 100%; border-collapse: collapse; }
         th, td { border-bottom: 1px solid #f1f5f9; padding: 18px 24px; text-align: left; vertical-align: middle; }
-        th { background: #f8fafc; font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 800; letter-spacing: 0.05em; }
+        th { background: #f8fafc; font-size: 10px; text-transform: uppercase; color: var(--muted); font-weight: 900; letter-spacing: 0.05em; }
 
-        /* Buttons */
-        .btn-add { background: var(--blue-primary); color: white; padding: 10px 20px; border-radius: 10px; font-size: 12px; font-weight: 800; text-transform: uppercase; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
+        /* SLATE GREY HIGHLIGHT - Active for 3 seconds */
+        .row-highlight { 
+            background-color: #e2e8f0 !important; 
+            border-left: 4px solid #64748b; 
+            transition: background-color 0.8s ease, border-left 0.8s ease; 
+        }
+        
+        .just-now-badge { 
+            background: #1e293b; 
+            color: white; 
+            padding: 2px 8px; 
+            border-radius: 4px; 
+            font-size: 9px; 
+            font-weight: 900; 
+            margin-left: 8px; 
+            vertical-align: middle; 
+            display: inline-block; 
+            transition: opacity 0.5s ease; 
+        }
+
+        .btn-add { background: var(--blue-primary); color: white; padding: 10px 20px; border-radius: 10px; font-size: 12px; font-weight: 800; text-transform: uppercase; transition: 0.2s; display: flex; align-items: center; gap: 8px; border:none; cursor:pointer;}
         .btn-add:hover { background: #1d4ed8; transform: translateY(-1px); }
 
         .action-btn { width: 34px; height: 34px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; transition: 0.2s; border: 1px solid var(--border); background: #fff; cursor: pointer; color: var(--muted); }
         .btn-edit:hover { background: var(--blue-light); border-color: var(--blue-primary); color: var(--blue-primary); }
         .btn-delete:hover { background: #fef2f2; border-color: var(--red); color: var(--red); }
 
-        /* Badge Pills */
         .pill { display: inline-block; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 10px; text-transform: uppercase; border: 1px solid transparent; }
         .pill-public { background: #eff6ff; color: var(--blue-primary); border-color: #dbeafe; }
         .pill-company { background: #ecfdf5; color: var(--green); border-color: #d1fae5; }
         .pill-state { background: #fef3c7; color: #d97706; border-color: #fde68a; }
 
-        /* Modals */
         .modal-overlay { position:fixed; inset:0; background:rgba(15, 23, 42, 0.6); display:none; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px); padding: 20px; }
         .modal-overlay.show { display:flex; }
         .modal-content { background:white; width: 450px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); animation: slideUp 0.3s ease; overflow: hidden; }
@@ -87,15 +102,15 @@
         
         .form-group { margin-bottom: 18px; }
         .form-group label { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 6px; letter-spacing: 0.05em; }
-        .form-control { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); outline: none; font-size: 14px; font-weight: 600; color: var(--text); }
-        .form-control:focus { border-color: var(--blue-primary); }
+        .form-control { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); outline: none; font-size: 14px; font-weight: 600; color: var(--text); text-transform: uppercase; }
 
-        .btn-submit { width: 100%; background: #1e293b; color: white; padding: 14px; border-radius: 12px; font-size: 12px; font-weight: 800; text-transform: uppercase; transition: 0.2s; margin-top: 10px; letter-spacing: 0.05em; }
+        .btn-submit { width: 100%; background: #1e293b; color: white; padding: 14px; border-radius: 12px; font-size: 12px; font-weight: 800; text-transform: uppercase; transition: 0.2s; margin-top: 10px; letter-spacing: 0.05em; border:none; cursor:pointer;}
         .btn-submit:hover { background: var(--blue-primary); transform: translateY(-1px); }
 
-        /* Confirm Modal specific */
-        .btn-confirm-yes { background: var(--red); color: white; padding: 12px 24px; border-radius: 10px; font-size: 12px; font-weight: 800; text-transform: uppercase; }
-        .btn-confirm-no { background: #f1f5f9; color: var(--text); padding: 12px 24px; border-radius: 10px; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+        .btn-confirm-yes { border:none; cursor:pointer; background: var(--red); color: white; padding: 12px 24px; border-radius: 10px; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+        .btn-confirm-no { border:none; cursor:pointer; background: #f1f5f9; color: var(--text); padding: 12px 24px; border-radius: 10px; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+
+        .alert-box { transition: opacity 0.5s ease; }
     </style>
 </head>
 <body class="flex">
@@ -108,21 +123,20 @@
             <div class="flex justify-between items-end mb-8">
                 <div>
                     <h2 class="title">Holiday Calendar</h2>
-                    <span class="sub-label">Administrator Control Panel: Manage Public Holidays and Company Events</span>
+                    <span class="sub-label">Administrator Control Panel: Manage Public Holidays and Events</span>
                 </div>
                 <button onclick="openModal('ADD')" class="btn-add shadow-sm">
                     <%= PlusIcon("w-4 h-4") %> Add Holiday
                 </button>
             </div>
 
-            <!-- Feedback Messages -->
             <% if (error != null) { %>
-                <div class="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl mb-6 font-bold text-sm flex items-center gap-3">
+                <div class="alert-box bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl mb-6 font-bold text-sm flex items-center gap-3">
                     <%= AlertIcon("w-5 h-5") %> <%= error %>
                 </div>
             <% } %>
             <% if (msg != null) { %>
-                <div class="bg-emerald-50 border border-emerald-100 text-emerald-600 p-4 rounded-xl mb-6 font-bold text-sm flex items-center gap-3">
+                <div class="alert-box bg-emerald-50 border border-emerald-100 text-emerald-600 p-4 rounded-xl mb-6 font-bold text-sm flex items-center gap-3">
                     <%= CheckCircleIcon("w-5 h-5") %> <%= msg %>
                 </div>
             <% } %>
@@ -146,7 +160,7 @@
                         </thead>
                         <tbody>
                             <% if (holidays == null || holidays.isEmpty()) { %>
-                                <tr><td colspan="4" class="py-24 text-center text-slate-300 font-bold uppercase text-xs italic tracking-widest">No holidays configured in system</td></tr>
+                                <tr><td colspan="4" class="py-24 text-center text-slate-300 font-bold uppercase text-xs italic tracking-widest">No holidays configured</td></tr>
                             <% } else { 
                                 for (Holiday h : holidays) { 
                                     String typeClass = "pill-public";
@@ -155,9 +169,16 @@
 
                                     String dateDisplay = (h.getDate() != null) ? h.getDate().format(dtf) : "-";
                                     String dateIso = (h.getDate() != null) ? h.getDate().toString() : "";
+                                    
+                                    boolean isHighlighted = String.valueOf(h.getId()).equals(highlightId);
                             %>
-                                <tr class="hover:bg-slate-50/50 transition-colors">
-                                    <td><div class="font-bold text-slate-800 text-sm"><%= h.getName() %></div></td>
+                                <tr id="holiday_row_<%= h.getId() %>" class="<%= isHighlighted ? "row-highlight" : "hover:bg-slate-50/50" %> transition-all">
+                                    <td>
+                                        <div class="font-bold text-slate-800 text-sm uppercase flex items-center">
+                                            <%= h.getName() %>
+                                            <% if (isHighlighted) { %><span class="just-now-badge">JUST NOW</span><% } %>
+                                        </div>
+                                    </td>
                                     <td><span class="pill <%= typeClass %>"><%= h.getType() %></span></td>
                                     <td>
                                         <div class="flex items-center gap-2 text-xs font-semibold text-slate-600">
@@ -187,7 +208,6 @@
         </div>
     </main>
 
-    <!-- Unified Modal for Add/Update -->
     <div class="modal-overlay" id="holidayModal">
         <div class="modal-content">
             <form action="ManageHoliday" method="POST" id="holidayForm">
@@ -195,17 +215,13 @@
                 <input type="hidden" name="holidayId" id="modalId">
                 
                 <div class="modal-header">
-                    <div>
-                        <h3 class="text-base font-extrabold text-slate-900 uppercase" id="modalTitle">Add Holiday</h3>
-                    </div>
-                    <button type="button" onclick="closeModal()" class="text-slate-400 hover:text-red-500 transition-colors">
-                        <%= XCircleIcon("w-6 h-6") %>
-                    </button>
+                    <div><h3 class="text-base font-extrabold text-slate-900 uppercase" id="modalTitle">Register Holiday</h3></div>
+                    <button type="button" onclick="closeModal()" class="text-slate-400 hover:text-red-500 transition-colors border-none bg-transparent cursor-pointer"><%= XCircleIcon("w-6 h-6") %></button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
                         <label>Holiday Description</label>
-                        <input type="text" name="holidayName" id="modalName" class="form-control" required placeholder="e.g. Lunar New Year">
+                        <input type="text" name="holidayName" id="modalName" class="form-control" required placeholder="e.g. LUNAR NEW YEAR">
                     </div>
                     <div class="form-group">
                         <label>Date</label>
@@ -219,25 +235,17 @@
                             <option value="COMPANY">COMPANY</option>
                         </select>
                     </div>
-                    <button type="button" onclick="triggerConfirm(document.getElementById('modalAction').value, 'holidayForm')" class="btn-submit shadow-lg shadow-slate-200">
-                        Confirm Changes
-                    </button>
+                    <button type="button" onclick="triggerConfirm(document.getElementById('modalAction').value, 'holidayForm')" class="btn-submit shadow-lg shadow-slate-200">Confirm Changes</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- ✅ Custom UI Confirmation Modal -->
     <div class="modal-overlay" id="confirmModal">
         <div class="modal-content" style="width: 400px; text-align: center; padding: 32px;">
-            <div class="mb-4 flex justify-center">
-                <div id="confirmIconContainer" class="w-16 h-16 rounded-full flex items-center justify-center">
-                    <!-- Icon injected by script -->
-                </div>
-            </div>
+            <div class="mb-4 flex justify-center"><div id="confirmIconContainer" class="w-16 h-16 rounded-full flex items-center justify-center"></div></div>
             <h3 class="text-xl font-extrabold text-slate-900 uppercase mb-2" id="confirmTitle">Confirm Action</h3>
-            <p class="text-sm text-slate-500 font-medium mb-8" id="confirmMsg">Are you sure you want to proceed with this action?</p>
-            
+            <p class="text-sm text-slate-500 font-medium mb-8" id="confirmMsg">Are you sure you want to proceed?</p>
             <div class="flex gap-3">
                 <button type="button" onclick="closeConfirm()" class="btn-confirm-no flex-1">Cancel</button>
                 <button type="button" id="btnConfirmProceed" class="btn-confirm-yes flex-1 shadow-lg shadow-red-100">Proceed</button>
@@ -248,6 +256,45 @@
     <script>
         let currentTargetFormId = null;
 
+        window.addEventListener('DOMContentLoaded', () => {
+            // 1. Auto-dismiss alerts (3 seconds)
+            const alerts = document.querySelectorAll('.alert-box');
+            alerts.forEach(alert => {
+                setTimeout(() => {
+                    alert.style.opacity = '0';
+                    setTimeout(() => alert.style.display = 'none', 500);
+                }, 3000);
+            });
+
+            // 2. Highlighting & Auto-Scroll Logic
+            const highlightId = "<%= highlightId != null ? highlightId : "" %>";
+            if (highlightId) {
+                const row = document.getElementById('holiday_row_' + highlightId);
+                if (row) {
+                    // Slight delay to allow table rendering
+                    setTimeout(() => {
+                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 400);
+
+                    // Fade out slate grey background after exactly 3 seconds
+                    setTimeout(() => {
+                        row.classList.remove('row-highlight');
+                        const badge = row.querySelector('.just-now-badge');
+                        if (badge) {
+                            badge.style.opacity = '0';
+                            setTimeout(() => badge.style.display = 'none', 500);
+                        }
+                    }, 3000);
+                }
+                
+                // Remove ID from URL to prevent re-highlighting on manual refresh
+                setTimeout(() => {
+                    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.pushState({path:newUrl}, '', newUrl);
+                }, 4000);
+            }
+        });
+
         function triggerConfirm(action, formId) {
             currentTargetFormId = formId;
             const titleEl = document.getElementById('confirmTitle');
@@ -255,60 +302,56 @@
             const iconContainer = document.getElementById('confirmIconContainer');
             const btnProceed = document.getElementById('btnConfirmProceed');
 
-            // Reset styles
+            // Reset classes
             btnProceed.className = "btn-confirm-yes flex-1 shadow-lg";
             iconContainer.className = "w-16 h-16 rounded-full flex items-center justify-center";
 
             if (action === 'ADD') {
-                titleEl.textContent = "Add Holiday";
-                msgEl.textContent = "Are you sure you want to register this new holiday to the calendar?";
+                titleEl.textContent = "Register Holiday";
+                msgEl.textContent = "Confirm registration of this new holiday?";
                 iconContainer.classList.add("bg-blue-50", "text-blue-600");
                 iconContainer.innerHTML = `<%= PlusIcon("w-8 h-8") %>`;
                 btnProceed.classList.add("bg-blue-600", "shadow-blue-100");
             } else if (action === 'UPDATE') {
                 titleEl.textContent = "Update Record";
-                msgEl.textContent = "Proceed with updating the information for this holiday?";
+                msgEl.textContent = "Save changes for this holiday record?";
                 iconContainer.classList.add("bg-amber-50", "text-amber-600");
                 iconContainer.innerHTML = `<%= EditIcon("w-8 h-8") %>`;
                 btnProceed.classList.add("bg-amber-600", "shadow-amber-100");
             } else if (action === 'DELETE') {
-                titleEl.textContent = "Permanently Delete";
-                msgEl.textContent = "Warning: This action cannot be undone. Are you sure you want to remove this holiday?";
+                titleEl.textContent = "Delete Forever";
+                msgEl.textContent = "This action is permanent. Delete this holiday?";
                 iconContainer.classList.add("bg-red-50", "text-red-600");
                 iconContainer.innerHTML = `<%= TrashIcon("w-8 h-8") %>`;
                 btnProceed.classList.add("bg-red-600", "shadow-red-100");
             }
 
-            btnProceed.onclick = function() {
-                document.getElementById(currentTargetFormId).submit();
-            };
-
+            btnProceed.onclick = () => document.getElementById(currentTargetFormId).submit();
             document.getElementById('confirmModal').classList.add('show');
         }
 
-        function closeConfirm() {
-            document.getElementById('confirmModal').classList.remove('show');
-            currentTargetFormId = null;
-        }
+        function closeConfirm() { document.getElementById('confirmModal').classList.remove('show'); }
 
         function openModal(action, id = '', name = '', date = '', type = 'PUBLIC') {
             document.getElementById('modalAction').value = action;
-            document.getElementById('modalTitle').textContent = action === 'ADD' ? 'Register New Holiday' : 'Edit Holiday Record';
+            document.getElementById('modalTitle').textContent = action === 'ADD' ? 'Register Holiday' : 'Update Holiday';
             document.getElementById('modalId').value = id;
-            document.getElementById('modalName').value = name;
+            document.getElementById('modalName').value = name.toUpperCase();
             document.getElementById('modalDate').value = date;
             document.getElementById('modalType').value = type;
             document.getElementById('holidayModal').classList.add('show');
         }
 
-        function closeModal() {
-            document.getElementById('holidayModal').classList.remove('show');
-        }
+        function closeModal() { document.getElementById('holidayModal').classList.remove('show'); }
 
         window.onclick = (e) => { 
             if (e.target.id === 'holidayModal') closeModal(); 
             if (e.target.id === 'confirmModal') closeConfirm(); 
         }
+
+        document.getElementById('modalName').addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
     </script>
 </body>
 </html>

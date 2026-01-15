@@ -3,7 +3,6 @@
 <%@ include file="icon.jsp" %>
 
 <%
-    // Simple Security check to prevent direct access without login
     if (session.getAttribute("empid") == null) {
         response.sendRedirect("login.jsp?error=Please login.");
         return;
@@ -28,33 +27,18 @@
             --muted: #64748b;
             --blue: #2563eb;
             --blue-hover: #1d4ed8;
-            --radius: 16px;
+            --radius: 20px;
         }
 
         * { box-sizing: border-box; font-family: 'Inter', sans-serif !important; }
         body { margin: 0; background: var(--bg); color: var(--text); overflow-x: hidden; -webkit-font-smoothing: antialiased; }
 
-        /* Compacted vertical layout for single-screen fit */
-        .pageWrap { max-width: 460px; margin: 0 auto; padding: 15px 24px; }
+        /* Consistent PageWrap matching your other pages */
+        .pageWrap { padding: 32px 40px; max-width: 1300px; margin: 0; }
         
-        h2.title { 
-            font-size: 26px; 
-            font-weight: 800; 
-            margin: 0; 
-            color: var(--text); 
-            text-transform: uppercase; 
-            letter-spacing: -0.025em;
-        }
-        
-        .sub-label { 
-            color: var(--blue); 
-            font-size: 11px; 
-            font-weight: 800; 
-            text-transform: uppercase; 
-            letter-spacing: 0.1em;
-            margin-top: 2px;
-            display: block;
-        }
+        /* Consistent Title & Sub-label styles */
+        .title { font-size: 26px; font-weight: 800; margin: 0; text-transform: uppercase; color: var(--text); letter-spacing: -0.02em; }
+        .sub-label { color: var(--blue); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; display: block; }
 
         .card { 
             background: var(--card); 
@@ -62,29 +46,57 @@
             border-radius: var(--radius); 
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04); 
             overflow: hidden; 
-            margin-top: 16px;
+            margin-top: 24px;
+            max-width: 500px;
         }
 
-        .label-xs { font-size: 10px; font-weight: 900; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; display: block; }
+        .label-xs { 
+            font-size: 10px; 
+            font-weight: 900; 
+            color: var(--muted); 
+            text-transform: uppercase; 
+            letter-spacing: 0.1em; 
+            margin-bottom: 8px; 
+            display: block; 
+        }
         
-        input {
-            width: 100%; padding: 0 18px; height: 44px; border: 1.5px solid #e2e8f0;
-            border-radius: 12px; font-size: 13px; background: #fff; transition: all 0.2s;
-            color: var(--text);
+        /* THE FIX: Specificity override for Tailwind Reset */
+        .pageWrap input {
+            width: 100% !important; 
+            padding: 0 18px !important; /* Horizontal gap fix */
+            height: 52px !important;
+            border: 1.5px solid #e2e8f0 !important;
+            border-radius: 12px !important; 
+            font-size: 14px !important; 
+            font-weight: 600 !important; 
+            background: #fff !important; 
+            color: var(--text) !important;
+            outline: none !important;
+            display: block !important;
+            box-sizing: border-box !important;
+            transition: all 0.2s;
         }
-        input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08); }
 
-        .btn { 
-            width: 100%; height: 44px; border-radius: 12px; font-weight: 800; font-size: 12px; 
-            transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; 
-            gap: 10px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.02em; 
+        .pageWrap input::placeholder {
+            color: #94a3b8;
+            font-weight: 400;
         }
-        .btn-blue { background: var(--blue); color: #fff; }
+
+        .pageWrap input:focus { 
+            border-color: var(--blue) !important; 
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08) !important; 
+        }
+
+        .btn-blue { 
+            width: 100%; height: 50px; border-radius: 14px; font-weight: 800; font-size: 12px; 
+            transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; 
+            gap: 10px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; 
+            background: var(--blue); color: #fff; border: none;
+        }
         .btn-blue:hover { background: var(--blue-hover); transform: translateY(-1px); }
 
-        .msg-box { padding: 10px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-        
-        .icon-sm { width: 14px; height: 14px; }
+        .msg-box { padding: 12px 16px; border-radius: 12px; font-size: 12px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; transition: opacity 0.5s ease; }
+        .icon-sm { width: 16px; height: 16px; }
     </style>
 </head>
 <body class="flex">
@@ -95,65 +107,70 @@
     <jsp:include page="topbar.jsp" />
 
     <div class="pageWrap">
-        <!-- Consistent Header -->
         <div class="mb-4">
             <h2 class="title">CHANGE PASSWORD</h2>
-            <span class="sub-label">Maintain account security with a unique password.</span>
+            <span class="sub-label">Maintain account security with a unique password</span>
         </div>
 
         <div class="card">
-            <div class="px-8 py-3 border-b border-slate-50 bg-slate-50/30">
+            <div class="px-8 py-4 border-b border-slate-50 bg-slate-50/30">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Security Credentials</span>
             </div>
 
-            <!-- Redirection points to /ChangePassword mapped in the Servlet -->
-            <form action="ChangePassword" method="post" class="p-6 space-y-4">
+            <form action="ChangePassword" method="post" class="p-8 space-y-6">
                 
-                <!-- Feedback Messages -->
                 <c:if test="${not empty param.error}">
-                    <div class="msg-box bg-red-50 text-red-600 border border-red-100">
+                    <div id="statusAlert" class="msg-box bg-red-50 text-red-600 border border-red-100">
                         <%= AlertIcon("icon-sm") %> ${param.error}
                     </div>
                 </c:if>
                 <c:if test="${not empty param.msg}">
-                    <div class="msg-box bg-emerald-50 text-emerald-600 border border-emerald-100">
+                    <div id="statusAlert" class="msg-box bg-emerald-50 text-emerald-600 border border-emerald-100">
                         <%= CheckCircleIcon("icon-sm") %> ${param.msg}
                     </div>
                 </c:if>
 
-                <div>
+                <div class="space-y-2">
                     <span class="label-xs">Current Password</span>
-                    <input type="password" name="oldPassword" required placeholder="Verify identity with old password">
+                    <input type="password" name="oldPassword" required placeholder="Enter current password">
                 </div>
 
-                <div class="pt-4 border-t border-slate-100 space-y-4">
-                    <div>
+                <div class="pt-4 border-t border-slate-100 space-y-6">
+                    <div class="space-y-2">
                         <span class="label-xs">New Password</span>
-                        <input type="password" name="newPassword" required placeholder="Select a strong password">
+                        <input type="password" name="newPassword" required placeholder="Enter strong new password">
                     </div>
 
-                    <div>
+                    <div class="space-y-2">
                         <span class="label-xs">Confirm New Password</span>
-                        <input type="password" name="confirmPassword" required placeholder="Repeat the new password">
+                        <input type="password" name="confirmPassword" required placeholder="Repeat new password">
                     </div>
                 </div>
 
-                <div class="pt-2">
-                    <button type="submit" class="btn btn-blue shadow-lg shadow-blue-500/15">
-                        <%= LockIcon("icon-sm") %> Confirm Update
+                <div class="pt-4">
+                    <button type="submit" class="btn-blue shadow-lg shadow-blue-500/20">
+                        <%= LockIcon("icon-sm") %> Update Password
                     </button>
-                    <a href="Profile" class="block text-center mt-3 text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors">
+                    <a href="Profile" class="block text-center mt-5 text-[10px] font-black text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-colors">
                         Return to Profile
                     </a>
                 </div>
             </form>
         </div>
-
-        <div class="mt-8 text-center opacity-20 text-[9px] font-black uppercase tracking-[0.4em]">
-            Security Handshake • v2.1.2
-        </div>
     </div>
 </main>
+
+<script>
+    window.addEventListener('DOMContentLoaded', () => {
+        const alert = document.getElementById('statusAlert');
+        if (alert) {
+            setTimeout(() => {
+                alert.style.opacity = '0';
+                setTimeout(() => { alert.style.display = 'none'; }, 500);
+            }, 3000);
+        }
+    });
+</script>
 
 </body>
 </html>

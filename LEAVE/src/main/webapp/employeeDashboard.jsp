@@ -5,7 +5,7 @@
 
 <%
 //=========================
-// SECURITY & DATA LOGIC (UNCHANGED)
+// SECURITY & DATA LOGIC
 //=========================
 HttpSession ses = request.getSession(false);
 String role = (ses != null) ? String.valueOf(ses.getAttribute("role")) : "";
@@ -51,7 +51,7 @@ return;
 
   YearMonth prev = ym.minusMonths(1);
   YearMonth next = ym.plusMonths(1);
-  String monthTitle = ym.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH) + " " + calYear;
+  String monthTitle = ym.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH).toUpperCase() + " " + calYear;
 %>
 
 <%! 
@@ -68,95 +68,97 @@ return;
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Employee Portal | Dashboard</title>
+  <title>Employee Dashboard | Klinik Dr Mohamad</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   
   <style>
-    :root{
-      --bg:#f8fafc; --card:#fff; --border:#e2e8f0; --text:#1e293b; --muted:#64748b;
-      --shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); --radius:12px;
-      --primary: #2563eb; --red: #ef4444; --orange: #f97316; --blue: #3b82f6;
-      --teal: #14b8a6; --purple: #a855f7; --pink: #ec4899; --indigo: #6366f1;
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --blue-primary: #2563eb;
+      --radius: 20px;
+      --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
     }
     
     * { box-sizing: border-box; font-family: 'Inter', sans-serif !important; }
-    body { margin:0; background:var(--bg); color:var(--text); overflow: hidden; height: 100vh; }
+    body { margin:0; background:var(--bg); color:var(--text); overflow: hidden; height: 100vh; -webkit-font-smoothing: antialiased; }
 
-    /* Headers - Kept same as requested */
-    h2.title { font-size: 26px; font-weight: 800; margin: 10px 0 6px; color: var(--text); text-transform: uppercase; }
-    .sub { color: var(--muted); margin: 0 0 24px; font-size: 15px; font-weight: 500; }
-
-    /* Layout Controls */
-    .pageWrap { height: calc(100vh - 80px); padding: 15px 30px; display: flex; flex-direction: column; overflow: hidden; }
+    /* Consistent Header Layout */
+    .pageWrap { height: calc(100vh - 70px); padding: 24px 40px; display: flex; flex-direction: column; overflow: hidden; }
     
+    .title { font-size: 26px; font-weight: 800; margin: 0; text-transform: uppercase; color: var(--text); letter-spacing: -0.02em; }
+    .sub-label { color: var(--blue-primary); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; display: block; }
+
+    /* Leave Cards Design Improvement */
     .card {
-      background: var(--card); border-radius: var(--radius);
-      box-shadow: var(--shadow); padding: 8px 12px; position: relative; overflow: hidden;
-      display: flex; flex-direction: column; transition: all 0.2s;
+      background: var(--card); border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow); padding: 12px 16px; position: relative;
+      display: flex; flex-direction: column; transition: all 0.2s ease;
+      border-left-width: 5px;
     }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 12px 20px -5px rgba(0,0,0,0.08); }
 
-    /* FULL Borders for Each Card */
-    .card.annual { border: 2px solid var(--blue); }
-    .card.sick { border: 2px solid var(--teal); }
-    .card.emergency { border: 2px solid var(--red); }
-    .card.hospitalization { border: 2px solid var(--purple); }
-    .card.unpaid { border: 2px solid var(--muted); }
-    .card.maternity { border: 2px solid var(--pink); }
-    .card.paternity { border: 2px solid var(--indigo); }
+    /* Left Border Coloring */
+    .card.annual { border-left-color: #3b82f6; background: linear-gradient(to right, #eff6ff 0%, #ffffff 20%); }
+    .card.sick { border-left-color: #14b8a6; background: linear-gradient(to right, #f0fdfa 0%, #ffffff 20%); }
+    .card.emergency { border-left-color: #ef4444; background: linear-gradient(to right, #fef2f2 0%, #ffffff 20%); }
+    .card.hospitalization { border-left-color: #a855f7; background: linear-gradient(to right, #faf5ff 0%, #ffffff 20%); }
+    .card.unpaid { border-left-color: #64748b; background: linear-gradient(to right, #f8fafc 0%, #ffffff 20%); }
+    .card.maternity { border-left-color: #ec4899; background: linear-gradient(to right, #fdf2f8 0%, #ffffff 20%); }
+    .card.paternity { border-left-color: #6366f1; background: linear-gradient(to right, #f5f3ff 0%, #ffffff 20%); }
 
-    .card:hover { transform: scale(1.01); }
-
-    .card .label-badge { font-size: 7px; font-weight: 900; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0; }
-    .card .big { font-size: 18px; font-weight: 900; margin: 0; color: var(--text); line-height: 1.1; }
-    .card .big .slash { color: #cbd5e1; font-weight: 400; margin: 0 1px; }
+    .label-badge { font-size: 8px; font-weight: 900; color: #1e293b; text-transform: uppercase; letter-spacing: .05em; background: rgba(255,255,255,0.8); padding: 2px 8px; border-radius: 6px; border: 1px solid #e2e8f0; }
+    .card .big { font-size: 22px; font-weight: 900; color: #000; margin-top: 4px; line-height: 1; }
+    .card .big .slash { color: #cbd5e1; margin: 0 2px; }
     
-    .card-footer { border-top: 1px solid #f8fafc; padding-top: 4px; margin-top: 4px; }
-    .stats-row { display: flex; align-items: center; justify-content: space-between; font-size: 9px; }
-    .stat-box span { color: var(--muted); font-size: 7px; text-transform: uppercase; font-weight: 800; display: block; }
-    .stat-box b { color: var(--text); font-size: 11px; font-weight: 900; }
+    .card-footer { border-top: 1.5px solid #f1f5f9; padding-top: 8px; margin-top: 10px; }
+    .stats-row { display: flex; align-items: center; justify-content: space-between; }
+    .stat-box span { color: var(--muted); font-size: 8px; text-transform: uppercase; font-weight: 800; display: block; margin-bottom: 1px; }
+    .stat-box b { color: #1e293b; font-size: 13px; font-weight: 900; }
 
-    /* Calendar Styling - Reduced size */
-    .cal-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); }
-    .calHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-    .calTitle { font-weight: 900; font-size: 14px; color: var(--text); }
-    .calTable { width: 100%; text-align: center; border-collapse: separate; border-spacing: 0.5px; }
-    .calTable th { font-size: 8px; color: #94a3b8; font-weight: 900; padding: 2px 0; }
-    .dayBox { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 8px; font-weight: 900; font-size: 10px; transition: 0.2s; cursor: pointer; }
-    .today { background: var(--text) !important; color: #fff !important; }
+    /* Calendar Styling */
+    .cal-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+    .calHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .calTitle { font-weight: 900; font-size: 15px; color: #0f172a; }
+    .calTable { width: 100%; text-align: center; }
+    .calTable th { font-size: 9px; color: #94a3b8; font-weight: 950; padding-bottom: 8px; text-transform: uppercase; }
+    .dayBox { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 10px; font-weight: 800; font-size: 11px; transition: 0.2s; cursor: pointer; }
+    .today { background: #000 !important; color: #fff !important; }
 
-    /* Tooltip Hover Tooltip */
+    /* Tooltip */
     .tipWrap { position: relative; display: inline-block; }
     .tip {
       position: absolute; bottom: 125%; left: 50%; transform: translateX(-50%);
-      background: #1e293b; color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 9px;
+      background: #0f172a; color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 10px;
       white-space: nowrap; opacity: 0; pointer-events: none; transition: 0.2s; z-index: 100; font-weight: 700;
     }
     .tipWrap:hover .tip { opacity: 1; }
 
-    .h-dot { width: 4px; height: 4px; border-radius: 50%; margin: 1px auto 0; }
-    .h-public-dot { background: var(--red); }
-    .h-state-dot { background: var(--orange); }
-    .h-company-dot { background: var(--blue); }
+    .h-dot { width: 5px; height: 5px; border-radius: 50%; margin: 2px auto 0; }
+    .h-public-dot { background: #ef4444; }
+    .h-state-dot { background: #f97316; }
+    .h-company-dot { background: #3b82f6; }
 
-    /* Holiday Items - Reduced size */
-    .hListItem { display: flex; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid #f8fafc; }
+    /* Holiday Items */
+    .hListItem { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid #f8fafc; }
     .dateBadge {
-      width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
+      width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       background: #f8fafc; border: 1px solid var(--border);
     }
-    .dateBadge span:first-child { font-size: 13px; font-weight: 900; line-height: 1; }
-    .dateBadge span:last-child { font-size: 7px; font-weight: 800; text-transform: uppercase; }
+    .dateBadge span:first-child { font-size: 14px; font-weight: 900; line-height: 1; }
+    .dateBadge span:last-child { font-size: 8px; font-weight: 800; text-transform: uppercase; }
     
-    .dateBadge.public { background: #fef2f2; border-color: #fee2e2; color: var(--red); }
-    .dateBadge.state { background: #fffaf5; border-color: #ffedd5; color: var(--orange); }
-    .dateBadge.company { background: #f0f9ff; border-color: #dbeafe; color: var(--blue); }
+    .dateBadge.public { background: #fef2f2; border-color: #fee2e2; color: #ef4444; }
+    .dateBadge.state { background: #fffaf5; border-color: #ffedd5; color: #f97316; }
+    .dateBadge.company { background: #f0f9ff; border-color: #dbeafe; color: #3b82f6; }
 
-    .err { background:#fef2f2; border:1px solid #fee2e2; color:#991b1b; padding:8px 12px; border-radius:12px; margin-bottom:12px; font-size: 12px; font-weight: 700; }
-    
-    /* Scrollbar */
-    .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
   </style>
 </head>
@@ -169,16 +171,20 @@ return;
 
     <div class="pageWrap">
       <% if (dbError != null && !dbError.isBlank()) { %>
-        <div class="err">DB ERROR: <%= dbError %></div>
+        <div class="bg-red-50 text-red-600 p-3 rounded-xl mb-4 font-bold text-xs border border-red-100 uppercase">
+           DB ERROR: <%= dbError %>
+        </div>
       <% } %>
 
-      <h2 class="title uppercase">EMPLOYEE DASHBOARD</h2>
-      <p class="sub">Welcome back, <b><%= fullname %></b>. Here is your leave summary.</p>
+      <div class="mb-6">
+        <h2 class="title">EMPLOYEE DASHBOARD</h2>
+        <span class="sub-label">Welcome back, <%= fullname %>. Access your leave summary and calendar.</span>
+      </div>
 
-      <div class="flex-1 flex flex-col lg:flex-row gap-5 min-h-0">
+      <div class="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
         
-        <!-- Left Section: Leave Cards (Smaller & Responsive Grid) -->
-        <div class="flex-[1.4] grid grid-cols-2 gap-3 overflow-y-auto pr-2 custom-scrollbar align-content-start">
+        <!-- Left Section: Leave Cards -->
+        <div class="flex-[1.5] grid grid-cols-2 gap-4 overflow-y-auto pr-2 custom-scrollbar align-content-start">
           <%
             java.text.DecimalFormat df = new java.text.DecimalFormat("0.#");
             List<String> typesOrder = new ArrayList<>(Arrays.asList("ANNUAL", "SICK", "EMERGENCY", "HOSPITALIZATION", "UNPAID", "MATERNITY", "PATERNITY"));
@@ -197,30 +203,30 @@ return;
               else if (cardTheme.contains("paternity")) cardTheme = "paternity";
           %>
             <div class="card <%= cardTheme %>">
-              <div class="flex justify-between items-start mb-1">
-                <div class="p-1 bg-slate-50 rounded-lg border border-slate-100 text-slate-400">
-                  <%= CalendarIcon("w-3 h-3") %>
+              <div class="flex justify-between items-start mb-2">
+                <div class="w-8 h-8 bg-white/80 rounded-lg border border-slate-100 flex items-center justify-center text-slate-600 shadow-sm">
+                  <%= CalendarIcon("w-4 h-4") %>
                 </div>
                 <span class="label-badge"><%= type.replace("_", " ") %></span>
               </div>
               
-              <div>
-                <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Available</span>
+              <div class="mt-1">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Available Balance</span>
                 <div class="big flex items-baseline">
-                  <span class="tracking-tighter"><%= df.format(totalVal) %><span class="slash">/</span><%= df.format(entVal) %></span>
-                  <span class="text-[9px] font-bold text-slate-400 uppercase ml-1">Days</span>
+                  <span><%= df.format(totalVal) %><span class="slash">/</span><%= df.format(entVal) %></span>
+                  <span class="text-[10px] font-black text-slate-400 uppercase ml-2">Days</span>
                 </div>
               </div>
 
               <div class="card-footer">
                 <div class="stats-row">
                   <div class="stat-box">
-                    <span>USED</span>
+                    <span>Taken</span>
                     <b><%= df.format(usedVal) %></b>
                   </div>
                   <div class="stat-box text-right">
-                    <span>PENDING</span>
-                    <b style="color:var(--orange);"><%= df.format(pendVal) %></b>
+                    <span>Pending</span>
+                    <b class="text-orange-500"><%= df.format(pendVal) %></b>
                   </div>
                 </div>
               </div>
@@ -228,19 +234,19 @@ return;
           <% } %>
         </div>
 
-        <!-- Right Section: Tools (Calendar & Holidays) -->
-        <div class="flex-1 flex flex-col gap-3 min-w-[280px] max-w-full lg:max-w-[400px]">
+        <!-- Right Section: Tools -->
+        <div class="flex-1 flex flex-col gap-5 min-w-[300px] max-w-full lg:max-w-[420px]">
           
           <!-- Calendar Card -->
           <div class="cal-card shrink-0">
             <div class="calHeader">
-              <div class="calTitle uppercase tracking-tighter font-black text-slate-800"><%= monthTitle %></div>
-              <div class="flex gap-1">
-                <a href="EmployeeDashboard?year=<%=prev.getYear()%>&month=<%=prev.getMonthValue()%>" class="w-6 h-6 flex items-center justify-center border border-slate-100 rounded-lg hover:bg-slate-50 transition-colors">
-                  <%= ChevronLeftIcon("w-3 h-3 text-slate-400") %>
+              <div class="calTitle uppercase tracking-tighter font-black"><%= monthTitle %></div>
+              <div class="flex gap-2">
+                <a href="EmployeeDashboard?year=<%=prev.getYear()%>&month=<%=prev.getMonthValue()%>" class="w-7 h-7 flex items-center justify-center border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors shadow-sm bg-white">
+                  <%= ChevronLeftIcon("w-4 h-4 text-slate-500") %>
                 </a>
-                <a href="EmployeeDashboard?year=<%=next.getYear()%>&month=<%=next.getMonthValue()%>" class="w-6 h-6 flex items-center justify-center border border-slate-100 rounded-lg hover:bg-slate-50 transition-colors">
-                  <%= ChevronRightIcon("w-3 h-3 text-slate-400") %>
+                <a href="EmployeeDashboard?year=<%=next.getYear()%>&month=<%=next.getMonthValue()%>" class="w-7 h-7 flex items-center justify-center border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors shadow-sm bg-white">
+                  <%= ChevronRightIcon("w-4 h-4 text-slate-500") %>
                 </a>
               </div>
             </div>
@@ -283,7 +289,7 @@ return;
                   %>
                     <td>
                       <div class="tipWrap">
-                        <span class="dayBox <%= isToday ? "today shadow-sm" : "hover:bg-slate-50 text-slate-600" %>">
+                        <span class="dayBox <%= isToday ? "today shadow-lg" : "hover:bg-slate-100 text-slate-600" %>">
                           <%= dayCounter %>
                         </span>
                         <% if (isHoliday) { %>
@@ -301,29 +307,32 @@ return;
 
           <!-- Upcoming Holidays Card -->
           <div class="cal-card flex-1 overflow-hidden flex flex-col">
-            <h3 class="font-black text-[10px] uppercase text-slate-400 tracking-widest mb-2 flex items-center gap-2 border-b pb-1 border-slate-50 shrink-0">
-               <%= CalendarIcon("w-3 h-3 text-blue-500") %> Upcoming Holidays
+            <h3 class="font-black text-[11px] uppercase text-slate-400 tracking-widest mb-3 flex items-center gap-2 border-b pb-2 border-slate-50 shrink-0">
+               <%= CalendarIcon("w-4 h-4 text-blue-500") %> Upcoming Holidays
             </h3>
-            <div class="overflow-y-auto pr-1 flex-1 custom-scrollbar no-scrollbar">
+            <div class="overflow-y-auto pr-1 flex-1 custom-scrollbar">
               <%
                 int upCount = 0;
                 for (Holiday h : holidayUpcoming) {
-                  if (upCount >= 6) break; 
+                  if (upCount >= 8) break; 
                   LocalDate d = h.getDate();
                   String hType = h.getType().toUpperCase();
                   String badgeCls = hType.contains("PUBLIC") ? "public" : (hType.contains("STATE") ? "state" : "company");
               %>
-                  <div class="hListItem">
+                  <div class="hListItem hover:bg-slate-50/50 px-1 rounded-xl transition-colors">
                     <div class="dateBadge <%= badgeCls %>">
                       <span><%= d.getDayOfMonth() %></span>
                       <span><%= d.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH).toUpperCase() %></span>
                     </div>
                     <div class="min-w-0">
-                      <p class="font-black text-[10px] text-slate-800 truncate leading-tight"><%= h.getName() %></p>
-                      <div class="text-[8px] font-bold text-slate-400 uppercase tracking-tight truncate"><%= h.getType() %></div>
+                      <p class="font-bold text-[11px] text-slate-800 truncate leading-tight uppercase"><%= h.getName() %></p>
+                      <div class="text-[9px] font-black text-slate-400 uppercase tracking-tighter mt-0.5"><%= h.getType() %></div>
                     </div>
                   </div>
               <% upCount++; } %>
+              <% if (holidayUpcoming.isEmpty()) { %>
+                 <p class="text-[10px] font-bold text-slate-300 italic text-center py-8">No upcoming holidays scheduled.</p>
+              <% } %>
             </div>
           </div>
 

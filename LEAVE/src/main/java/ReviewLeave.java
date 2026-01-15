@@ -1,126 +1,118 @@
+import dao.ManagerDAO;
+import bean.LeaveRecord;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import java.io.IOException;
-import java.sql.*;
-import java.sql.Date;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * ReviewLeave Servlet
- * Restricted to MANAGER role.
- * Fetches all PENDING and CANCELLATION_REQUESTED leave applications.
- * Formats all dates and timestamps to DD/MM/YYYY format.
- * Retrieves User Profile data (Name, Hire Date, Profile Pic) via SQL Join.
+ * Manages the workflow for managers to view and process leave requests.
  */
 @WebServlet("/ReviewLeave")
 public class ReviewLeave extends HttpServlet {
     private static final long serialVersionUID = 1L;
+    private final ManagerDAO managerDAO = new ManagerDAO();
 
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         HttpSession session = request.getSession(false);
-        // Strict Security Guard
-        if (session == null || session.getAttribute("empid") == null ||
-            !"MANAGER".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
-            response.sendRedirect("login.jsp?error=Unauthorized+Access");
+        
+        // 1. Strict Authorization Check
+        if (session == null || session.getAttribute("empid") == null || !"MANAGER".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
+            response.sendRedirect("login.jsp?error=" + URLEncoder.encode("Unauthorized access.", StandardCharsets.UTF_8));
             return;
         }
 
-        List<Map<String, Object>> leaves = new ArrayList<>();
-        int pendingCount = 0;
-        int cancelReqCount = 0;
-        
-        // Date Formatters for DD/MM/YYYY
-        SimpleDateFormat sdfTime = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-        SimpleDateFormat sdfDate = new SimpleDateFormat("dd/MM/yyyy");
-
-        try (Connection con = DatabaseConnection.getConnection()) {
-            // SQL updated to include PROFILE_PIC, HIRE_DATE and ensure all columns from lr are retrieved
-            // Note: If ORA-00904 persists, ensure the column name in LEAVE_REQUESTS is exactly "MANAGER_COMMENT"
-            String sql = 
-                "SELECT lr.*, u.FULLNAME, u.HIREDATE, u.PROFILE_PICTURE, lt.TYPE_CODE as LEAVE_TYPE_NAME, ls.STATUS_CODE " +
-                "FROM LEAVE_REQUESTS lr " +
-                "JOIN USERS u ON lr.EMPID = u.EMPID " +
-                "JOIN LEAVE_TYPES lt ON lr.LEAVE_TYPE_ID = lt.LEAVE_TYPE_ID " +
-                "JOIN LEAVE_STATUSES ls ON lr.STATUS_ID = ls.STATUS_ID " +
-                "WHERE ls.STATUS_CODE IN ('PENDING', 'CANCELLATION_REQUESTED') " +
-                "ORDER BY lr.APPLIED_ON DESC";
-
-            try (PreparedStatement ps = con.prepareStatement(sql);
-                 ResultSet rs = ps.executeQuery()) {
+        try {
+            // 2. Fetch all actionable requests (Pending or Cancellation Requested)
+            List<LeaveRecord> allRequests = managerDAO.getRequestsForReview();
+            
+            // Optional: Filter by Manager ID if your DAO doesn't already restrict the query
+            // String managerId = String.valueOf(session.getAttribute("empid"));
+            
+            // 3. Calculate statistics for the Manager UI badges
+            long pendingCount = allRequests.stream()
+                .filter(r -> "PENDING".equalsIgnoreCase(r.getStatusCode()))
+                .count();
                 
-                while (rs.next()) {
-                    Map<String, Object> r = new HashMap<>();
-                    int leaveId = rs.getInt("LEAVE_ID");
-                    r.put("leaveId", leaveId);
-                    r.put("empid", rs.getInt("EMPID"));
-                    r.put("fullname", rs.getString("FULLNAME"));
-                    r.put("profilePic", rs.getString("PROFILE_PICTURE"));
-                    r.put("hireDate", rs.getDate("HIREDATE")); // Storing as Date object for year extraction in JSP
-                    r.put("leaveType", rs.getString("LEAVE_TYPE_NAME"));
-                    
-                    // Format Start and End Dates
-                    Date start = rs.getDate("START_DATE");
-                    Date end = rs.getDate("END_DATE");
-                    r.put("startDate", (start != null) ? sdfDate.format(start) : "-");
-                    r.put("endDate", (end != null) ? sdfDate.format(end) : "-");
-                    
-                    r.put("duration", rs.getString("DURATION")); 
-                    r.put("days", rs.getDouble("DURATION_DAYS"));
-                    r.put("reason", rs.getString("REASON"));
-                    r.put("status", rs.getString("STATUS_CODE"));
-                    
-                    // Retrieve Manager Comment (Resolving ORA-00904 requirement)
-                    // If the column name in your DB is different (e.g. MGR_COMMENT), update the string below.
-                    r.put("managerComment", rs.getString("MANAGER_COMMENT"));
-                    
-                    // Format Applied On Timestamp
-                    Timestamp appliedTs = rs.getTimestamp("APPLIED_ON");
-                    r.put("appliedOn", (appliedTs != null) ? sdfTime.format(appliedTs) : "-");
-                    
-                    // Dynamic Attributes
-                    r.put("medicalFacility", rs.getString("MEDICAL_FACILITY"));
-                    r.put("refSerialNo", rs.getString("REF_SERIAL_NO"));
-                    
-                    // Format Dynamic Dates
-                    Date evt = rs.getDate("EVENT_DATE");
-                    Date dis = rs.getDate("DISCHARGE_DATE");
-                    r.put("eventDate", (evt != null) ? sdfDate.format(evt) : "");
-                    r.put("dischargeDate", (dis != null) ? sdfDate.format(dis) : "");
-                    
-                    r.put("emergencyCategory", rs.getString("EMERGENCY_CATEGORY"));
-                    r.put("emergencyContact", rs.getString("EMERGENCY_CONTACT"));
-                    r.put("spouseName", rs.getString("SPOUSE_NAME"));
+            long cancelReqCount = allRequests.stream()
+                .filter(r -> "CANCELLATION_REQUESTED".equalsIgnoreCase(r.getStatusCode()))
+                .count();
 
-                    // Check for attachment
-                    try (PreparedStatement psA = con.prepareStatement("SELECT FILE_NAME FROM LEAVE_REQUEST_ATTACHMENTS WHERE LEAVE_ID = ?")) {
-                        psA.setInt(1, leaveId);
-                        try (ResultSet rsA = psA.executeQuery()) {
-                            if (rsA.next()) {
-                                r.put("attachment", rsA.getString("FILE_NAME"));
-                            } else {
-                                r.put("attachment", "");
-                            }
-                        }
-                    }
-
-                    leaves.add(r);
-                    if ("PENDING".equals(rs.getString("STATUS_CODE"))) pendingCount++;
-                    else cancelReqCount++;
-                }
-            }
+            // 4. Set attributes for the JSP
+            request.setAttribute("leaves", allRequests);
+            request.setAttribute("pendingCount", (int) pendingCount);
+            request.setAttribute("cancelReqCount", (int) cancelReqCount);
+            
+            // 5. Forward to UI
+            request.getRequestDispatcher("/reviewLeave.jsp").forward(request, response);
+            
         } catch (Exception e) {
             e.printStackTrace();
-            request.setAttribute("error", "Database Error: " + e.getMessage());
+            response.sendRedirect("Dashboard?error=" + URLEncoder.encode("Error loading requests: " + e.getMessage(), StandardCharsets.UTF_8));
+        }
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        HttpSession session = request.getSession(false);
+        
+        // 1. Authorization Check for POST
+        if (session == null || !"MANAGER".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "You do not have permission to perform this action.");
+            return;
         }
 
-        request.setAttribute("leaves", leaves);
-        request.setAttribute("pendingCount", pendingCount);
-        request.setAttribute("cancelReqCount", cancelReqCount);
-        request.getRequestDispatcher("/reviewLeave.jsp").forward(request, response);
+        try {
+            // 2. Extract and validate parameters
+            String leaveIdStr = request.getParameter("leaveId");
+            String action = request.getParameter("action"); // EXPECTED: APPROVE, REJECT, APPROVE_CANCEL, REJECT_CANCEL
+            String comment = request.getParameter("comment");
+
+            if (leaveIdStr == null || action == null) {
+                response.sendRedirect("ReviewLeave?error=" + URLEncoder.encode("Invalid request parameters.", StandardCharsets.UTF_8));
+                return;
+            }
+
+            int leaveId = Integer.parseInt(leaveIdStr);
+            
+            // Handle empty comments to avoid NULL in DB if preferred
+            if (comment == null) comment = "";
+
+            // 3. Process the action via DAO (Transactionally handles Status + Balances)
+            boolean success = managerDAO.processAction(leaveId, action, comment);
+
+            if (success) {
+                String successMsg = "Leave application successfully " + formatActionName(action) + ".";
+                response.sendRedirect("ReviewLeave?msg=" + URLEncoder.encode(successMsg, StandardCharsets.UTF_8));
+            } else {
+                response.sendRedirect("ReviewLeave?error=" + URLEncoder.encode("Update failed. Request may have already been processed.", StandardCharsets.UTF_8));
+            }
+
+        } catch (NumberFormatException e) {
+            response.sendRedirect("ReviewLeave?error=InvalidID");
+        } catch (Exception e) {
+            e.printStackTrace();
+            String errorMsg = e.getMessage() != null ? e.getMessage() : "An internal error occurred.";
+            response.sendRedirect("ReviewLeave?error=" + URLEncoder.encode(errorMsg, StandardCharsets.UTF_8));
+        }
+    }
+
+    /**
+     * Helper to make success messages more readable.
+     */
+    private String formatActionName(String action) {
+        switch (action) {
+            case "APPROVE": return "approved";
+            case "REJECT": return "rejected";
+            case "APPROVE_CANCEL": return "cancelled";
+            case "REJECT_CANCEL": return "maintained (cancellation denied)";
+            default: return "processed";
+        }
     }
 }

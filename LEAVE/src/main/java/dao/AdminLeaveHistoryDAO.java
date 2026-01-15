@@ -10,7 +10,8 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 /**
- * AdminLeaveHistoryDAO handles database operations for the admin leave history view.
+ * AdminLeaveHistoryDAO handles database operations for the admin leave history view
+ * using Class Table Inheritance to fetch metadata from specific sub-tables.
  */
 public class AdminLeaveHistoryDAO {
 
@@ -31,26 +32,31 @@ public class AdminLeaveHistoryDAO {
     }
 
     /**
-     * Fetches global leave history. 
-     * IMPORTANT: Ensure your LEAVE_REQUESTS table has these columns:
-     * MEDICAL_FACILITY, REF_SERIAL_NO, EVENT_DATE, DISCHARGE_DATE, EMERGENCY_CATEGORY, EMERGENCY_CONTACT, SPOUSE_NAME
+     * Fetches global leave history with metadata joined from all specific leave sub-tables.
      */
     public List<LeaveRecord> getAllHistory(String status, String month, String year) throws Exception {
         List<LeaveRecord> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder();
         
-        sql.append("SELECT lr.LEAVE_ID, lr.EMPID, lr.START_DATE, lr.END_DATE, lr.DURATION, lr.DURATION_DAYS, ")
-           .append("lr.APPLIED_ON, lr.REASON, lr.MANAGER_COMMENT, ")
-           // Explicitly selecting metadata columns to ensure they are available in ResultSet
-           .append("lr.MEDICAL_FACILITY, lr.REF_SERIAL_NO, lr.EVENT_DATE, lr.DISCHARGE_DATE, ")
-           .append("lr.EMERGENCY_CATEGORY, lr.EMERGENCY_CONTACT, lr.SPOUSE_NAME, ")
-           .append("u.FULLNAME, u.EMPID as USER_ID, u.HIREDATE, u.PROFILE_PICTURE, ")
+        sql.append("SELECT lr.*, u.FULLNAME, u.EMPID as USER_ID, u.HIREDATE, u.PROFILE_PICTURE, ")
            .append("lt.TYPE_CODE, ls.STATUS_CODE, ")
+           // Sub-table Metadata joins with specific aliases to avoid naming collisions
+           .append("e.EMERGENCY_CATEGORY, e.EMERGENCY_CONTACT, ")
+           .append("s.MEDICAL_FACILITY as SICK_FAC, s.REF_SERIAL_NO as SICK_REF, ")
+           .append("h.HOSPITAL_NAME as HOSP_NAME, h.ADMIT_DATE as HOSP_ADMIT, h.DISCHARGE_DATE as HOSP_DIS, ")
+           .append("m.CONSULTATION_CLINIC as MAT_CLINIC, m.EXPECTED_DUE_DATE as MAT_DUE, m.WEEK_PREGNANCY as MAT_WEEK, ")
+           .append("p.SPOUSE_NAME as PAT_SPOUSE, p.MEDICAL_FACILITY as PAT_FAC, p.DELIVERY_DATE as PAT_DEL, ")
            .append("(SELECT a.FILE_NAME FROM LEAVE_REQUEST_ATTACHMENTS a WHERE a.LEAVE_ID = lr.LEAVE_ID FETCH FIRST 1 ROW ONLY) AS ATTACHMENT_NAME ")
            .append("FROM LEAVE_REQUESTS lr ")
            .append("JOIN USERS u ON lr.EMPID = u.EMPID ")
            .append("JOIN LEAVE_TYPES lt ON lr.LEAVE_TYPE_ID = lt.LEAVE_TYPE_ID ")
            .append("JOIN LEAVE_STATUSES ls ON lr.STATUS_ID = ls.STATUS_ID ")
+           // Class Table Inheritance LEFT JOINs
+           .append("LEFT JOIN LR_EMERGENCY e ON lr.LEAVE_ID = e.LEAVE_ID ")
+           .append("LEFT JOIN LR_SICK s ON lr.LEAVE_ID = s.LEAVE_ID ")
+           .append("LEFT JOIN LR_HOSPITALIZATION h ON lr.LEAVE_ID = h.LEAVE_ID ")
+           .append("LEFT JOIN LR_MATERNITY m ON lr.LEAVE_ID = m.LEAVE_ID ")
+           .append("LEFT JOIN LR_PATERNITY p ON lr.LEAVE_ID = p.LEAVE_ID ")
            .append("WHERE 1=1 ");
 
         if (status != null && !status.isEmpty() && !"ALL".equalsIgnoreCase(status)) {
@@ -100,6 +106,7 @@ public class AdminLeaveHistoryDAO {
         r.setStatusCode(rs.getString("STATUS_CODE"));
         r.setDurationDays(rs.getDouble("DURATION_DAYS"));
         r.setDuration(rs.getString("DURATION"));
+        r.setLeaveTypeId(rs.getString("LEAVE_TYPE_ID"));
         
         if (rs.getDate("START_DATE") != null) r.setStartDate(sdfDate.format(rs.getDate("START_DATE")));
         if (rs.getDate("END_DATE") != null) r.setEndDate(sdfDate.format(rs.getDate("END_DATE")));
@@ -107,27 +114,40 @@ public class AdminLeaveHistoryDAO {
         
         r.setReason(rs.getString("REASON"));
         r.setManagerComment(rs.getString("MANAGER_COMMENT"));
-        
-        // Populate Metadata for "View Data" Details Popup
-        r.setMedicalFacility(rs.getString("MEDICAL_FACILITY"));
-        r.setRefSerialNo(rs.getString("REF_SERIAL_NO"));
-        
-        Date evt = rs.getDate("EVENT_DATE");
-        r.setEventDate(evt != null ? sdfDate.format(evt) : "");
-        
-        Date dis = rs.getDate("DISCHARGE_DATE");
-        r.setDischargeDate(dis != null ? sdfDate.format(dis) : "");
-        
-        r.setEmergencyCategory(rs.getString("EMERGENCY_CATEGORY"));
-        r.setEmergencyContact(rs.getString("EMERGENCY_CONTACT"));
-        r.setSpouseName(rs.getString("SPOUSE_NAME"));
-        
         r.setAttachment(rs.getString("ATTACHMENT_NAME"));
+
+        // ========================================================
+        // METADATA MAPPING (Logic to flatten Sub-table data)
+        // ========================================================
+        String type = rs.getString("TYPE_CODE");
+        
+        if ("SICK".equals(type)) {
+            r.setMedicalFacility(rs.getString("SICK_FAC"));
+            r.setRefSerialNo(rs.getString("SICK_REF"));
+        } 
+        else if ("EMERGENCY".equals(type)) {
+            r.setEmergencyCategory(rs.getString("EMERGENCY_CATEGORY"));
+            r.setEmergencyContact(rs.getString("EMERGENCY_CONTACT"));
+        } 
+        else if ("HOSPITALIZATION".equals(type)) {
+            r.setMedicalFacility(rs.getString("HOSP_NAME"));
+            if(rs.getDate("HOSP_ADMIT") != null) r.setEventDate(sdfDate.format(rs.getDate("HOSP_ADMIT")));
+            if(rs.getDate("HOSP_DIS") != null) r.setDischargeDate(sdfDate.format(rs.getDate("HOSP_DIS")));
+        } 
+        else if ("MATERNITY".equals(type)) {
+            r.setMedicalFacility(rs.getString("MAT_CLINIC"));
+            if(rs.getDate("MAT_DUE") != null) r.setEventDate(sdfDate.format(rs.getDate("MAT_DUE")));
+            // FIXED: Missing mapping for pregnancy weeks
+            r.setWeekPregnancy(rs.getInt("MAT_WEEK")); 
+        } 
+        else if ("PATERNITY".equals(type)) {
+            r.setSpouseName(rs.getString("PAT_SPOUSE"));
+            r.setMedicalFacility(rs.getString("PAT_FAC"));
+            if(rs.getDate("PAT_DEL") != null) r.setEventDate(sdfDate.format(rs.getDate("PAT_DEL")));
+        }
         
         return r;
     }
-    
-
 
     /**
      * Utility: Calculate working days (excluding weekends and holidays).

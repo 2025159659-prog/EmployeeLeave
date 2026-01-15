@@ -69,9 +69,8 @@
     </div>
 
     <!-- Navigation Area: Using mx-3 on items to pull them in from the edges -->
-    <nav class="flex-1 px-2 mt-4 space-y-1.5 no-scrollbar overflow-y-auto">
+ <nav class="flex-1 px-2 mt-4 space-y-1.5 no-scrollbar overflow-y-auto">
         <% if (isAdmin) { %>
-            
             <a href="AdminDashboard" class="nav-item flex items-center gap-3 px-3 py-2.5 mx-2 rounded-xl <%= pageKey.equals("admindashboard") ? "active-blue" : "text-slate-400 hover:bg-slate-800/50 hover:text-white" %>">
                 <span class="shrink-0"><%= BriefcaseIcon("w-5 h-5") %></span>
                 <span class="hidden lg:block whitespace-nowrap text-sm font-semibold">Admin Dashboard</span>
@@ -97,18 +96,17 @@
                 <span class="hidden lg:block whitespace-nowrap text-sm font-semibold">Manage Holidays</span>
             </a>
 
+        <% } else if (isManager) { %>
+            <a href="ReviewLeave" class="nav-item flex items-center gap-3 px-3 py-2.5 mx-2 rounded-xl <%= pageKey.contains("review") ? "active-blue" : "text-slate-400 hover:bg-slate-800/50 hover:text-white" %>">
+                <span class="shrink-0"><%= CheckCircleIcon("w-5 h-5") %></span>
+                <span class="hidden lg:block whitespace-nowrap text-sm font-semibold">Review Applications</span>
+            </a>
+
         <% } else { %>
             <a href="EmployeeDashboard" class="nav-item flex items-center gap-3 px-3 py-2.5 mx-2 rounded-xl <%= pageKey.equals("employeedashboard") ? "active-blue" : "text-slate-400 hover:bg-slate-800/50 hover:text-white" %>">
                 <span class="shrink-0"><%= HomeIcon("w-5 h-5") %></span>
                 <span class="hidden lg:block whitespace-nowrap text-sm font-semibold">Dashboard</span>
             </a>
-
-            <% if (isManager) { %>
-                <a href="ReviewLeave" class="nav-item flex items-center gap-3 px-3 py-2.5 mx-2 rounded-xl <%= pageKey.contains("review") ? "active-blue" : "text-slate-400 hover:bg-slate-800/50 hover:text-white" %>">
-                    <span class="shrink-0"><%= CheckCircleIcon("w-5 h-5") %></span>
-                    <span class="hidden lg:block whitespace-nowrap text-sm font-semibold">Review Applications</span>
-                </a>
-            <% } %>
 
             <a href="ApplyLeave" class="nav-item flex items-center gap-3 px-3 py-2.5 mx-2 rounded-xl <%= pageKey.contains("apply") ? "active-blue" : "text-slate-400 hover:bg-slate-800/50 hover:text-white" %>">
                 <span class="shrink-0"><%= CalendarIcon("w-5 h-5") %></span>

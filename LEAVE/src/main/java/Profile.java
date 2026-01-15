@@ -65,7 +65,7 @@ public class Profile extends HttpServlet {
 
         int empid = Integer.parseInt(String.valueOf(session.getAttribute("empid")));
         
-        // Retrieve only editable fields: Phone and Detailed Address
+        // Retrieve and sanitize fields
         String phone = request.getParameter("phone");
         String street = request.getParameter("street");
         String city = request.getParameter("city");
@@ -75,13 +75,13 @@ public class Profile extends HttpServlet {
         try {
             User user = new User();
             user.setEmpId(empid);
-            user.setPhone(phone != null ? phone.trim() : "");
             
-            // Setting the new detailed address fields
-            user.setStreet(street != null ? street.trim() : "");
-            user.setCity(city != null ? city.trim() : "");
+            // Clean inputs: Trim and Force Uppercase for consistent DB records
+            user.setPhone(phone != null ? phone.trim() : "");
+            user.setStreet(street != null ? street.trim().toUpperCase() : "");
+            user.setCity(city != null ? city.trim().toUpperCase() : "");
             user.setPostalCode(postalCode != null ? postalCode.trim() : "");
-            user.setState(state != null ? state.trim() : "");
+            user.setState(state != null ? state.trim().toUpperCase() : "");
 
             // Handle Profile Picture Upload
             Part profilePicPart = request.getPart("profilePic");
@@ -104,19 +104,20 @@ public class Profile extends HttpServlet {
                 String relativePath = "uploads/" + fileName;
                 
                 user.setProfilePic(relativePath);
-                session.setAttribute("profilePic", relativePath); // Update topbar icon
+                session.setAttribute("profilePic", relativePath); 
             }
 
-            // Update profile via DAO (Ensure your DAO method is updated to handle these fields)
+            // Execute Update
             if (userDAO.updateProfile(user)) {
-                response.sendRedirect("Profile?msg=" + url("Profile updated successfully."));
+                // REDIRECT with "message=success" to trigger the JSP notification
+                response.sendRedirect("Profile?message=success");
             } else {
-                response.sendRedirect("Profile?error=" + url("Update failed."));
+                response.sendRedirect("Profile?edit=1&error=" + url("Update failed. Please check your data."));
             }
 
         } catch (Exception e) {
             e.printStackTrace();
-            response.sendRedirect("Profile?error=" + url("Error updating profile: " + e.getMessage()));
+            response.sendRedirect("Profile?edit=1&error=" + url("Error: " + e.getMessage()));
         }
     }
 

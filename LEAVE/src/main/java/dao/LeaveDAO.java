@@ -10,10 +10,12 @@ import java.sql.*;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.Date;
 
 public class LeaveDAO {
 
+    /**
+     * Fetch all leave types for dropdown selection.
+     */
     public List<Map<String, Object>> getAllLeaveTypes() throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
         String sql = "SELECT LEAVE_TYPE_ID, TYPE_CODE, DESCRIPTION FROM LEAVE_TYPES ORDER BY TYPE_CODE";
@@ -31,10 +33,26 @@ public class LeaveDAO {
         return list;
     }
 
+    /**
+     * Fetch a specific leave request by ID and EmpID, including inheritance data.
+     */
     public LeaveRequest getLeaveById(int leaveId, int empId) throws Exception {
-        String sql = "SELECT lr.*, ls.STATUS_CODE FROM LEAVE_REQUESTS lr " +
+        String sql = "SELECT lr.*, ls.STATUS_CODE, lt.TYPE_CODE, " +
+                     "e.EMERGENCY_CATEGORY, e.EMERGENCY_CONTACT, " +
+                     "s.MEDICAL_FACILITY as S_FAC, s.REF_SERIAL_NO as S_REF, " +
+                     "h.HOSPITAL_NAME as H_NAME, h.ADMIT_DATE as H_ADMIT, h.DISCHARGE_DATE as H_DIS, " +
+                     "m.CONSULTATION_CLINIC as M_CLINIC, m.EXPECTED_DUE_DATE as M_DUE, m.WEEK_PREGNANCY as M_WEEK, " +
+                     "p.SPOUSE_NAME as P_SPOUSE, p.MEDICAL_FACILITY as P_FAC, p.DELIVERY_DATE as P_DEL " +
+                     "FROM LEAVE_REQUESTS lr " +
                      "JOIN LEAVE_STATUSES ls ON lr.STATUS_ID = ls.STATUS_ID " +
+                     "JOIN LEAVE_TYPES lt ON lr.LEAVE_TYPE_ID = lt.LEAVE_TYPE_ID " +
+                     "LEFT JOIN LR_EMERGENCY e ON lr.LEAVE_ID = e.LEAVE_ID " +
+                     "LEFT JOIN LR_SICK s ON lr.LEAVE_ID = s.LEAVE_ID " +
+                     "LEFT JOIN LR_HOSPITALIZATION h ON lr.LEAVE_ID = h.LEAVE_ID " +
+                     "LEFT JOIN LR_MATERNITY m ON lr.LEAVE_ID = m.LEAVE_ID " +
+                     "LEFT JOIN LR_PATERNITY p ON lr.LEAVE_ID = p.LEAVE_ID " +
                      "WHERE lr.LEAVE_ID = ? AND lr.EMPID = ?";
+        
         try (Connection con = DatabaseConnection.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, leaveId);
@@ -52,18 +70,27 @@ public class LeaveDAO {
                     lr.setReason(rs.getString("REASON"));
                     lr.setStatusCode(rs.getString("STATUS_CODE"));
                     lr.setHalfSession(rs.getString("HALF_SESSION"));
-                    lr.setMedicalFacility(rs.getString("MEDICAL_FACILITY"));
-                    lr.setRefSerialNo(rs.getString("REF_SERIAL_NO"));
-                    lr.setEmergencyCategory(rs.getString("EMERGENCY_CATEGORY"));
-                    lr.setEmergencyContact(rs.getString("EMERGENCY_CONTACT"));
-                    lr.setSpouseName(rs.getString("SPOUSE_NAME"));
-                    
-                    Date evt = rs.getDate("EVENT_DATE");
-                    if (evt != null) lr.setEventDate(((java.sql.Date) evt).toLocalDate());
-                    
-                    Date dis = rs.getDate("DISCHARGE_DATE");
-                    if (dis != null) lr.setDischargeDate(((java.sql.Date) dis).toLocalDate());
-                    
+
+                    String type = rs.getString("TYPE_CODE");
+                    if ("EMERGENCY".equals(type)) {
+                        lr.setEmergencyCategory(rs.getString("EMERGENCY_CATEGORY"));
+                        lr.setEmergencyContact(rs.getString("EMERGENCY_CONTACT"));
+                    } else if ("SICK".equals(type)) {
+                        lr.setMedicalFacility(rs.getString("S_FAC"));
+                        lr.setRefSerialNo(rs.getString("S_REF"));
+                    } else if ("HOSPITALIZATION".equals(type)) {
+                        lr.setMedicalFacility(rs.getString("H_NAME"));
+                        if(rs.getDate("H_ADMIT") != null) lr.setEventDate(rs.getDate("H_ADMIT").toLocalDate());
+                        if(rs.getDate("H_DIS") != null) lr.setDischargeDate(rs.getDate("H_DIS").toLocalDate());
+                    } else if ("MATERNITY".equals(type)) {
+                        lr.setMedicalFacility(rs.getString("M_CLINIC"));
+                        if(rs.getDate("M_DUE") != null) lr.setEventDate(rs.getDate("M_DUE").toLocalDate());
+                        lr.setWeekPregnancy(rs.getInt("M_WEEK"));
+                    } else if ("PATERNITY".equals(type)) {
+                        lr.setSpouseName(rs.getString("P_SPOUSE"));
+                        lr.setMedicalFacility(rs.getString("P_FAC"));
+                        if(rs.getDate("P_DEL") != null) lr.setEventDate(rs.getDate("P_DEL").toLocalDate());
+                    }
                     return lr;
                 }
             }
@@ -71,6 +98,9 @@ public class LeaveDAO {
         return null;
     }
 
+    /**
+     * Calculate working days excluding Weekends and Holidays.
+     */
     public double calculateWorkingDays(LocalDate start, LocalDate end) throws Exception {
         double count = 0;
         Set<LocalDate> holidays = new HashSet<>();
@@ -86,6 +116,7 @@ public class LeaveDAO {
                 }
             }
         }
+
         LocalDate curr = start;
         while (!curr.isAfter(end)) {
             DayOfWeek dow = curr.getDayOfWeek();
@@ -97,12 +128,17 @@ public class LeaveDAO {
         return count;
     }
 
+    /**
+     * Submit a new leave request using Class Table Inheritance.
+     * Inserts into Parent (LEAVE_REQUESTS) then into the specific Child table.
+     */
     public boolean submitRequest(LeaveRequest req, Part filePart) throws Exception {
         Connection con = null;
         try {
             con = DatabaseConnection.getConnection();
             con.setAutoCommit(false);
 
+            // 1. Get Status ID for 'PENDING'
             int statusId = 0;
             String statusSql = "SELECT STATUS_ID FROM LEAVE_STATUSES WHERE UPPER(STATUS_CODE) = 'PENDING'";
             try (PreparedStatement ps = con.prepareStatement(statusSql); 
@@ -110,13 +146,13 @@ public class LeaveDAO {
                 if (rs.next()) statusId = rs.getInt("STATUS_ID");
             }
 
-            String sql = "INSERT INTO LEAVE_REQUESTS (EMPID, LEAVE_TYPE_ID, STATUS_ID, START_DATE, END_DATE, " +
-                         "DURATION, DURATION_DAYS, REASON, HALF_SESSION, MEDICAL_FACILITY, REF_SERIAL_NO, " +
-                         "EVENT_DATE, DISCHARGE_DATE, EMERGENCY_CATEGORY, EMERGENCY_CONTACT, SPOUSE_NAME, APPLIED_ON) " +
-                         "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, SYSDATE)";
+            // 2. Insert into BASE PARENT table (LEAVE_REQUESTS)
+            String sqlParent = "INSERT INTO LEAVE_REQUESTS (EMPID, LEAVE_TYPE_ID, STATUS_ID, START_DATE, END_DATE, " +
+                               "DURATION, DURATION_DAYS, REASON, HALF_SESSION, APPLIED_ON) " +
+                               "VALUES (?,?,?,?,?,?,?,?,?, SYSDATE)";
             
             int leaveId = 0;
-            try (PreparedStatement ps = con.prepareStatement(sql, new String[]{"LEAVE_ID"})) {
+            try (PreparedStatement ps = con.prepareStatement(sqlParent, new String[]{"LEAVE_ID"})) {
                 ps.setInt(1, req.getEmpId());
                 ps.setInt(2, req.getLeaveTypeId());
                 ps.setInt(3, statusId);
@@ -126,13 +162,6 @@ public class LeaveDAO {
                 ps.setDouble(7, req.getDurationDays());
                 ps.setString(8, req.getReason());
                 ps.setString(9, req.getHalfSession());
-                ps.setString(10, req.getMedicalFacility());
-                ps.setString(11, req.getRefSerialNo());
-                ps.setDate(12, req.getEventDate() != null ? java.sql.Date.valueOf(req.getEventDate()) : null);
-                ps.setDate(13, req.getDischargeDate() != null ? java.sql.Date.valueOf(req.getDischargeDate()) : null);
-                ps.setString(14, req.getEmergencyCategory());
-                ps.setString(15, req.getEmergencyContact());
-                ps.setString(16, req.getSpouseName());
                 ps.executeUpdate();
                 
                 try (ResultSet rs = ps.getGeneratedKeys()) { 
@@ -140,29 +169,25 @@ public class LeaveDAO {
                 }
             }
 
+            // 3. Determine and Insert into SPECIFIC CHILD table based on Leave Type ID
+            insertInheritedData(con, leaveId, req);
+
+            // 4. Handle File Attachment
             if (filePart != null && filePart.getSize() > 0) {
                 String fileSql = "INSERT INTO LEAVE_REQUEST_ATTACHMENTS (LEAVE_ID, FILE_NAME, MIME_TYPE, FILE_SIZE, FILE_DATA, UPLOADED_ON) VALUES (?,?,?,?,?, SYSDATE)";
-                try (PreparedStatement ps = con.prepareStatement(fileSql); 
+                try (PreparedStatement psF = con.prepareStatement(fileSql); 
                      InputStream in = filePart.getInputStream()) {
-                    ps.setInt(1, leaveId);
-                    ps.setString(2, filePart.getSubmittedFileName());
-                    ps.setString(3, filePart.getContentType());
-                    ps.setLong(4, filePart.getSize());
-                    ps.setBinaryStream(5, in);
-                    ps.executeUpdate();
+                    psF.setInt(1, leaveId);
+                    psF.setString(2, filePart.getSubmittedFileName());
+                    psF.setString(3, filePart.getContentType());
+                    psF.setLong(4, filePart.getSize());
+                    psF.setBinaryStream(5, in);
+                    psF.executeUpdate();
                 }
             }
 
-            String upd = "UPDATE LEAVE_BALANCES SET PENDING = NVL(PENDING,0) + ?, " +
-                         "TOTAL = (NVL(ENTITLEMENT,0) + NVL(CARRIED_FWD,0)) - (NVL(USED,0) + (NVL(PENDING,0) + ?)) " +
-                         "WHERE EMPID = ? AND LEAVE_TYPE_ID = ?";
-            try (PreparedStatement ps = con.prepareStatement(upd)) {
-                ps.setDouble(1, req.getDurationDays()); 
-                ps.setDouble(2, req.getDurationDays());
-                ps.setInt(3, req.getEmpId()); 
-                ps.setInt(4, req.getLeaveTypeId());
-                ps.executeUpdate();
-            }
+            // 5. Update Balances
+            updateBalance(con, req.getEmpId(), req.getLeaveTypeId(), req.getDurationDays());
 
             con.commit();
             return true;
@@ -174,84 +199,58 @@ public class LeaveDAO {
         }
     }
 
+    /**
+     * Update an existing leave request.
+     */
     public boolean updateLeave(LeaveRequest req, int empId) throws Exception {
         Connection con = null;
         try {
             con = DatabaseConnection.getConnection();
             con.setAutoCommit(false);
 
-            double oldDuration = 0;
+            // 1. Get old data for balance restoration
+            double oldDays = 0;
             int oldTypeId = 0;
-            String checkSql = "SELECT DURATION_DAYS, LEAVE_TYPE_ID FROM LEAVE_REQUESTS WHERE LEAVE_ID = ? AND EMPID = ?";
-            try (PreparedStatement ps = con.prepareStatement(checkSql)) {
+            String check = "SELECT DURATION_DAYS, LEAVE_TYPE_ID FROM LEAVE_REQUESTS WHERE LEAVE_ID = ? AND EMPID = ? AND STATUS_ID = (SELECT STATUS_ID FROM LEAVE_STATUSES WHERE UPPER(STATUS_CODE)='PENDING')";
+            try (PreparedStatement ps = con.prepareStatement(check)) {
                 ps.setInt(1, req.getLeaveId());
                 ps.setInt(2, empId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        oldDuration = rs.getDouble("DURATION_DAYS");
+                        oldDays = rs.getDouble("DURATION_DAYS");
                         oldTypeId = rs.getInt("LEAVE_TYPE_ID");
                     } else return false;
                 }
             }
 
-            String sql = "UPDATE LEAVE_REQUESTS SET LEAVE_TYPE_ID=?, START_DATE=?, END_DATE=?, DURATION=?, " +
-                         "HALF_SESSION=?, DURATION_DAYS=?, REASON=?, MEDICAL_FACILITY=?, REF_SERIAL_NO=?, " +
-                         "EVENT_DATE=?, DISCHARGE_DATE=?, EMERGENCY_CATEGORY=?, EMERGENCY_CONTACT=?, SPOUSE_NAME=? " +
-                         "WHERE LEAVE_ID=? AND EMPID=? " +
-                         "AND STATUS_ID=(SELECT STATUS_ID FROM LEAVE_STATUSES WHERE UPPER(STATUS_CODE)='PENDING')";
-            
-            try (PreparedStatement ps = con.prepareStatement(sql)) {
+            // 2. Update Parent
+            String sqlP = "UPDATE LEAVE_REQUESTS SET LEAVE_TYPE_ID=?, START_DATE=?, END_DATE=?, DURATION=?, DURATION_DAYS=?, REASON=?, HALF_SESSION=? WHERE LEAVE_ID=? AND EMPID=?";
+            try (PreparedStatement ps = con.prepareStatement(sqlP)) {
                 ps.setInt(1, req.getLeaveTypeId());
                 ps.setDate(2, java.sql.Date.valueOf(req.getStartDate()));
                 ps.setDate(3, java.sql.Date.valueOf(req.getEndDate()));
                 ps.setString(4, req.getDuration());
-                ps.setString(5, req.getHalfSession());
-                ps.setDouble(6, req.getDurationDays());
-                ps.setString(7, req.getReason());
-                ps.setString(8, req.getMedicalFacility());
-                ps.setString(9, req.getRefSerialNo());
-                ps.setDate(10, req.getEventDate() != null ? java.sql.Date.valueOf(req.getEventDate()) : null);
-                ps.setDate(11, req.getDischargeDate() != null ? java.sql.Date.valueOf(req.getDischargeDate()) : null);
-                ps.setString(12, req.getEmergencyCategory());
-                ps.setString(13, req.getEmergencyContact());
-                ps.setString(14, req.getSpouseName());
-                ps.setInt(15, req.getLeaveId());
-                ps.setInt(16, empId);
-                
-                if (ps.executeUpdate() == 0) {
-                    con.rollback();
-                    return false;
-                }
+                ps.setDouble(5, req.getDurationDays());
+                ps.setString(6, req.getReason());
+                ps.setString(7, req.getHalfSession());
+                ps.setInt(8, req.getLeaveId());
+                ps.setInt(9, empId);
+                ps.executeUpdate();
             }
 
-            if (oldTypeId == req.getLeaveTypeId()) {
-                double diff = req.getDurationDays() - oldDuration;
-                String upd = "UPDATE LEAVE_BALANCES SET PENDING = PENDING + ?, TOTAL = TOTAL - ? WHERE EMPID = ? AND LEAVE_TYPE_ID = ?";
-                try (PreparedStatement ps = con.prepareStatement(upd)) {
-                    ps.setDouble(1, diff);
-                    ps.setDouble(2, diff);
-                    ps.setInt(3, empId);
-                    ps.setInt(4, req.getLeaveTypeId());
-                    ps.executeUpdate();
-                }
-            } else {
-                String restore = "UPDATE LEAVE_BALANCES SET PENDING = PENDING - ?, TOTAL = TOTAL + ? WHERE EMPID = ? AND LEAVE_TYPE_ID = ?";
-                try (PreparedStatement ps = con.prepareStatement(restore)) {
-                    ps.setDouble(1, oldDuration);
-                    ps.setDouble(2, oldDuration);
-                    ps.setInt(3, empId);
-                    ps.setInt(4, oldTypeId);
-                    ps.executeUpdate();
-                }
-                String deduct = "UPDATE LEAVE_BALANCES SET PENDING = PENDING + ?, TOTAL = TOTAL - ? WHERE EMPID = ? AND LEAVE_TYPE_ID = ?";
-                try (PreparedStatement ps = con.prepareStatement(deduct)) {
-                    ps.setDouble(1, req.getDurationDays());
-                    ps.setDouble(2, req.getDurationDays());
-                    ps.setInt(3, empId);
-                    ps.setInt(4, req.getLeaveTypeId());
+            // 3. Clear and Re-insert Child Data
+            String[] childTables = {"LR_EMERGENCY", "LR_SICK", "LR_HOSPITALIZATION", "LR_MATERNITY", "LR_PATERNITY"};
+            for (String table : childTables) {
+                try (PreparedStatement ps = con.prepareStatement("DELETE FROM " + table + " WHERE LEAVE_ID=?")) {
+                    ps.setInt(1, req.getLeaveId());
                     ps.executeUpdate();
                 }
             }
+            insertInheritedData(con, req.getLeaveId(), req);
+
+            // 4. Correct Balances
+            updateBalance(con, empId, oldTypeId, -oldDays);
+            updateBalance(con, empId, req.getLeaveTypeId(), req.getDurationDays());
 
             con.commit();
             return true;
@@ -263,43 +262,44 @@ public class LeaveDAO {
         }
     }
 
+    /**
+     * Delete pending leave and restore balance.
+     */
     public boolean deleteLeave(int leaveId, int empId) throws Exception {
         Connection con = null;
         try {
             con = DatabaseConnection.getConnection();
             con.setAutoCommit(false);
 
-            double duration = 0;
+            double days = 0;
             int typeId = 0;
-            String checkSql = "SELECT DURATION_DAYS, LEAVE_TYPE_ID FROM LEAVE_REQUESTS " +
-                             "WHERE LEAVE_ID = ? AND EMPID = ? " +
-                             "AND STATUS_ID = (SELECT STATUS_ID FROM LEAVE_STATUSES WHERE UPPER(STATUS_CODE) = 'PENDING')";
-            
-            try (PreparedStatement ps = con.prepareStatement(checkSql)) {
+            String sql = "SELECT DURATION_DAYS, LEAVE_TYPE_ID FROM LEAVE_REQUESTS WHERE LEAVE_ID=? AND EMPID=? AND STATUS_ID=(SELECT STATUS_ID FROM LEAVE_STATUSES WHERE UPPER(STATUS_CODE)='PENDING')";
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
                 ps.setInt(1, leaveId);
                 ps.setInt(2, empId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        duration = rs.getDouble("DURATION_DAYS");
+                        days = rs.getDouble("DURATION_DAYS");
                         typeId = rs.getInt("LEAVE_TYPE_ID");
-                    } else return false; 
+                    } else return false;
                 }
             }
 
-            try (PreparedStatement ps = con.prepareStatement("DELETE FROM LEAVE_REQUESTS WHERE LEAVE_ID = ?")) {
+            // Child table deletions are handled by DB Cascade if configured, otherwise manually:
+            String[] childTables = {"LR_EMERGENCY", "LR_SICK", "LR_HOSPITALIZATION", "LR_MATERNITY", "LR_PATERNITY", "LEAVE_REQUEST_ATTACHMENTS"};
+            for (String table : childTables) {
+                try (PreparedStatement ps = con.prepareStatement("DELETE FROM " + table + " WHERE LEAVE_ID=?")) {
+                    ps.setInt(1, leaveId);
+                    ps.executeUpdate();
+                }
+            }
+
+            try (PreparedStatement ps = con.prepareStatement("DELETE FROM LEAVE_REQUESTS WHERE LEAVE_ID=?")) {
                 ps.setInt(1, leaveId);
                 ps.executeUpdate();
             }
 
-            String restoreSql = "UPDATE LEAVE_BALANCES SET PENDING = PENDING - ?, TOTAL = TOTAL + ? " +
-                               "WHERE EMPID = ? AND LEAVE_TYPE_ID = ?";
-            try (PreparedStatement ps = con.prepareStatement(restoreSql)) {
-                ps.setDouble(1, duration);
-                ps.setDouble(2, duration);
-                ps.setInt(3, empId);
-                ps.setInt(4, typeId);
-                ps.executeUpdate();
-            }
+            updateBalance(con, empId, typeId, -days);
 
             con.commit();
             return true;
@@ -311,140 +311,122 @@ public class LeaveDAO {
         }
     }
 
+    /**
+     * Retrieves leave history using LEFT JOINs across all inheritance sub-tables.
+     */
     public List<Map<String, Object>> getLeaveHistory(int empId, String status, String year) throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder(
-            "SELECT lr.LEAVE_ID, lr.START_DATE, lr.END_DATE, lr.DURATION, lr.DURATION_DAYS, " +
-            "lr.REASON, lr.MANAGER_COMMENT, lr.APPLIED_ON, lt.TYPE_CODE, ls.STATUS_CODE, att.FILE_NAME, " +
-            "lr.LEAVE_TYPE_ID, lr.MEDICAL_FACILITY, lr.REF_SERIAL_NO, lr.EMERGENCY_CATEGORY, lr.EMERGENCY_CONTACT, " +
-            "lr.SPOUSE_NAME, lr.EVENT_DATE, lr.DISCHARGE_DATE " +
+            "SELECT lr.LEAVE_ID, lr.START_DATE, lr.END_DATE, lr.DURATION, lr.DURATION_DAYS, lr.REASON, lr.MANAGER_COMMENT, lr.APPLIED_ON, " +
+            "lt.TYPE_CODE, ls.STATUS_CODE, att.FILE_NAME, " +
+            "e.EMERGENCY_CATEGORY, e.EMERGENCY_CONTACT, " +
+            "s.MEDICAL_FACILITY as S_FAC, s.REF_SERIAL_NO as S_REF, " +
+            "h.HOSPITAL_NAME as H_NAME, h.ADMIT_DATE as H_ADMIT, h.DISCHARGE_DATE as H_DIS, " +
+            "m.CONSULTATION_CLINIC as M_CLINIC, m.EXPECTED_DUE_DATE as M_DUE, m.WEEK_PREGNANCY as M_WEEK, " +
+            "p.SPOUSE_NAME as P_SPOUSE, p.MEDICAL_FACILITY as P_FAC, p.DELIVERY_DATE as P_DEL " +
             "FROM LEAVE_REQUESTS lr " +
             "JOIN LEAVE_TYPES lt ON lr.LEAVE_TYPE_ID = lt.LEAVE_TYPE_ID " +
             "JOIN LEAVE_STATUSES ls ON lr.STATUS_ID = ls.STATUS_ID " +
             "LEFT JOIN LEAVE_REQUEST_ATTACHMENTS att ON lr.LEAVE_ID = att.LEAVE_ID " +
+            "LEFT JOIN LR_EMERGENCY e ON lr.LEAVE_ID = e.LEAVE_ID " +
+            "LEFT JOIN LR_SICK s ON lr.LEAVE_ID = s.LEAVE_ID " +
+            "LEFT JOIN LR_HOSPITALIZATION h ON lr.LEAVE_ID = h.LEAVE_ID " +
+            "LEFT JOIN LR_MATERNITY m ON lr.LEAVE_ID = m.LEAVE_ID " +
+            "LEFT JOIN LR_PATERNITY p ON lr.LEAVE_ID = p.LEAVE_ID " +
             "WHERE lr.EMPID = ?"
         );
 
-        if (status != null && !status.isEmpty() && !status.equalsIgnoreCase("ALL")) {
-            sql.append(" AND ls.STATUS_CODE = ?");
-        }
-        if (year != null && !year.isEmpty()) {
-            sql.append(" AND TO_CHAR(lr.START_DATE, 'YYYY') = ?");
-        }
+        if (status != null && !status.equalsIgnoreCase("ALL")) sql.append(" AND ls.STATUS_CODE = ?");
+        if (year != null && !year.isEmpty()) sql.append(" AND TO_CHAR(lr.START_DATE, 'YYYY') = ?");
         sql.append(" ORDER BY lr.APPLIED_ON DESC");
 
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql.toString())) {
-            
+        try (Connection con = DatabaseConnection.getConnection(); PreparedStatement ps = con.prepareStatement(sql.toString())) {
             int idx = 1;
             ps.setInt(idx++, empId);
-            
-            if (status != null && !status.isEmpty() && !status.equalsIgnoreCase("ALL")) {
-                ps.setString(idx++, status.toUpperCase());
-            }
-            if (year != null && !year.isEmpty()) {
-                ps.setString(idx++, year);
-            }
+            if (status != null && !status.equalsIgnoreCase("ALL")) ps.setString(idx++, status.toUpperCase());
+            if (year != null && !year.isEmpty()) ps.setString(idx++, year);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    Map<String, Object> m = new HashMap<>();
-                    m.put("id", rs.getInt("LEAVE_ID"));
-                    m.put("type", rs.getString("TYPE_CODE"));
-                    m.put("start", rs.getDate("START_DATE").toString());
-                    m.put("end", rs.getDate("END_DATE").toString());
-                    m.put("duration", rs.getString("DURATION"));
-                    m.put("totalDays", rs.getDouble("DURATION_DAYS"));
-                    m.put("reason", rs.getString("REASON"));
-                    m.put("status", rs.getString("STATUS_CODE"));
-                    m.put("managerComment", rs.getString("MANAGER_COMMENT"));
-                    m.put("appliedOn", rs.getTimestamp("APPLIED_ON").toString());
-                    m.put("fileName", rs.getString("FILE_NAME"));
-                    m.put("hasFile", rs.getString("FILE_NAME") != null);
-                    
-                    m.put("leaveTypeId", rs.getString("LEAVE_TYPE_ID"));
-                    m.put("medicalFacility", rs.getString("MEDICAL_FACILITY"));
-                    m.put("refSerialNo", rs.getString("REF_SERIAL_NO"));
-                    m.put("emergencyCategory", rs.getString("EMERGENCY_CATEGORY"));
-                    m.put("emergencyContact", rs.getString("EMERGENCY_CONTACT"));
-                    m.put("spouseName", rs.getString("SPOUSE_NAME"));
-                    
-                    Date evt = rs.getDate("EVENT_DATE");
-                    m.put("eventDate", evt != null ? evt.toString() : "");
-                    
-                    Date dis = rs.getDate("DISCHARGE_DATE");
-                    m.put("dischargeDate", dis != null ? dis.toString() : "");
-                    
-                    list.add(m);
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", rs.getInt("LEAVE_ID"));
+                    map.put("type", rs.getString("TYPE_CODE"));
+                    map.put("start", rs.getDate("START_DATE").toString());
+                    map.put("end", rs.getDate("END_DATE").toString());
+                    map.put("status", rs.getString("STATUS_CODE"));
+                    map.put("reason", rs.getString("REASON"));
+                    map.put("totalDays", rs.getDouble("DURATION_DAYS"));
+                    map.put("duration", rs.getString("DURATION"));
+                    map.put("appliedOn", rs.getTimestamp("APPLIED_ON").toString());
+                    map.put("managerComment", rs.getString("MANAGER_COMMENT"));
+                    map.put("hasFile", rs.getString("FILE_NAME") != null);
+
+                    // MAPPING TO LONG KEYS FOR JSP COMPATIBILITY
+                    String code = rs.getString("TYPE_CODE");
+                    if ("EMERGENCY".equals(code)) {
+                        map.put("emergencyCategory", rs.getString("EMERGENCY_CATEGORY"));
+                        map.put("emergencyContact", rs.getString("EMERGENCY_CONTACT"));
+                    } else if ("SICK".equals(code)) {
+                        map.put("medicalFacility", rs.getString("S_FAC"));
+                        map.put("refSerialNo", rs.getString("S_REF"));
+                    } else if ("HOSPITALIZATION".equals(code)) {
+                        map.put("medicalFacility", rs.getString("H_NAME"));
+                        map.put("eventDate", rs.getDate("H_ADMIT") != null ? rs.getDate("H_ADMIT").toString() : "");
+                        map.put("dischargeDate", rs.getDate("H_DIS") != null ? rs.getDate("H_DIS").toString() : "");
+                    } else if ("MATERNITY".equals(code)) {
+                        map.put("medicalFacility", rs.getString("M_CLINIC"));
+                        map.put("eventDate", rs.getDate("M_DUE") != null ? rs.getDate("M_DUE").toString() : "");
+                        map.put("weekPregnancy", rs.getInt("M_WEEK"));
+                    } else if ("PATERNITY".equals(code)) {
+                        map.put("spouseName", rs.getString("P_SPOUSE"));
+                        map.put("medicalFacility", rs.getString("P_FAC"));
+                        map.put("eventDate", rs.getDate("P_DEL") != null ? rs.getDate("P_DEL").toString() : "");
+                    }
+                    list.add(map);
                 }
             }
         }
         return list;
     }
 
-    public List<LeaveRecord> getAllLeaveRecordsForAdmin(String status, String year, String month) throws Exception {
-        List<LeaveRecord> list = new ArrayList<>();
-        StringBuilder sql = new StringBuilder(
-            "SELECT lr.*, e.FULLNAME, e.PROFILE_PIC, e.HIRE_DATE, lt.TYPE_CODE, ls.STATUS_CODE, att.FILE_NAME as ATTACHMENT_NAME " +
-            "FROM LEAVE_REQUESTS lr " +
-            "JOIN EMPLOYEES e ON lr.EMPID = e.EMPID " +
-            "JOIN LEAVE_TYPES lt ON lr.LEAVE_TYPE_ID = lt.LEAVE_TYPE_ID " +
-            "JOIN LEAVE_STATUSES ls ON lr.STATUS_ID = ls.STATUS_ID " +
-            "LEFT JOIN LEAVE_REQUEST_ATTACHMENTS att ON lr.LEAVE_ID = att.LEAVE_ID " +
-            "WHERE 1=1 "
-        );
-
-        if (status != null && !status.equalsIgnoreCase("ALL")) sql.append(" AND ls.STATUS_CODE = ? ");
-        if (year != null && !year.isEmpty()) sql.append(" AND TO_CHAR(lr.START_DATE, 'YYYY') = ? ");
-        if (month != null && !month.isEmpty()) sql.append(" AND TO_CHAR(lr.START_DATE, 'MM') = ? ");
-        
-        sql.append(" ORDER BY lr.APPLIED_ON DESC");
-
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql.toString())) {
-            
-            int idx = 1;
-            if (status != null && !status.equalsIgnoreCase("ALL")) ps.setString(idx++, status.toUpperCase());
-            if (year != null && !year.isEmpty()) ps.setString(idx++, year);
-            if (month != null && !month.isEmpty()) ps.setString(idx++, month);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    LeaveRecord r = new LeaveRecord();
-                    r.setLeaveId(rs.getInt("LEAVE_ID"));
-                    r.setEmpId(rs.getInt("EMPID"));
-                    r.setFullName(rs.getString("FULLNAME"));
-                    r.setProfilePic(rs.getString("PROFILE_PIC"));
-                    r.setHireDate(rs.getDate("HIRE_DATE"));
-                    r.setTypeCode(rs.getString("TYPE_CODE"));
-                    r.setStatusCode(rs.getString("STATUS_CODE"));
-                    r.setDurationDays(rs.getDouble("DURATION_DAYS"));
-                    r.setDuration(rs.getString("DURATION"));
-                    r.setStartDate(rs.getDate("START_DATE").toString());
-                    r.setEndDate(rs.getDate("END_DATE").toString());
-                    r.setAppliedOn(rs.getTimestamp("APPLIED_ON").toString());
-                    r.setReason(rs.getString("REASON"));
-                    r.setManagerComment(rs.getString("MANAGER_COMMENT"));
-                    r.setAttachment(rs.getString("ATTACHMENT_NAME"));
-
-                    r.setLeaveTypeId(rs.getString("LEAVE_TYPE_ID"));
-                    r.setMedicalFacility(rs.getString("MEDICAL_FACILITY"));
-                    r.setRefSerialNo(rs.getString("REF_SERIAL_NO"));
-                    r.setEmergencyCategory(rs.getString("EMERGENCY_CATEGORY"));
-                    r.setEmergencyContact(rs.getString("EMERGENCY_CONTACT"));
-                    r.setSpouseName(rs.getString("SPOUSE_NAME"));
-                    
-                    Date evt = rs.getDate("EVENT_DATE");
-                    r.setEventDate(evt != null ? evt.toString() : "");
-                    
-                    Date dis = rs.getDate("DISCHARGE_DATE");
-                    r.setDischargeDate(dis != null ? dis.toString() : "");
-                    
-                    list.add(r);
-                }
-            }
+    /**
+     * Helper to insert child table records based on type.
+     */
+    private void insertInheritedData(Connection con, int leaveId, LeaveRequest req) throws Exception {
+        String sql = null;
+        PreparedStatement ps = null;
+        switch (req.getLeaveTypeId()) {
+            case 1: sql = "INSERT INTO LR_EMERGENCY (LEAVE_ID, EMERGENCY_CATEGORY, EMERGENCY_CONTACT) VALUES (?,?,?)"; break;
+            case 2: sql = "INSERT INTO LR_SICK (LEAVE_ID, MEDICAL_FACILITY, REF_SERIAL_NO) VALUES (?,?,?)"; break;
+            case 22: sql = "INSERT INTO LR_HOSPITALIZATION (LEAVE_ID, HOSPITAL_NAME, ADMIT_DATE, DISCHARGE_DATE) VALUES (?,?,?,?)"; break;
+            case 41: sql = "INSERT INTO LR_MATERNITY (LEAVE_ID, CONSULTATION_CLINIC, EXPECTED_DUE_DATE, WEEK_PREGNANCY) VALUES (?,?,?,?)"; break;
+            case 42: sql = "INSERT INTO LR_PATERNITY (LEAVE_ID, SPOUSE_NAME, MEDICAL_FACILITY, DELIVERY_DATE) VALUES (?,?,?,?)"; break;
         }
-        return list;
+        if (sql != null) {
+            ps = con.prepareStatement(sql);
+            ps.setInt(1, leaveId);
+            if (req.getLeaveTypeId() == 1) { ps.setString(2, req.getEmergencyCategory()); ps.setString(3, req.getEmergencyContact()); }
+            else if (req.getLeaveTypeId() == 2) { ps.setString(2, req.getMedicalFacility()); ps.setString(3, req.getRefSerialNo()); }
+            else if (req.getLeaveTypeId() == 22) { ps.setString(2, req.getMedicalFacility()); ps.setDate(3, java.sql.Date.valueOf(req.getEventDate())); ps.setDate(4, java.sql.Date.valueOf(req.getDischargeDate())); }
+            else if (req.getLeaveTypeId() == 41) { ps.setString(2, req.getMedicalFacility()); ps.setDate(3, java.sql.Date.valueOf(req.getEventDate())); ps.setInt(4, req.getWeekPregnancy());}
+            else if (req.getLeaveTypeId() == 42) { ps.setString(2, req.getSpouseName()); ps.setString(3, req.getMedicalFacility()); ps.setDate(4, java.sql.Date.valueOf(req.getEventDate())); }
+            ps.executeUpdate();
+            ps.close();
+        }
+    }
+
+    /**
+     * Helper to atomicly update leave balance.
+     */
+    private void updateBalance(Connection con, int empId, int typeId, double dayDiff) throws Exception {
+        String sql = "UPDATE LEAVE_BALANCES SET PENDING = PENDING + ?, TOTAL = TOTAL - ? WHERE EMPID = ? AND LEAVE_TYPE_ID = ?";
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setDouble(1, dayDiff);
+            ps.setDouble(2, dayDiff);
+            ps.setInt(3, empId);
+            ps.setInt(4, typeId);
+            ps.executeUpdate();
+        }
     }
 
     public List<String> getHistoryYears(int empId) throws Exception {
@@ -454,20 +436,15 @@ public class LeaveDAO {
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, empId);
             try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    years.add(rs.getString("YR"));
-                }
+                while (rs.next()) years.add(rs.getString("YR"));
             }
         }
         return years;
     }
 
     public boolean requestCancellation(int leaveId, int empId) throws Exception {
-        String sql = "UPDATE LEAVE_REQUESTS SET STATUS_ID = " +
-                     "(SELECT STATUS_ID FROM LEAVE_STATUSES WHERE UPPER(STATUS_CODE) = 'CANCELLATION_REQUESTED') " +
-                     "WHERE LEAVE_ID = ? AND EMPID = ? " +
-                     "AND STATUS_ID = (SELECT STATUS_ID FROM LEAVE_STATUSES WHERE UPPER(STATUS_CODE) = 'APPROVED')";
-        
+        String sql = "UPDATE LEAVE_REQUESTS SET STATUS_ID = (SELECT STATUS_ID FROM LEAVE_STATUSES WHERE UPPER(STATUS_CODE) = 'CANCELLATION_REQUESTED') " +
+                     "WHERE LEAVE_ID = ? AND EMPID = ? AND STATUS_ID = (SELECT STATUS_ID FROM LEAVE_STATUSES WHERE UPPER(STATUS_CODE) = 'APPROVED')";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, leaveId);
@@ -478,30 +455,22 @@ public class LeaveDAO {
 
     public Map<Integer, Map<Integer, LeaveBalance>> getLeaveBalanceIndex() throws Exception {
         Map<Integer, Map<Integer, LeaveBalance>> index = new HashMap<>();
-        String sql = "SELECT b.EMPID, b.LEAVE_TYPE_ID, t.TYPE_CODE, t.DESCRIPTION, " +
-                     "b.ENTITLEMENT, b.CARRIED_FWD, b.USED, b.PENDING, b.TOTAL " +
-                     "FROM LEAVE_BALANCES b " +
-                     "JOIN LEAVE_TYPES t ON b.LEAVE_TYPE_ID = t.LEAVE_TYPE_ID";
-        
+        String sql = "SELECT b.*, t.TYPE_CODE, t.DESCRIPTION FROM LEAVE_BALANCES b JOIN LEAVE_TYPES t ON b.LEAVE_TYPE_ID = t.LEAVE_TYPE_ID";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 int empId = rs.getInt("EMPID");
-                int typeId = rs.getInt("LEAVE_TYPE_ID");
                 LeaveBalance lb = new LeaveBalance();
                 lb.setEmpId(empId);
-                lb.setLeaveTypeId(typeId);
+                lb.setLeaveTypeId(rs.getInt("LEAVE_TYPE_ID"));
                 lb.setTypeCode(rs.getString("TYPE_CODE"));
                 lb.setDescription(rs.getString("DESCRIPTION"));
                 lb.setEntitlement(rs.getInt("ENTITLEMENT"));
-                lb.setCarriedForward(rs.getInt("CARRIED_FWD"));
                 lb.setUsed(rs.getDouble("USED"));
                 lb.setPending(rs.getDouble("PENDING"));
-                double total = rs.getDouble("TOTAL");
-                double avail = total - lb.getUsed() - lb.getPending();
-                lb.setTotalAvailable(avail < 0 ? 0 : avail);
-                index.computeIfAbsent(empId, k -> new HashMap<>()).put(typeId, lb);
+                lb.setTotalAvailable(rs.getDouble("TOTAL"));
+                index.computeIfAbsent(empId, k -> new HashMap<>()).put(lb.getLeaveTypeId(), lb);
             }
         }
         return index;

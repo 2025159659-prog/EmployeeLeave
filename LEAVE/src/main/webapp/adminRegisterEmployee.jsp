@@ -22,14 +22,14 @@
         :root {
             --bg: #f8fafc;
             --card: #ffffff;
-            --border: #cbd5e1;
+            --border: #e2e8f0;
             --text: #1e293b;
-            --muted: #64748b;
+            --muted: #475569;
             --blue-primary: #2563eb;
             --blue-light: #eff6ff;
             --blue-hover: #1d4ed8;
-            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-            --radius: 12px;
+            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            --radius: 20px;
         }
 
         * { 
@@ -42,13 +42,14 @@
             background: var(--bg); 
             color: var(--text); 
             overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
         }
         
         main { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 
         .pageWrap { 
-            padding: 32px 40px; 
-            max-width: 1000px; 
+            padding: 24px 40px; 
+            max-width: 1100px; 
             margin: 0 auto;
         }
 
@@ -58,7 +59,7 @@
             margin: 0; 
             color: var(--text); 
             text-transform: uppercase; 
-            letter-spacing: -0.025em;
+            letter-spacing: -0.02em;
         }
         
         .sub-label { 
@@ -66,7 +67,7 @@
             font-size: 11px; 
             font-weight: 800; 
             text-transform: uppercase; 
-            letter-spacing: 0.1em;
+            letter-spacing: 0.1em; 
             margin-top: 4px;
             display: block;
         }
@@ -84,10 +85,6 @@
             background: var(--blue-light); 
             color: var(--blue-primary); 
         }
-        .tab:hover:not(.active) {
-            border-color: var(--text);
-            color: var(--text);
-        }
 
         .card { 
             background: var(--card); 
@@ -98,169 +95,130 @@
         }
         
         .cardHead { 
-            padding: 20px 24px; 
+            padding: 20px 32px; 
             border-bottom: 1px solid #f1f5f9; 
             display: flex; 
             justify-content: space-between; 
             align-items: center;
+            background: #fcfcfd;
         }
-        .cardHead span { font-weight: 800; font-size: 15px; color: var(--text); text-transform: uppercase; }
+        .cardHead span { font-weight: 900; font-size: 14px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
 
-        .cardBody { padding: 32px; }
+        .cardBody { padding: 40px; }
 
         .grid-form { 
             display: grid; 
             grid-template-columns: 1fr 1fr; 
-            gap: 20px; 
+            gap: 24px; 
         }
         .field { display: flex; flex-direction: column; gap: 8px; }
         .span2 { grid-column: span 2; }
         
         label { 
-            font-size: 11px; 
-            font-weight: 800; 
-            color: var(--muted); 
+            font-size: 13px; 
+            font-weight: 900; 
+            color: #233f66; 
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            margin-left: 2px;
         }
 
         input, select {
-            width: 100%; 
-            height: 48px;
-            padding: 0 18px; 
-            border: 1px solid var(--border);
-            border-radius: 10px; 
-            font-size: 14px; 
-            background: #fff;
-            color: var(--text);
-            transition: 0.2s;
-            font-weight: 500;
+            width: 100% !important; 
+            height: 54px !important;
+            padding: 0 20px !important; 
+            border: 2px solid #e2e8f0 !important;
+            border-radius: 14px !important; 
+            font-size: 14px !important; 
+            font-weight: 600 !important; 
+            background: #fff !important; 
+            color: var(--text) !important;
+            outline: none !important;
+            display: block !important;
+            box-sizing: border-box !important;
+            transition: all 0.2s;
+            text-transform: uppercase;
         }
         
         input:focus, select:focus { 
-            outline: none; 
-            border-color: var(--blue-primary); 
-            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); 
+            border-color: var(--blue-primary) !important; 
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08) !important; 
+            background: #fff !important;
         }
-        input::placeholder { color: #cbd5e1; }
+        
+        input::placeholder { color: #cbd5e1; text-transform: none; font-weight: 500; }
+
+        input[type="email"], input[type="password"] {
+            text-transform: none !important;
+        }
 
         .actions { 
             display: flex; 
             justify-content: flex-end; 
             gap: 12px; 
-            margin-top: 32px; 
-            padding-top: 24px;
+            margin-top: 40px; 
+            padding-top: 32px;
             border-top: 1px solid #f1f5f9;
         }
 
         .btn { 
-            padding: 12px 24px; 
-            border-radius: 10px; 
+            padding: 0 32px; 
+            height: 50px;
+            border-radius: 14px; 
             cursor: pointer; 
             font-weight: 800; 
             font-size: 13px; 
             text-decoration: none; 
-            text-transform: uppercase;
-            transition: 0.2s;
-            border: 1px solid transparent;
+            text-transform: uppercase; 
+            transition: 0.2s; 
+            border: none;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            letter-spacing: 0.05em;
         }
         
         .btnPrimary { background: var(--blue-primary); color: #fff; }
-        .btnPrimary:hover {
-            background: var(--blue-hover);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
-        }
+        .btnPrimary:hover { background: var(--blue-hover); transform: translateY(-1px); box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.3); }
         
-        .btnGhost { background: #fff; border: 1px solid var(--border); color: var(--text); }
-        .btnGhost:hover { background: #f8fafc; border-color: var(--text); }
+        .btnGhost { background: #f1f5f9; color: #64748b; }
+        .btnGhost:hover { background: #e2e8f0; color: var(--text); }
 
-        .msg, .err { padding: 14px 18px; border-radius: 12px; font-size: 13px; margin-bottom: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
-        .msg { background: #f0fdfa; border: 1px solid #ccfbf1; color: #0f766e; }
+        .msg, .err { padding: 16px 20px; border-radius: 14px; font-size: 13px; margin-bottom: 24px; font-weight: 800; display: flex; align-items: center; gap: 12px; text-transform: uppercase; }
+        .msg { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
         .err { background: #fef2f2; border: 1px solid #fee2e2; color: #b91c1c; }
 
-        /* ✅ Custom Modal Styles */
         .confirm-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(4px);
-            z-index: 9999;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+            position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px); z-index: 9999; display: none;
+            align-items: center; justify-content: center; padding: 20px;
         }
         .confirm-overlay.show { display: flex; }
         
         .confirm-modal {
-            background: white;
-            width: 100%;
-            max-width: 450px;
-            border-radius: 20px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            animation: slideUp 0.3s ease;
+            background: white; width: 100%; max-width: 450px; border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden;
+            animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
         @keyframes slideUp { 
-            from { opacity: 0; transform: translateY(20px); } 
+            from { opacity: 0; transform: translateY(30px); } 
             to { opacity: 1; transform: translateY(0); } 
         }
 
-        .confirm-header {
-            padding: 24px;
-            text-align: center;
-            border-bottom: 1px solid #f1f5f9;
-        }
-        .confirm-body { padding: 32px 24px; text-align: center; }
-        .confirm-footer {
-            padding: 16px 24px;
-            background: #f8fafc;
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-        }
+        .confirm-body { padding: 40px 32px; text-align: center; }
+        .confirm-footer { padding: 20px 32px; background: #f8fafc; display: flex; justify-content: center; gap: 12px; border-top: 1px solid #f1f5f9; }
 
         @media (max-width: 768px) { 
             .grid-form { grid-template-columns: 1fr; } 
             .span2 { grid-column: span 1; } 
+            .pageWrap { padding: 20px; }
         }
         
         .icon-sm { width: 16px; height: 16px; }
         .icon-md { width: 20px; height: 20px; }
         .icon-lg { width: 24px; height: 24px; }
     </style>
-    
-    <script>
-        /**
-         * Custom Modal Confirmation logic
-         */
-        function showConfirmModal(event) {
-            event.preventDefault(); // Prevent immediate submission
-            
-            const nameInput = document.querySelector('input[name="fullname"]');
-            const name = nameInput ? nameInput.value.trim() : "this user";
-            
-            // Set the name in the modal text
-            document.getElementById('confirmNameText').textContent = name.toUpperCase();
-            
-            // Show the modal
-            document.getElementById('confirmOverlay').classList.add('show');
-            return false;
-        }
-
-        function closeConfirmModal() {
-            document.getElementById('confirmOverlay').classList.remove('show');
-        }
-
-        function proceedWithRegistration() {
-            document.getElementById('registrationForm').submit();
-        }
-    </script>
 </head>
 
 <body class="flex">
@@ -294,7 +252,7 @@
             <div class="card">
                 <div class="cardHead">
                     <span>Account Identification</span>
-                    <%= BriefcaseIcon("icon-lg text-blue-200") %>
+                    <%= BriefcaseIcon("icon-lg text-blue-400 opacity-20") %>
                 </div>
 
                 <div class="cardBody">
@@ -302,7 +260,7 @@
                         <div class="grid-form">
                             <div class="field span2">
                                 <label>Full Name as per IC *</label>
-                                <input type="text" name="fullname" placeholder="e.g., Ahmad Bin Abdullah" required>
+                                <input type="text" name="fullname" placeholder="e.g., AHMAD BIN ABDULLAH" required>
                             </div>
 
                             <div class="field">
@@ -317,21 +275,21 @@
 
                             <div class="field">
                                 <label>IC Number *</label>
-                                <input type="text" name="icNumber" placeholder="900101045566" required>
+                                <input type="text" name="icNumber" id="icNumber" placeholder="900101-04-5566" maxlength="14" required>
                             </div>
 
                             <div class="field">
                                 <label>Gender Selection *</label>
                                 <select name="gender" required>
-                                    <option value="" disabled selected>Select Gender</option>
-                                    <option value="M">Male</option>
-                                    <option value="F">Female</option>
+                                    <option value="" disabled selected>SELECT GENDER</option>
+                                    <option value="M">MALE</option>
+                                    <option value="F">FEMALE</option>
                                 </select>
                             </div>
 
                             <div class="field">
                                 <label>Phone Contact</label>
-                                <input type="text" name="phoneNo" placeholder="0123456789">
+                                <input type="text" name="phoneNo" id="phoneNo" placeholder="01X-XXXXXXX" maxlength="12">
                             </div>
 
                             <div class="field">
@@ -341,44 +299,44 @@
 
                             <div class="field span2">
                                 <label>Street Address *</label>
-                                <input type="text" name="street" placeholder="No. 12, Jalan Merlimau" required>
+                                <input type="text" name="street" placeholder="NO. 12, JALAN MERLIMAU" required>
                             </div>
 
                             <div class="field">
                                 <label>City *</label>
-                                <input type="text" name="city" placeholder="Jasin" required>
+                                <input type="text" name="city" placeholder="JASIN" required>
                             </div>
 
                             <div class="field">
                                 <label>Postal Code *</label>
-                                <input type="text" name="postalCode" placeholder="77300" required>
+                                <input type="text" name="postalCode" id="postalCode" placeholder="77300" maxlength="5" required>
                             </div>
 
                             <div class="field span2">
                                 <label>State *</label>
                                 <select name="state" required>
-                                    <option value="" disabled selected>Select State</option>
-                                    <optgroup label="States">
-                                        <option value="Johor">Johor</option>
-                                        <option value="Kedah">Kedah</option>
-                                        <option value="Kelantan">Kelantan</option>
-                                        <option value="Melaka">Melaka</option>
-                                        <option value="Negeri Sembilan">Negeri Sembilan</option>
-                                        <option value="Pahang">Pahang</option>
-                                        <option value="Perak">Perak</option>
-                                        <option value="Perlis">Perlis</option>
-                                        <option value="Penang">Penang</option>
-                                        <option value="Selangor">Selangor</option>
-                                        <option value="Terengganu">Terengganu</option>
+                                    <option value="" disabled selected>SELECT STATE</option>
+                                    <optgroup label="STATES">
+                                        <option value="Johor">JOHOR</option>
+                                        <option value="Kedah">KEDAH</option>
+                                        <option value="Kelantan">KELANTAN</option>
+                                        <option value="Melaka">MELAKA</option>
+                                        <option value="Negeri Sembilan">NEGERI SEMBILAN</option>
+                                        <option value="Pahang">PAHANG</option>
+                                        <option value="Perak">PERAK</option>
+                                        <option value="Perlis">PERLIS</option>
+                                        <option value="Penang">PENANG</option>
+                                        <option value="Selangor">SELANGOR</option>
+                                        <option value="Terengganu">TERENGGANU</option>
                                     </optgroup>
-                                    <optgroup label="Federal Territories">
-                                        <option value="Kuala Lumpur">Kuala Lumpur</option>
-                                        <option value="Putrajaya">Putrajaya</option>
-                                        <option value="Labuan">Labuan</option>
+                                    <optgroup label="FEDERAL TERRITORIES">
+                                        <option value="Kuala Lumpur">KUALA LUMPUR</option>
+                                        <option value="Putrajaya">PUTRAJAYA</option>
+                                        <option value="Labuan">LABUAN</option>
                                     </optgroup>
-                                    <optgroup label="East Malaysia">
-                                        <option value="Sabah">Sabah</option>
-                                        <option value="Sarawak">Sarawak</option>
+                                    <optgroup label="EAST MALAYSIA">
+                                        <option value="Sabah">SABAH</option>
+                                        <option value="Sarawak">SARAWAK</option>
                                     </optgroup>
                                 </select>
                             </div>
@@ -398,31 +356,85 @@
         </div>
     </main>
 
-    <!-- ✅ Custom Confirmation Modal -->
     <div id="confirmOverlay" class="confirm-overlay">
         <div class="confirm-modal">
-            <div class="confirm-header">
-                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <%= UsersIcon("w-6 h-6 text-blue-600") %>
-                </div>
-                <h3 class="text-lg font-extrabold text-slate-900 uppercase">Confirm Registration</h3>
-            </div>
             <div class="confirm-body">
-                <p class="text-sm text-slate-500 font-medium leading-relaxed">
+                <div class="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <%= UsersIcon("w-10 h-10 text-blue-600") %>
+                </div>
+                <h3 class="text-xl font-black text-slate-900 uppercase mb-3">Confirm Registration</h3>
+                <p class="text-sm text-slate-500 font-bold leading-relaxed px-4">
                     ARE YOU SURE WANT TO REGISTER <br>
                     <span id="confirmNameText" class="text-blue-600 font-black"></span> <br>
                     AS A NEW EMPLOYEE?
                 </p>
             </div>
             <div class="confirm-footer">
-                <button type="button" onclick="closeConfirmModal()" class="btn btnGhost px-6 py-2.5">
+                <button type="button" onclick="closeConfirmModal()" class="btn btnGhost">
                     No, Cancel
                 </button>
-                <button type="button" onclick="proceedWithRegistration()" class="btn btnPrimary px-6 py-2.5">
+                <button type="button" onclick="proceedWithRegistration()" class="btn btnPrimary">
                     Yes, Register
                 </button>
             </div>
         </div>
     </div>
+
+    <script>
+        // Formatting Logic
+        document.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('input', function() {
+                // FIXED: Only apply uppercase to INPUT tags, not SELECT tags
+                if (this.tagName === 'INPUT' && this.type !== 'password' && this.type !== 'email') {
+                    this.value = this.value.toUpperCase();
+                }
+
+                // IC Number Formatting (900101-04-5566)
+                if (this.id === 'icNumber') {
+                    let val = this.value.replace(/\D/g, '');
+                    if (val.length > 12) val = val.slice(0, 12);
+                    let formatted = "";
+                    if (val.length > 0) formatted += val.substring(0, 6);
+                    if (val.length > 6) formatted += '-' + val.substring(6, 8);
+                    if (val.length > 8) formatted += '-' + val.substring(8);
+                    this.value = formatted;
+                }
+
+                // Phone Number Formatting (01X-XXXXXXX)
+                if (this.id === 'phoneNo') {
+                    let val = this.value.replace(/\D/g, '');
+                    if (val.length > 11) val = val.slice(0, 11);
+                    if (val.length > 3) {
+                        this.value = val.substring(0, 3) + '-' + val.substring(3);
+                    } else {
+                        this.value = val;
+                    }
+                }
+
+                // Postal Code (Digits only)
+                if (this.id === 'postalCode') {
+                    this.value = this.value.replace(/\D/g, '').slice(0, 5);
+                }
+            });
+        });
+
+        // Custom Modal Functions
+        function showConfirmModal(event) {
+            event.preventDefault();
+            const nameInput = document.querySelector('input[name="fullname"]');
+            const name = nameInput ? nameInput.value.trim() : "THIS USER";
+            document.getElementById('confirmNameText').textContent = name.toUpperCase();
+            document.getElementById('confirmOverlay').classList.add('show');
+            return false;
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmOverlay').classList.remove('show');
+        }
+
+        function proceedWithRegistration() {
+            document.getElementById('registrationForm').submit();
+        }
+    </script>
 </body>
 </html>

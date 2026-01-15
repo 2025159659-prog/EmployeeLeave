@@ -54,7 +54,7 @@ Date todayMidnight = calToday.getTime();
 <title>LMS | My Leave History</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
 <style>
 :root {
@@ -62,47 +62,50 @@ Date todayMidnight = calToday.getTime();
   --card: #ffffff;
   --primary: #2563eb;
   --text-main: #1e293b;
-  --text-muted: #64748b;
+  --text-muted: #475569;
   --border: #e2e8f0;
   --radius: 20px;
 }
 
 * { box-sizing: border-box; font-family: 'Inter', Arial, sans-serif !important; }
-body { background: var(--bg); color: var(--text-main); margin: 0; overflow-x: hidden; }
+body { background: var(--bg); color: var(--text-main); margin: 0; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
 
-.pageWrap { max-width: 1400px; margin: 0 auto; padding: 24px 30px; }
-.title-area h2 { font-size: 24px; font-weight: 800; color: var(--text-main); text-transform: uppercase; letter-spacing: -0.02em; }
+.pageWrap { padding: 32px 40px; max-width: 1400px; margin: 0 auto; }
+
+/* Consistent Header Styling */
+.title { font-size: 26px; font-weight: 800; margin: 0; text-transform: uppercase; color: #000; letter-spacing: -0.02em; }
+.sub-label { color: var(--primary); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; display: block; }
 
 /* Filter Styling */
 .filter-card {
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 14px 24px; display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  margin-bottom: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
 }
 .filter-group { display: flex; align-items: center; gap: 12px; }
-.filter-group label { font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.filter-group label { font-size: 11px; font-weight: 900; color: #233f66; text-transform: uppercase; letter-spacing: 0.05em; }
 
-select, input[type="date"], textarea { padding: 8px 14px; border-radius: 12px; border: 1px solid var(--border); background: #fff; font-size: 13px; font-weight: 600; outline: none; transition: 0.2s; }
+select, input[type="date"], textarea { padding: 10px 16px; border-radius: 12px; border: 2.1px solid var(--border); background: #fff; font-size: 14px; font-weight: 600; outline: none; transition: 0.2s; }
 select:focus, input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.05); }
 
-/* Table Optimization */
-.table-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); overflow: hidden; }
+/* Table Optimization - Increased sizes by +1 */
+.table-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.04); overflow: hidden; }
 table { width: 100%; border-collapse: collapse; }
-th { background: #f8fafc; padding: 14px 20px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; border-bottom: 1px solid var(--border); text-align: left; }
-td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vertical-align: middle; }
+th { background: #f8fafc; padding: 16px 20px; font-size: 11px; font-weight: 850; color: #64748b; text-transform: uppercase; border-bottom: 2px solid var(--border); text-align: left; letter-spacing: 0.05em; }
+td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vertical-align: middle; }
 
-.badge { padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; display: inline-flex; align-items: center; gap: 5px; }
-.status-pending { background: #fffbeb; color: #b45309; } 
-.status-approved { background: #ecfdf5; color: #047857; } 
-.status-rejected { background: #fef2f2; color: #b91c1c; } 
-.status-cancelled { background: #f1f5f9; color: #475569; } 
-.status-cancellation-requested { background: #fff7ed; color: #c2410c; } 
+.badge { padding: 4px 12px; border-radius: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px; }
+.status-pending { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; } 
+.status-approved { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; } 
+.status-rejected { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; } 
+.status-cancelled { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; } 
+.status-cancellation-requested { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; } 
 
-.lr-id { color: var(--primary); font-weight: 800; font-family: monospace; font-size: 14px; text-decoration: none; border-bottom: 1px dashed transparent; }
+.lr-id { color: var(--primary); font-weight: 900; font-family: monospace; font-size: 14px; text-decoration: none; border-bottom: 1px dashed transparent; }
 .lr-id:hover { border-bottom-color: var(--primary); }
 
-.btn-action { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: #fff; color: var(--text-muted); display: flex; align-items: center; justify-content: center; transition: 0.2s; }
-.btn-action:hover { background: #eff6ff; color: var(--primary); border-color: var(--primary); }
+.btn-action { width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--border); background: #fff; color: var(--text-muted); display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+.btn-action:hover { background: #eff6ff; color: var(--primary); border-color: var(--primary); transform: translateY(-1px); }
 .btn-danger:hover { background: #fef2f2; color: #ef4444; border-color: #ef4444; }
 
 /* Premium Modal Styles */
@@ -115,71 +118,76 @@ td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vert
 .info-label { font-size:10px; font-weight:800; color:#94a3b8; text-transform:uppercase; display:block; margin-bottom:4px; letter-spacing:0.05em; }
 .info-value { font-size:14px; font-weight:700; color:#1e293b; display:block; margin-bottom:18px; }
 
+/* Updated Close Button Styling to use XCircleIcon */
 .btn-close { position: absolute; top: 24px; right: 24px; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #94a3b8; transition: 0.2s; z-index: 10; }
 .btn-close:hover { background: #fef2f2; border-color: #fecaca; color: #ef4444; }
 
 .type-id-tag { background: #eff6ff; color: #2563eb; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-family: monospace; font-weight: 800; border: 1px solid #dbeafe; }
 
-.btn-modal-primary { background: var(--primary); color: white; padding: 14px 24px; border-radius: 16px; font-weight: 800; font-size: 14px; transition: 0.2s; text-align: center; display: block; width: 100%; }
-.btn-modal-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); }
+.btn-modal-primary { background: #000; color: white; padding: 14px 24px; border-radius: 16px; font-weight: 900; font-size: 14px; transition: 0.2s; text-align: center; display: block; width: 100%; text-transform: uppercase; letter-spacing: 0.05em; }
+.btn-modal-primary:hover { background: var(--primary); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); }
 .btn-modal-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.btn-modal-secondary { background: #f1f5f9; color: #64748b; padding: 14px 24px; border-radius: 16px; font-weight: 800; font-size: 14px; transition: 0.2s; text-align: center; display: block; width: 100%; }
+.btn-modal-secondary { background: #f1f5f9; color: #64748b; padding: 14px 24px; border-radius: 16px; font-weight: 800; font-size: 14px; transition: 0.2s; text-align: center; display: block; width: 100%; text-transform: uppercase; }
 .btn-modal-secondary:hover { background: #e2e8f0; color: #1e293b; }
 
 .dynamic-meta-container { background: #f8fafc; border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-top: 10px; margin-bottom: 24px; }
 </style>
 </head>
 
-<body>
+<body class="flex">
 <jsp:include page="sidebar.jsp" />
 
-<main class="ml-20 lg:ml-64 min-h-screen transition-all duration-300">
+<main class="ml-20 lg:ml-64 min-h-screen flex-1 transition-all duration-300">
     <jsp:include page="topbar.jsp" />
 
     <div class="pageWrap">
-        <div class="title-area mb-6">
-            <h2 class="title">My Leave History</h2>
-            <p class="text-slate-400 text-sm">View and manage your previous leave applications.</p>
+        <div class="flex justify-between items-end mb-6">
+            <div class="title-area">
+                <h2 class="title">My Leave History</h2>
+                <span class="sub-label">View and audit your previous leave applications.</span>
+            </div>
         </div>
 
-        <% if (dbError != null) { %><div class="bg-red-50 text-red-600 p-4 rounded-xl mb-4 text-sm font-bold"><i class="fas fa-exclamation-circle mr-2"></i> <%= dbError %></div><% } %>
+        <% if (dbError != null) { %><div class="bg-red-50 text-red-600 p-4 rounded-2xl mb-6 text-sm font-bold border border-red-100 uppercase"><i class="fas fa-exclamation-circle mr-2"></i> <%= dbError %></div><% } %>
 
         <form action="<%=request.getContextPath()%>/LeaveHistory" method="get" class="filter-card">
             <div class="filter-group">
                 <label>Status</label>
                 <select name="status">
-                    <option value="ALL" <%= currentStatus.equals("ALL")?"selected":"" %>>All Status</option>
-                    <option value="PENDING" <%= currentStatus.equals("PENDING")?"selected":"" %>>Pending</option>
-                    <option value="APPROVED" <%= currentStatus.equals("APPROVED")?"selected":"" %>>Approved</option>
-                    <option value="REJECTED" <%= currentStatus.equals("REJECTED")?"selected":"" %>>Rejected</option>
+                    <option value="ALL" <%= currentStatus.equals("ALL")?"selected":"" %>>ALL STATUS</option>
+                    <option value="PENDING" <%= currentStatus.equals("PENDING")?"selected":"" %>>PENDING</option>
+                    <option value="APPROVED" <%= currentStatus.equals("APPROVED")?"selected":"" %>>APPROVED</option>
+                    <option value="REJECTED" <%= currentStatus.equals("REJECTED")?"selected":"" %>>REJECTED</option>
                 </select>
-                <label>Year</label>
+                <label class="ml-4">Year</label>
                 <select name="year">
-                    <option value="">All</option>
+                    <option value="">ALL YEARS</option>
                     <% for(String yr : years) { %><option value="<%=yr%>" <%= yr.equals(currentYear)?"selected":"" %>><%=yr%></option><% } %>
                 </select>
-                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">Apply</button>
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-all ml-4">
+                    Filter Records
+                </button>
             </div>
-            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Records: <%= leaves.size() %></div>
+            <div class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Total Records: <%= leaves.size() %></div>
         </form>
 
         <div class="table-card">
             <table>
                 <thead>
                     <tr>
-                        <th>LR-ID</th>
-                        <th>Leave Type</th>
-                        <th>Dates</th>
+                        <th>Record ID</th>
+                        <th>Leave Category</th>
+                        <th>Inclusive Dates</th>
                         <th>Days</th>
                         <th>Status</th>
-                        <th>Applied</th>
+                        <th>Applied On</th>
                         <th style="text-align:right">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                 <% if (leaves.isEmpty()) { %>
-                    <tr><td colspan="7" class="py-20 text-center text-slate-400 font-medium">No records found.</td></tr>
+                    <tr><td colspan="7" class="py-24 text-center text-slate-300 font-bold uppercase text-xs italic tracking-widest">No matching history records found.</td></tr>
                 <% } else {
                     for (Map<String, Object> l : leaves) {
                         String code = (String) l.get("status"); 
@@ -201,7 +209,7 @@ td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vert
                             if (!todayMidnight.before(sD)) isStartedOrPassed = true;
                         } catch(Exception e) {}
                 %>
-                    <tr>
+                    <tr class="hover:bg-slate-50/50 transition-colors">
                         <td>
                             <a href="javascript:void(0)" class="lr-id" onclick="viewDetails(this)" 
                                data-id="<%= l.get("id") %>" 
@@ -219,6 +227,7 @@ td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vert
                                data-typeid="<%= l.get("leaveTypeId") %>"
                                data-med="<%= l.get("medicalFacility") %>"
                                data-ref="<%= l.get("refSerialNo") %>"
+                               data-pre="<%= l.get("weekPregnancy") %>"
                                data-evt="<%= l.get("eventDate") %>"
                                data-dis="<%= l.get("dischargeDate") %>"
                                data-cat="<%= l.get("emergencyCategory") %>"
@@ -227,24 +236,33 @@ td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vert
                                LR-<%= l.get("id") %>
                             </a>
                         </td>
-                        <td class="font-bold text-slate-700"><%= l.get("type") %></td>
+                        <td class="font-black text-slate-700 uppercase"><%= l.get("type") %></td>
                         <td>
-                            <span class="font-semibold text-slate-600"><%= startDisplay %></span>
-                            <% if(!startDisplay.equals(endDisplay)) { %><span class="text-[10px] text-slate-400 block">to <%= endDisplay %></span><% } %>
+                            <%-- DARKER SLATE GREY FOR DATES --%>
+                            <span class="font-bold text-slate-700"><%= startDisplay %></span>
+                            <% if(!startDisplay.equals(endDisplay)) { %><span class="text-[11px] text-slate-500 block font-bold uppercase tracking-tight">to <%= endDisplay %></span><% } %>
                         </td>
-                        <td class="font-black text-blue-600"><%= l.get("totalDays") %></td>
+                        <td class="font-black text-blue-600 text-base"><%= l.get("totalDays") %></td>
                         <td><span class="badge <%= badgeCls %>"><span class="w-1.5 h-1.5 rounded-full bg-current"></span> <%= code %></span></td>
-                        <td class="text-slate-400 text-[11px] font-medium"><%= appliedDisplay %></td>
+                        
+                        <%-- DARKER SLATE GREY FOR APPLIED --%>
+                        <td class="text-slate-600 text-[12px] font-bold"><%= appliedDisplay %></td>
+                        
                         <td>
                             <div class="flex gap-2 justify-end">
                                 <% if ("PENDING".equalsIgnoreCase(code)) { %>
-                                    <button class="btn-action" onclick="openEditModal('<%= l.get("id") %>')"><%= EditIcon("w-3.5 h-3.5") %></button>
-                                    <button class="btn-action btn-danger" onclick="askConfirm('DELETE', '<%= l.get("id") %>')"><%= TrashIcon("w-3.5 h-3.5") %></button>
+                                    <button class="btn-action" onclick="openEditModal('<%= l.get("id") %>')"><%= EditIcon("w-4 h-4") %></button>
+                                    <button class="btn-action btn-danger" onclick="askConfirm('DELETE', '<%= l.get("id") %>')"><%= TrashIcon("w-4 h-4") %></button>
                                 <% } else if ("APPROVED".equalsIgnoreCase(code)) { %>
                                     <% if (!isStartedOrPassed) { %>
-                                        <button class="btn-action text-orange-500" onclick="askConfirm('REQ_CANCEL', '<%= l.get("id") %>')"><%= RotateCcwIcon("w-3.5 h-3.5") %></button>
-                                    <% } else { %><span class="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Locked</span><% } %>
-                                <% } else { %><span class="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Archive</span><% } %>
+                                        <button class="btn-action text-orange-500" onclick="askConfirm('REQ_CANCEL', '<%= l.get("id") %>')"><%= RotateCcwIcon("w-4 h-4") %></button>
+                                    <% } else { %>
+                                        <%-- DARKER SLATE GREY FOR ACTION COLUMN LABELS --%>
+                                        <span class="text-[11px] font-black text-slate-500 uppercase tracking-widest">Locked</span>
+                                    <% } %>
+                                <% } else { %>
+                                    <span class="text-[11px] font-black text-slate-500 uppercase tracking-widest">Archive</span>
+                                <% } %>
                             </div>
                         </td>
                     </tr>
@@ -258,7 +276,8 @@ td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vert
 <!-- DETAIL POPUP MODAL -->
 <div class="modal-overlay" id="detailModal">
     <div class="modal-content">
-        <button type="button" class="btn-close" onclick="closeModal('detailModal')"><i class="fas fa-times"></i></button>
+        <%-- FIXED: Replaced FontAwesome icon with internal SVG method --%>
+        <button type="button" class="btn-close" onclick="closeModal('detailModal')"><%= XCircleIcon("w-6 h-6") %></button>
         <div class="modal-body">
             <h3 class="text-2xl font-black text-slate-800 tracking-tight uppercase mb-8 pr-12 border-b border-slate-100 pb-4">Application Details</h3>
             
@@ -311,9 +330,16 @@ td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vert
                 <div class="info-item">
                     <span class="info-label">Supportive Attachment</span>
                     <div id="attachBox" class="hidden">
-                        <a id="modalAttachLink" href="#" target="_blank" class="inline-flex items-center gap-3 bg-white border-2 border-slate-100 px-5 py-3 rounded-2xl text-[11px] font-black text-slate-600 hover:border-blue-200 hover:text-blue-600 transition-all">
-                            <i class="fas fa-file-medical text-red-500 text-lg"></i> VIEW DOCUMENT <i class="fas fa-external-link-alt opacity-20 text-[9px]"></i>
-                        </a>
+<a id="modalAttachLink" href="#" target="_blank" class="inline-flex items-center gap-3 bg-white border-2 border-slate-100 px-5 py-3 rounded-2xl text-[11px] font-black text-slate-600 hover:border-blue-200 hover:text-blue-600 transition-all">
+    <%-- Using your existing icon system instead of FontAwesome --%>
+    <span class="text-red-500">
+        <%= FilePlusIcon("w-5 h-5") %> 
+    </span>
+    VIEW DOCUMENT 
+    <span class="opacity-20">
+        <%= ExternalLinkIcon("w-3 h-3") %>
+    </span>
+</a>
                     </div>
                     <div id="noAttachLabel" class="text-xs text-slate-300 font-bold italic py-2">No document attached</div>
                 </div>
@@ -324,7 +350,6 @@ td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vert
                 <p class="text-sm text-slate-500 mb-6 bg-slate-50 p-5 rounded-2xl border border-slate-100 font-medium leading-relaxed italic" id="popReason"></p>
             </div>
 
-            <!-- REDESIGNED: Metadata Section AFTER Employee Reason -->
             <div id="dynamicBox" class="hidden">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="w-1 h-4 bg-blue-600 rounded-full"></div>
@@ -341,10 +366,11 @@ td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vert
     </div>
 </div>
 
-<!-- EDIT MODAL (PREMIUM DESIGN) -->
+<!-- EDIT MODAL -->
 <div class="modal-overlay" id="editOverlay">
     <div class="modal-content" style="max-width: 550px;">
-        <button type="button" class="btn-close" onclick="closeModal('editOverlay')"><i class="fas fa-times"></i></button>
+        <%-- FIXED: Replaced FontAwesome icon with internal SVG method --%>
+        <button type="button" class="btn-close" onclick="closeModal('editOverlay')"><%= XCircleIcon("w-6 h-6") %></button>
         <div class="modal-body">
             <h3 class="text-2xl font-black text-slate-800 tracking-tight uppercase mb-8 pr-12 border-b border-slate-100 pb-4">Edit Application</h3>
             
@@ -359,11 +385,11 @@ td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vert
                 <div class="grid grid-cols-2 gap-6">
                     <div class="form-group">
                         <label class="info-label">Start Date</label>
-                        <input type="date" name="startDate" id="editStart" class="full-width">
+                        <input type="date" name="startDate" id="editStart" class="w-full p-2 border rounded-xl">
                     </div>
                     <div class="form-group">
                         <label class="info-label">End Date</label>
-                        <input type="date" name="endDate" id="editEnd" class="full-width">
+                        <input type="date" name="endDate" id="editEnd" class="w-full p-2 border rounded-xl">
                     </div>
                 </div>
 
@@ -378,12 +404,12 @@ td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vert
 
                 <div class="form-group">
                     <label class="info-label">Personal Reason</label>
-                    <textarea name="reason" id="editReason" class="w-full h-24" placeholder="Briefly explain the reason for leave..."></textarea>
+                    <textarea name="reason" id="editReason" class="w-full h-24 border rounded-xl p-3" placeholder="Briefly explain the reason for leave..."></textarea>
                 </div>
 
                 <div class="flex gap-4 mt-8">
-                    <button type="button" class="btn-modal-secondary flex-1" onclick="closeModal('editOverlay')">Cancel</button>
-                    <button type="submit" id="editSubmitBtn" class="btn-modal-primary flex-1">Update Record</button>
+                    <button type="button" class="btn-modal-secondary flex-1" onclick="closeModal('editOverlay')">Discard</button>
+                    <button type="submit" id="editSubmitBtn" class="btn-modal-primary flex-1">Update Application</button>
                 </div>
             </form>
         </div>
@@ -393,17 +419,18 @@ td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vert
 <!-- CONFIRMATION MODAL -->
 <div class="modal-overlay" id="confirmOverlay">
     <div class="modal-content" style="max-width: 450px; text-align: center;">
-        <button type="button" class="btn-close" onclick="closeModal('confirmOverlay')"><i class="fas fa-times"></i></button>
+        <%-- FIXED: Replaced FontAwesome icon with internal SVG method --%>
+        <button type="button" class="btn-close" onclick="closeModal('confirmOverlay')"><%= XCircleIcon("w-6 h-6") %></button>
         <div class="modal-body">
             <div id="confIcon" class="mx-auto mb-6"></div>
             <h3 id="confTitle" class="text-2xl font-black text-slate-800 tracking-tight uppercase mb-2">Confirm Action</h3>
-            <p id="confMsg" class="text-slate-500 font-medium mb-10 text-sm leading-relaxed"></p>
+            <p id="confMsg" class="text-slate-500 font-medium mb-10 text-sm leading-relaxed uppercase"></p>
             
             <form id="confForm">
                 <input type="hidden" name="id" id="confId">
                 <div class="flex gap-4">
-                    <button type="button" class="btn-modal-secondary flex-1" onclick="closeModal('confirmOverlay')">No, Go Back</button>
-                    <button type="submit" id="confBtn" class="btn-modal-primary flex-1">Yes, Proceed</button>
+                    <button type="button" class="btn-modal-secondary flex-1" onclick="closeModal('confirmOverlay')">Cancel</button>
+                    <button type="submit" id="confBtn" class="btn-modal-primary flex-1">Confirm</button>
                 </div>
             </form>
         </div>
@@ -445,7 +472,6 @@ function viewDetails(btn) {
         noAttach.classList.remove('hidden');
     }
 
-    // Process Dynamic Meta Attributes
     const dBox = document.getElementById('dynamicBox');
     const grid = document.getElementById('dynamicGrid');
     grid.innerHTML = "";
@@ -453,15 +479,14 @@ function viewDetails(btn) {
     
     const addAttr = (label, val) => {
         if(val && val !== "null" && val !== "" && val !== "undefined" && val !== "N/A") {
-            grid.innerHTML += '<div class="info-item border-b border-slate-100 pb-2 flex justify-between items-center"><span class="info-label text-slate-400 mb-0">'+label+'</span><span class="info-value mb-0 text-slate-600 font-bold">'+val+'</span></div>';
+            grid.innerHTML += '<div class="info-item border-b border-slate-100 pb-2 flex justify-between items-center"><span class="info-label text-slate-400 mb-0 font-bold uppercase">'+label+'</span><span class="info-value mb-0 text-slate-600 font-black">'+val+'</span></div>';
             count++;
         }
     };
 
-    // Smart Labeling based on Leave Type code
     const typeCode = (d.type || "").toUpperCase();
-    let facilityLabel = "Medical Facility Name";
-    let eventLabel = "Event Date";
+    let facilityLabel = "Facility Name";
+    let eventLabel = "Date of Event";
 
     if (typeCode.includes("SICK")) facilityLabel = "Clinic / Hospital Name";
     else if (typeCode.includes("HOSPITAL")) { facilityLabel = "Hospital Facility"; eventLabel = "Admission Date"; }
@@ -472,12 +497,12 @@ function viewDetails(btn) {
     addAttr("MC Serial No", d.ref);
     addAttr(eventLabel, d.evt);
     addAttr("Discharge Date", d.dis);
+    addAttr("Pregnancy Weeks", d.pre);
     addAttr("Emergency Category", d.cat);
-    addAttr("Emergency Phone", d.cnt);
+    addAttr("Emergency Contact", d.cnt);
     addAttr("Spouse Name", d.spo);
 
     dBox.classList.toggle('hidden', count === 0);
-
     document.getElementById('detailModal').classList.add('show');
 }
 
@@ -509,7 +534,7 @@ document.getElementById('editForm').onsubmit = async function(e) {
     e.preventDefault();
     const btn = document.getElementById('editSubmitBtn');
     btn.disabled = true;
-    btn.textContent = "Processing...";
+    btn.textContent = "WAIT...";
     const fd = new URLSearchParams(new FormData(this));
     const d = fd.get('duration');
     if (d.startsWith('HALF_DAY')) { fd.set('duration', 'HALF_DAY'); fd.set('halfSession', d.includes('AM') ? 'AM' : 'PM'); }
@@ -518,7 +543,7 @@ document.getElementById('editForm').onsubmit = async function(e) {
         if (res.ok && (await res.text()).trim() === "OK") window.location.reload();
     } catch (err) {
         btn.disabled = false;
-        btn.textContent = "Update Record";
+        btn.textContent = "UPDATE APPLICATION";
     }
 };
 
@@ -531,17 +556,17 @@ function askConfirm(action, id) {
     document.getElementById('confId').value = id;
 
     if(action === 'DELETE') {
-        t.innerText = "Delete Request?";
-        m.innerText = "This pending leave application will be permanently removed from your records. This action cannot be undone.";
+        t.innerText = "Delete Record?";
+        m.innerText = "Are you sure you want to remove this pending leave application? This cannot be undone.";
         f.dataset.action = CTX + "/DeleteLeave";
         b.className = "btn-modal-primary flex-1 bg-red-600 hover:bg-red-700 shadow-red-100";
-        ic.innerHTML = `<div class='w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 text-3xl mx-auto shadow-inner'><i class='fas fa-trash-alt'></i></div>`;
+        ic.innerHTML = `<div class='w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 text-3xl mx-auto shadow-inner'><%= TrashIcon("w-10 h-10") %></div>`;
     } else {
-        t.innerText = "Request Cancellation?";
-        m.innerText = "You are requesting to cancel an approved leave application. This request will be sent to the administrator for review.";
+        t.innerText = "Request Cancel?";
+        m.innerText = "Submit a request to cancel this approved leave. It will require manager approval.";
         f.dataset.action = CTX + "/CancelLeave";
         b.className = "btn-modal-primary flex-1 bg-orange-600 hover:bg-orange-700 shadow-orange-100";
-        ic.innerHTML = `<div class='w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center text-orange-500 text-3xl mx-auto shadow-inner'><i class='fas fa-undo'></i></div>`;
+        ic.innerHTML = `<div class='w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center text-orange-500 text-3xl mx-auto shadow-inner'><%= RotateCcwIcon("w-10 h-10") %></div>`;
     }
     document.getElementById('confirmOverlay').classList.add('show');
 }
@@ -550,13 +575,13 @@ document.getElementById('confForm').onsubmit = async function(e) {
     e.preventDefault();
     const btn = document.getElementById('confBtn');
     btn.disabled = true;
-    btn.textContent = "Wait...";
+    btn.textContent = "WAIT...";
     try {
         const res = await fetch(this.dataset.action, { method: 'POST', body: new URLSearchParams(new FormData(this)), headers: {'Content-Type': 'application/x-www-form-urlencoded'} });
         if (res.ok && (await res.text()).trim() === "OK") window.location.reload();
     } catch (err) {
         btn.disabled = false;
-        btn.textContent = "Yes, Proceed";
+        btn.textContent = "CONFIRM";
     }
 };
 

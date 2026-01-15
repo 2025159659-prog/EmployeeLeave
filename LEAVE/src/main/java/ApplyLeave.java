@@ -39,7 +39,7 @@ public class ApplyLeave extends HttpServlet {
         try {
             int empId = Integer.parseInt(String.valueOf(session.getAttribute("empid")));
             
-            // REFRESH GENDER FROM DB (Strict M/F check)
+            // Refresh Gender from DB to handle gender-specific leave restrictions dynamically
             try (Connection con = DatabaseConnection.getConnection()) {
                 String sql = "SELECT GENDER FROM USERS WHERE EMPID = ?";
                 try (PreparedStatement ps = con.prepareStatement(sql)) {
@@ -47,7 +47,6 @@ public class ApplyLeave extends HttpServlet {
                     try (ResultSet rs = ps.executeQuery()) {
                         if (rs.next()) {
                             String dbGender = rs.getString("GENDER");
-                            // Update session to ensure JSP has the latest DB value
                             session.setAttribute("gender", (dbGender != null) ? dbGender.trim().toUpperCase() : "");
                         }
                     }
@@ -77,8 +76,10 @@ public class ApplyLeave extends HttpServlet {
             lr.setLeaveTypeId(Integer.parseInt(request.getParameter("leaveTypeId")));
             lr.setReason(request.getParameter("reason"));
 
+            // Handle Duration UI values (FULL_DAY, HALF_DAY_AM, HALF_DAY_PM)
             String durationUi = request.getParameter("duration");
             boolean isHalf = "HALF_DAY_AM".equalsIgnoreCase(durationUi) || "HALF_DAY_PM".equalsIgnoreCase(durationUi);
+            
             lr.setStartDate(LocalDate.parse(request.getParameter("startDate")));
             lr.setEndDate(isHalf ? lr.getStartDate() : LocalDate.parse(request.getParameter("endDate")));
             lr.setDuration(isHalf ? "HALF_DAY" : "FULL_DAY");
@@ -91,22 +92,47 @@ public class ApplyLeave extends HttpServlet {
             }
             lr.setDurationDays(days);
 
-            // Mapping form fields
-            lr.setMedicalFacility(hasVal(request.getParameter("clinicName")) ? request.getParameter("clinicName") : request.getParameter("hospitalName"));
-            lr.setRefSerialNo(hasVal(request.getParameter("mcSerialNumber")) ? request.getParameter("mcSerialNumber") : request.getParameter("spouseIC"));
+            // ========================================================
+            // ROBUST METADATA MAPPING (Capturing shared field inputs)
+            // ========================================================
             
-            if (hasVal(request.getParameter("admissionDate"))) lr.setEventDate(LocalDate.parse(request.getParameter("admissionDate")));
-            if (hasVal(request.getParameter("dischargeDate"))) lr.setDischargeDate(LocalDate.parse(request.getParameter("dischargeDate")));
+            // 1. Mapping MEDICAL_FACILITY (Clinic / Hospital / Location)
+            String facility = request.getParameter("clinicName");
+            if (!hasVal(facility)) facility = request.getParameter("hospitalName");
+            if (!hasVal(facility)) facility = request.getParameter("maternityClinic");
+            if (!hasVal(facility)) facility = request.getParameter("hospitalLocation");
+            lr.setMedicalFacility(facility);
 
+            // 2. Mapping REF_SERIAL_NO (MC Number / Reference Serial)
+            lr.setRefSerialNo(request.getParameter("mcSerialNumber"));
+
+            // 3. Mapping EVENT_DATE (Admission Date / Due Date / Delivery Date)
+            String eventDateStr = request.getParameter("admissionDate");
+            if (!hasVal(eventDateStr)) eventDateStr = request.getParameter("expectedDueDate");
+            if (!hasVal(eventDateStr)) eventDateStr = request.getParameter("deliveryDate");
+            
+            if (hasVal(eventDateStr)) {
+                lr.setEventDate(LocalDate.parse(eventDateStr));
+            }
+
+            // 4. Mapping DISCHARGE_DATE
+            if (hasVal(request.getParameter("dischargeDate"))) {
+                lr.setDischargeDate(LocalDate.parse(request.getParameter("dischargeDate")));
+            }
+
+            // 5. Mapping Emergency & Spouse Data
             lr.setEmergencyCategory(request.getParameter("emergencyCategory"));
             lr.setEmergencyContact(request.getParameter("emergencyContact"));
             lr.setSpouseName(request.getParameter("spouseName"));
 
+            // Handle File Attachment
             Part filePart = request.getPart("attachment");
+            
+            // Execute Database Submission
             if (leaveDAO.submitRequest(lr, filePart)) {
                 response.sendRedirect("ApplyLeave?msg=" + url("success"));
             } else {
-                response.sendRedirect("ApplyLeave?error=" + url("Submit failed. Check balance."));
+                response.sendRedirect("ApplyLeave?error=" + url("Submit failed. Please check your leave balance."));
             }
         } catch (Exception e) {
             e.printStackTrace();
