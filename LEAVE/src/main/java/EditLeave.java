@@ -1,12 +1,18 @@
 import bean.LeaveRequest;
+import bean.LeaveBalance;
 import dao.LeaveDAO;
+import dao.LeaveBalanceDAO;
+import util.DatabaseConnection;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import java.io.IOException;
+import java.sql.Connection;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 @WebServlet("/EditLeave")
 public class EditLeave extends HttpServlet {
@@ -21,7 +27,7 @@ public class EditLeave extends HttpServlet {
             return;
         }
 
-        try {
+        try (Connection con = DatabaseConnection.getConnection()) {
             int empId = (Integer) session.getAttribute("empid");
             String idParam = request.getParameter("id");
             if (idParam == null) {
@@ -32,11 +38,20 @@ public class EditLeave extends HttpServlet {
             LeaveRequest lr = leaveDAO.getLeaveById(Integer.parseInt(idParam), empId);
             if (lr == null || !"PENDING".equalsIgnoreCase(lr.getStatusCode())) {
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                response.getWriter().print("Error: Only PENDING requests can be edited.");
+                response.getWriter().print("{\"error\":\"Only PENDING requests can be edited.\"}");
                 return;
             }
 
-            // GENDER LOGIC
+            LeaveBalanceDAO lbDAO = new LeaveBalanceDAO(con);
+            List<LeaveBalance> balances = lbDAO.getEmployeeBalances(empId);
+            double currentBalance = 0;
+            for (LeaveBalance b : balances) {
+                if (b.getLeaveTypeId() == lr.getLeaveTypeId()) {
+                    currentBalance = b.getTotalAvailable();
+                    break;
+                }
+            }
+
             Object genderObj = session.getAttribute("gender");
             String gen = (genderObj != null) ? String.valueOf(genderObj).trim().toUpperCase() : ""; 
             boolean isFemale = gen.startsWith("F") || gen.startsWith("P") || gen.contains("FEMALE");
@@ -52,29 +67,19 @@ public class EditLeave extends HttpServlet {
                 .append("\"duration\":\"").append(lr.getDuration()).append("\",")
                 .append("\"halfSession\":\"").append(lr.getHalfSession() == null ? "" : lr.getHalfSession()).append("\",")
                 .append("\"reason\":\"").append(esc(lr.getReason())).append("\",")
-                // Metadata for pre-filling
-                .append("\"med\":\"").append(esc(lr.getMedicalFacility())).append("\",")
-                .append("\"ref\":\"").append(esc(lr.getRefSerialNo())).append("\",")
-                .append("\"cat\":\"").append(esc(lr.getEmergencyCategory())).append("\",")
-                .append("\"cnt\":\"").append(esc(lr.getEmergencyContact())).append("\",")
-                .append("\"spo\":\"").append(esc(lr.getSpouseName())).append("\",")
+                .append("\"balance\":").append(currentBalance).append(",")
                 .append("\"leaveTypes\":[");
             
             List<Map<String, Object>> types = leaveDAO.getAllLeaveTypes();
             boolean first = true;
             for (Map<String, Object> t : types) {
                 String code = t.get("code").toString().toUpperCase();
-                String desc = (t.get("desc") != null) ? t.get("desc").toString().toUpperCase() : "";
-                
-                boolean isMat = code.contains("MATERNITY") || code.equals("ML") || desc.contains("MATERNITY");
-                boolean isPat = code.contains("PATERNITY") || code.equals("PL") || desc.contains("PATERNITY");
-
-                if ((isMat && !isFemale) || (isPat && !isMale)) continue;
+                if ((code.contains("MATERNITY") && !isFemale) || (code.contains("PATERNITY") && !isMale)) continue;
 
                 if (!first) json.append(",");
                 json.append("{\"id\":").append(t.get("id"))
                     .append(",\"code\":\"").append(esc(t.get("code").toString()))
-                    .append("\",\"desc\":\"").append(esc(t.get("desc").toString())).append("\"}");
+                    .append("\",\"desc\":\"").append(esc(t.get("desc") != null ? t.get("desc").toString() : "")).append("\"}");
                 first = false;
             }
             json.append("]}");
@@ -82,7 +87,7 @@ public class EditLeave extends HttpServlet {
 
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            response.getWriter().print("System Error: " + e.getMessage());
+            response.getWriter().print("{\"error\":\"" + esc(e.getMessage()) + "\"}");
         }
     }
 
@@ -96,38 +101,43 @@ public class EditLeave extends HttpServlet {
 
         try {
             int empId = (Integer) session.getAttribute("empid");
-            LeaveRequest lr = new LeaveRequest();
-            lr.setLeaveId(Integer.parseInt(request.getParameter("leaveId")));
-            lr.setLeaveTypeId(Integer.parseInt(request.getParameter("leaveType")));
-            lr.setReason(request.getParameter("reason"));
-            
-            String durationType = request.getParameter("duration"); 
-            LocalDate start = LocalDate.parse(request.getParameter("startDate"));
-            LocalDate end = "HALF_DAY".equalsIgnoreCase(durationType) ? start : LocalDate.parse(request.getParameter("endDate"));
+            int leaveId = Integer.parseInt(request.getParameter("leaveId"));
 
-            lr.setStartDate(start);
-            lr.setEndDate(end);
-            lr.setDuration(durationType);
-            lr.setHalfSession(request.getParameter("halfSession"));
-            
-            // Capture Dynamic Metadata
-            lr.setMedicalFacility(request.getParameter("medicalFacility"));
-            lr.setRefSerialNo(request.getParameter("refSerialNo"));
-            lr.setEmergencyCategory(request.getParameter("emergencyCategory"));
-            lr.setEmergencyContact(request.getParameter("emergencyContact"));
-            lr.setSpouseName(request.getParameter("spouseName"));
-
-            double days = "HALF_DAY".equalsIgnoreCase(durationType) ? 0.5 : leaveDAO.calculateWorkingDays(start, end);
-            if (days <= 0) {
-                response.getWriter().print("Error: Invalid working days.");
+            LeaveRequest existing = leaveDAO.getLeaveById(leaveId, empId);
+            if (existing == null || !"PENDING".equalsIgnoreCase(existing.getStatusCode())) {
+                response.getWriter().print("Error: Record is no longer editable.");
                 return;
             }
-            lr.setDurationDays(days);
 
-            if (leaveDAO.updateLeave(lr, empId)) response.getWriter().print("OK");
-            else response.getWriter().print("Update failed.");
+            existing.setReason(request.getParameter("reason"));
+            String durationUi = request.getParameter("duration");
+            boolean isHalf = durationUi.startsWith("HALF_DAY");
+            
+            LocalDate start = LocalDate.parse(request.getParameter("startDate"));
+            LocalDate end = isHalf ? start : LocalDate.parse(request.getParameter("endDate"));
+            
+            existing.setStartDate(start);
+            existing.setEndDate(end);
+            existing.setDuration(isHalf ? "HALF_DAY" : "FULL_DAY");
+            existing.setHalfSession(isHalf ? (durationUi.contains("AM") ? "AM" : "PM") : null);
+
+            // Corrected working days logic (Excluding weekends and holidays via DAO)
+            double days = isHalf ? 0.5 : leaveDAO.calculateWorkingDays(existing.getStartDate(), existing.getEndDate());
+            
+            if (days <= 0) {
+                response.getWriter().print("Error: Invalid dates selected. Ensure dates are working days and end date is after start date.");
+                return;
+            }
+            existing.setDurationDays(days);
+
+            if (leaveDAO.updateLeave(existing, empId)) {
+                response.getWriter().print("OK");
+            } else {
+                response.getWriter().print("Update failed. Insufficient balance.");
+            }
 
         } catch (Exception e) {
+            e.printStackTrace();
             response.getWriter().print("System Error: " + e.getMessage());
         }
     }

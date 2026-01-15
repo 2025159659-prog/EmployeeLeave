@@ -1,5 +1,5 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
-<%@ page import="java.util.*" %>
+<%@ page import="java.util.*, bean.LeaveBalance" %>
 <%@ include file="icon.jsp" %>
 
 <%
@@ -29,7 +29,9 @@ if (ses == null || ses.getAttribute("empid") == null ||
   // DATA RETRIEVAL
   // =========================
   List<Map<String,Object>> leaveTypes = (List<Map<String,Object>>) request.getAttribute("leaveTypes");
+  List<LeaveBalance> balances = (List<LeaveBalance>) request.getAttribute("balances");
   if (leaveTypes == null) leaveTypes = new ArrayList<>();
+  if (balances == null) balances = new ArrayList<>();
 
   String typeError = (String) request.getAttribute("typeError");
 %>
@@ -51,7 +53,7 @@ if (ses == null || ses.getAttribute("empid") == null ||
       --border: #e2e8f0;
       --text: #1e293b;
       --muted: #475569;
-      --primary: #2563eb; /* Original Primary Blue */
+      --primary: #2563eb; 
       --radius: 20px;
     }
 
@@ -60,7 +62,6 @@ if (ses == null || ses.getAttribute("empid") == null ||
 
     .pageWrap { max-width: 1000px; margin: 0 auto; padding: 32px 40px; }
 
-    /* Title & Sub-label Consistency with other pages */
     h2.title { font-size: 28px; font-weight: 900; margin: 0; text-transform: uppercase; color: #000; letter-spacing: -0.02em; }
     .sub-label { color: var(--primary); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; display: block; }
 
@@ -81,7 +82,6 @@ if (ses == null || ses.getAttribute("empid") == null ||
     }
     @media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } }
 
-    /* Bolder dark labels to match consistency */
     label { 
       display: block; 
       font-size: 13px; 
@@ -92,7 +92,6 @@ if (ses == null || ses.getAttribute("empid") == null ||
       letter-spacing: 0.05em;
     }
 
-    /* Standardized Premium Input Styling with 20px Padding */
     input, select, textarea {
       width: 100% !important;
       height: 54px !important;
@@ -110,7 +109,6 @@ if (ses == null || ses.getAttribute("empid") == null ||
     }
     
     textarea { height: 120px !important; padding: 18px 20px !important; }
-    
     input:focus, select:focus, textarea:focus {
       border-color: var(--primary) !important;
       box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08) !important;
@@ -146,7 +144,22 @@ if (ses == null || ses.getAttribute("empid") == null ||
     }
     .dynamic-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 
-    /* Original button color preserved */
+    /* Validation Error Message Styling */
+    .validation-error {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #b91c1c;
+        padding: 12px 16px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 800;
+        margin-bottom: 20px;
+        display: none; 
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+    }
+
     .btn-submit {
       background: var(--primary);
       color: #fff;
@@ -165,7 +178,8 @@ if (ses == null || ses.getAttribute("empid") == null ||
       justify-content: center;
       gap: 12px;
     }
-    .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3); }
+    .btn-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3); }
+    .btn-submit:disabled { background: #cbd5e1; cursor: not-allowed; }
 
     .overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); display: none; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(8px); }
     .overlay.show { display: flex; }
@@ -190,12 +204,18 @@ if (ses == null || ses.getAttribute("empid") == null ||
       </div>
 
       <div class="card">
+        <!-- Error Container -->
+        <div id="errorBox" class="validation-error">
+            <%= AlertIcon("w-5 h-5") %>
+            <span id="errorMessage"></span>
+        </div>
+
         <form action="ApplyLeave" method="post" enctype="multipart/form-data" id="applyForm">
           
           <div class="form-grid">
             <div>
               <label>Type of Leave <span class="req-star">*</span></label>
-              <select name="leaveTypeId" id="leaveTypeId" required onchange="handleTypeChange()">
+              <select name="leaveTypeId" id="leaveTypeId" required onchange="handleTypeChange(); validateForm();">
                 <option value="" disabled selected>-- SELECT TYPE --</option>
                 <%
                   for (Map<String,Object> t : leaveTypes) {
@@ -203,33 +223,31 @@ if (ses == null || ses.getAttribute("empid") == null ||
                     String code = String.valueOf(t.get("code")).trim().toUpperCase();
                     String desc = (t.get("desc") != null) ? String.valueOf(t.get("desc")).trim().toUpperCase() : "";
                     
-                    boolean isMaternityType = code.contains("MATERNITY") || code.equals("ML");
-                    boolean isPaternityType = code.contains("PATERNITY") || code.equals("PL");
-
                     boolean canView = true;
-                    if (isMaternityType && !isFemale) canView = false;
-                    if (isPaternityType && !isMale) canView = false;
+                    if ((code.contains("MATERNITY") || code.equals("ML")) && !isFemale) canView = false;
+                    if ((code.contains("PATERNITY") || code.equals("PL")) && !isMale) canView = false;
                     
                     if (canView) {
                 %>
                   <option value="<%= id %>" data-code="<%= code %>"><%= code %> - <%= desc %></option>
                 <% } } %>
               </select>
+              <div id="balanceHint" class="text-[10px] font-black text-blue-600 uppercase mt-2 hidden">Available Balance: <span id="hintDays">0</span> Days</div>
             </div>
 
             <div>
               <label>Leave Period <span class="req-star">*</span></label>
               <div class="duration-options">
                 <label class="duration-tile selected" onclick="selectDuration(this)">
-                  <input type="radio" name="duration" value="FULL_DAY" checked onchange="syncDates()">
+                  <input type="radio" name="duration" value="FULL_DAY" checked onchange="syncDates(); validateForm();">
                   <span>Full Day</span>
                 </label>
                 <label class="duration-tile" onclick="selectDuration(this)">
-                  <input type="radio" name="duration" value="HALF_DAY_AM" onchange="syncDates()">
+                  <input type="radio" name="duration" value="HALF_DAY_AM" onchange="syncDates(); validateForm();">
                   <span>Half (AM)</span>
                 </label>
                 <label class="duration-tile" onclick="selectDuration(this)">
-                  <input type="radio" name="duration" value="HALF_DAY_PM" onchange="syncDates()">
+                  <input type="radio" name="duration" value="HALF_DAY_PM" onchange="syncDates(); validateForm();">
                   <span>Half (PM)</span>
                 </label>
               </div>
@@ -248,11 +266,11 @@ if (ses == null || ses.getAttribute("empid") == null ||
           <div class="form-grid">
             <div>
               <label>Start Date <span class="req-star">*</span></label>
-              <input type="date" name="startDate" id="startDate" required onchange="syncDates()" />
+              <input type="date" name="startDate" id="startDate" required onchange="syncDates(); validateForm();" />
             </div>
             <div>
               <label>End Date <span class="req-star">*</span></label>
-              <input type="date" name="endDate" id="endDate" required />
+              <input type="date" name="endDate" id="endDate" required onchange="validateForm();" />
             </div>
           </div>
 
@@ -263,13 +281,12 @@ if (ses == null || ses.getAttribute("empid") == null ||
 
           <div class="mb-10">
             <label>Supportive Attachment <span id="docRequired" style="display:none;" class="req-star">(REQUIRED *)</span></label>
-            <!-- Box kept the same as original original -->
             <input type="file" name="attachment" id="attachment" accept=".pdf,.png,.jpg,.jpeg" 
                    class="bg-slate-50 border-dashed border-2 border-slate-200 p-10 cursor-pointer text-center w-full rounded-2xl hover:bg-slate-100 transition-all text-xs font-bold text-slate-400" />
             <p class="text-[10px] text-slate-400 mt-3 font-bold uppercase tracking-tight text-center">Upload MC or verification letter. Max 5MB.</p>
           </div>
 
-          <button type="submit" class="btn-submit">
+          <button type="submit" id="submitBtn" class="btn-submit">
             <%= SendIcon("w-5 h-5") %> Submit Application
           </button>
         </form>
@@ -290,6 +307,13 @@ if (ses == null || ses.getAttribute("empid") == null ||
   </div>
 
   <script>
+    // Map Java balances to JS for real-time logic
+    const leaveBalances = {
+        <% for(LeaveBalance b : balances) { %>
+            "<%= b.getLeaveTypeId() %>": <%= b.getTotalAvailable() %>,
+        <% } %>
+    };
+
     const startEl = document.getElementById('startDate');
     const endEl = document.getElementById('endDate');
     const typeEl = document.getElementById('leaveTypeId');
@@ -297,33 +321,117 @@ if (ses == null || ses.getAttribute("empid") == null ||
     const dynamicAttr = document.getElementById('dynamicAttributes');
     const dynamicFields = document.getElementById('dynamicFields');
     const docReqLabel = document.getElementById('docRequired');
+    const errorBox = document.getElementById('errorBox');
+    const errorMessage = document.getElementById('errorMessage');
+    const submitBtn = document.getElementById('submitBtn');
+    const balanceHint = document.getElementById('balanceHint');
+    const hintDays = document.getElementById('hintDays');
 
     function selectDuration(element) {
       document.querySelectorAll('.duration-tile').forEach(t => t.classList.remove('selected'));
       element.classList.add('selected');
       const radio = element.querySelector('input[type="radio"]');
-      if (radio) { radio.checked = true; syncDates(); }
+      if (radio) { 
+        radio.checked = true; 
+        syncDates();
+        validateForm();
+      }
     }
 
     function syncDates() {
       const durationInput = document.querySelector('input[name="duration"]:checked');
       if (durationInput && durationInput.value !== 'FULL_DAY') {
-        // Sync dates for Half Day
         endEl.value = startEl.value;
         endEl.readOnly = true;
-        // Make the box darker to show it is blocked and cannot be selected
         endEl.style.setProperty('background-color', '#cbd5e1', 'important'); 
         endEl.style.setProperty('color', '#475569', 'important');
-        endEl.style.setProperty('border-color', '#94a3b8', 'important');
         endEl.style.cursor = 'not-allowed';
       } else {
-        // Restore for Full Day
         endEl.readOnly = false;
-        endEl.style.setProperty('background-color', '#ffffff', 'important');
+        endEl.style.setProperty('background-color', '#fff', 'important');
         endEl.style.setProperty('color', 'inherit', 'important');
-        endEl.style.setProperty('border-color', '#cbd5e1', 'important');
         endEl.style.cursor = 'text';
       }
+    }
+
+    // Helper: Calculate Working Days (Excluding Sat/Sun)
+    function calculateWorkingDaysJS(start, end) {
+        if (!start || !end) return 0;
+        let dStart = new Date(start);
+        let dEnd = new Date(end);
+        if (dEnd < dStart) return 0;
+        
+        let count = 0;
+        let cur = new Date(dStart);
+        while (cur <= dEnd) {
+            let day = cur.getDay();
+            if (day !== 0 && day !== 6) count++; // Not Sun (0) and Not Sat (6)
+            cur.setDate(cur.getDate() + 1);
+        }
+        return count;
+    }
+
+    function validateForm() {
+        const startVal = startEl.value;
+        const endVal = endEl.value;
+        const typeId = typeEl.value;
+        const duration = document.querySelector('input[name="duration"]:checked').value;
+
+        let hasError = false;
+        let msg = "";
+
+        // Show available balance hint
+        if (typeId) {
+            const avail = leaveBalances[typeId] !== undefined ? leaveBalances[typeId] : 0;
+            hintDays.textContent = avail;
+            balanceHint.classList.remove('hidden');
+        } else {
+            balanceHint.classList.add('hidden');
+        }
+
+        // 1. Back-date constraint (End < Start)
+        if (startVal && endVal) {
+            const d1 = new Date(startVal);
+            const d2 = new Date(endVal);
+            if (d2 < d1) {
+                hasError = true;
+                msg = "Conclusion date cannot be earlier than commencement date.";
+            }
+        }
+
+        // 2. Leave balance constraint
+        if (!hasError && startVal && endVal && typeId) {
+            const available = leaveBalances[typeId] !== undefined ? parseFloat(leaveBalances[typeId]) : 0;
+            let requested = 0;
+
+            if (duration !== 'FULL_DAY') {
+                requested = 0.5;
+            } else {
+                requested = calculateWorkingDaysJS(startVal, endVal);
+            }
+
+            if (requested > available) {
+                hasError = true;
+                msg = `Insufficient balance. Available: ${available} Days, Requested: ${requested} Days.`;
+                if (leaveBalances[typeId] === undefined) {
+                    msg = "Insufficient balance. Available: 0 Days (Account not initialized), Requested: " + requested + " Days.";
+                }
+            }
+            
+            if (!hasError && requested === 0 && startVal && endVal) {
+                hasError = true;
+                msg = "You cannot apply for leave on weekends (Saturday/Sunday).";
+            }
+        }
+
+        if (hasError) {
+            errorMessage.textContent = msg;
+            errorBox.style.display = 'flex';
+            submitBtn.disabled = true;
+        } else {
+            errorBox.style.display = 'none';
+            submitBtn.disabled = false;
+        }
     }
 
     function handleTypeChange() {
@@ -378,6 +486,7 @@ if (ses == null || ses.getAttribute("empid") == null ||
         const input = document.createElement('input');
         input.type = type; input.name = name; input.placeholder = ph;
         if (req) input.required = true;
+        input.onchange = validateForm;
         div.appendChild(input);
         dynamicFields.appendChild(div);
     }
@@ -389,6 +498,7 @@ if (ses == null || ses.getAttribute("empid") == null ||
         select.name = name; if (req) select.required = true;
         select.add(new Option("-- SELECT --", ""));
         options.forEach(opt => select.add(new Option(opt.l, opt.v)));
+        select.onchange = validateForm;
         div.appendChild(select);
         dynamicFields.appendChild(div);
     }
@@ -412,7 +522,6 @@ if (ses == null || ses.getAttribute("empid") == null ||
         attachmentEl.required = val;
     }
 
-    // Auto-uppercase formatting logic
     document.addEventListener('input', function(e) {
         if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
             if(e.target.type !== 'date' && e.target.type !== 'email' && e.target.type !== 'password' && e.target.type !== 'file') {

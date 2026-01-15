@@ -106,7 +106,8 @@ public class UserDAO {
     }
     public List<User> getAllUsers() throws Exception {
         List<User> userList = new ArrayList<>();
-        String sql = "SELECT EMPID, FULLNAME, EMAIL, ROLE, PHONENO, HIREDATE, STATUS " +
+        // Added GENDER and PROFILE_PICTURE to the SELECT
+        String sql = "SELECT EMPID, FULLNAME, EMAIL, ROLE, PHONENO, HIREDATE, STATUS, GENDER, PROFILE_PICTURE " +
                      "FROM USERS ORDER BY STATUS ASC, FULLNAME ASC";
 
         try (Connection con = DatabaseConnection.getConnection();
@@ -121,10 +122,10 @@ public class UserDAO {
                 user.setRole(rs.getString("ROLE"));
                 user.setPhone(rs.getString("PHONENO"));
                 user.setHireDate(rs.getDate("HIREDATE"));
-                // Default to ACTIVE if null
+                user.setGender(rs.getString("GENDER"));
+                user.setProfilePic(rs.getString("PROFILE_PICTURE"));
                 String status = rs.getString("STATUS");
                 user.setStatus(status != null ? status : "ACTIVE");
-                
                 userList.add(user);
             }
         }

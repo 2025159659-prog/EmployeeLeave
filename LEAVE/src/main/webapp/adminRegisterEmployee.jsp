@@ -384,7 +384,6 @@
         // Formatting Logic
         document.querySelectorAll('input, select').forEach(el => {
             el.addEventListener('input', function() {
-                // FIXED: Only apply uppercase to INPUT tags, not SELECT tags
                 if (this.tagName === 'INPUT' && this.type !== 'password' && this.type !== 'email') {
                     this.value = this.value.toUpperCase();
                 }
@@ -433,6 +432,12 @@
         }
 
         function proceedWithRegistration() {
+            // FIX: Strip dashes before submitting to database (ORA-12899 prevention)
+            const icInput = document.getElementById('icNumber');
+            if (icInput) {
+                icInput.value = icInput.value.replace(/-/g, ''); // Remove all dashes
+            }
+            
             document.getElementById('registrationForm').submit();
         }
     </script>

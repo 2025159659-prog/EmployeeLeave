@@ -5,8 +5,8 @@ public class LeaveBalance {
     private int leaveTypeId;
     private String typeCode;
     private String description;
-    private int entitlement;
-    private int carriedForward;
+    private double entitlement;      // Changed to double for prorating
+    private double carriedForward;   // Changed to double
     private double used;
     private double pending;
     private double totalAvailable;
@@ -14,7 +14,6 @@ public class LeaveBalance {
     public LeaveBalance() {}
 
     // Getters and Setters
-    
     public int getEmpId() { return empId; }
     public void setEmpId(int empId) { this.empId = empId; }
     
@@ -27,11 +26,11 @@ public class LeaveBalance {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public int getEntitlement() { return entitlement; }
-    public void setEntitlement(int entitlement) { this.entitlement = entitlement; }
+    public double getEntitlement() { return entitlement; }
+    public void setEntitlement(double entitlement) { this.entitlement = entitlement; }
 
-    public int getCarriedForward() { return carriedForward; }
-    public void setCarriedForward(int carriedForward) { this.carriedForward = carriedForward; }
+    public double getCarriedForward() { return carriedForward; }
+    public void setCarriedForward(double carriedForward) { this.carriedForward = carriedForward; }
 
     public double getUsed() { return used; }
     public void setUsed(double used) { this.used = used; }

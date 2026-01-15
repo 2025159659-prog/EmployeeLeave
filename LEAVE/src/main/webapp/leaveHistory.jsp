@@ -30,7 +30,7 @@ if (years == null) years = new ArrayList<>();
 String currentStatus = request.getParameter("status") != null ? request.getParameter("status") : "ALL";
 String currentYear = request.getParameter("year") != null ? request.getParameter("year") : "";
 
-// Formatting setup
+// Formatting setup - STRICT DD/MM/YYYY
 SimpleDateFormat sdfDb = new SimpleDateFormat("yyyy-MM-dd");
 SimpleDateFormat sdfDisplay = new SimpleDateFormat("dd/MM/yyyy");
 SimpleDateFormat sdfTimeDb = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -88,7 +88,17 @@ body { background: var(--bg); color: var(--text-main); margin: 0; overflow-x: hi
 select, input[type="date"], textarea { padding: 10px 16px; border-radius: 12px; border: 2.1px solid var(--border); background: #fff; font-size: 14px; font-weight: 600; outline: none; transition: 0.2s; }
 select:focus, input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.05); }
 
-/* Table Optimization - Increased sizes by +1 */
+/* UPDATED: Modal Input Specific Styling */
+.modal-body select, 
+.modal-body input[type="date"] { 
+    height: 45px !important; 
+    padding: 0 20px !important; 
+}
+.modal-body textarea { 
+    padding: 20px !important; 
+}
+
+/* Table Optimization */
 .table-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.04); overflow: hidden; }
 table { width: 100%; border-collapse: collapse; }
 th { background: #f8fafc; padding: 16px 20px; font-size: 11px; font-weight: 850; color: #64748b; text-transform: uppercase; border-bottom: 2px solid var(--border); text-align: left; letter-spacing: 0.05em; }
@@ -118,17 +128,16 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
 .info-label { font-size:10px; font-weight:800; color:#94a3b8; text-transform:uppercase; display:block; margin-bottom:4px; letter-spacing:0.05em; }
 .info-value { font-size:14px; font-weight:700; color:#1e293b; display:block; margin-bottom:18px; }
 
-/* Updated Close Button Styling to use XCircleIcon */
 .btn-close { position: absolute; top: 24px; right: 24px; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #94a3b8; transition: 0.2s; z-index: 10; }
 .btn-close:hover { background: #fef2f2; border-color: #fecaca; color: #ef4444; }
 
 .type-id-tag { background: #eff6ff; color: #2563eb; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-family: monospace; font-weight: 800; border: 1px solid #dbeafe; }
 
-.btn-modal-primary { background: #000; color: white; padding: 14px 24px; border-radius: 16px; font-weight: 900; font-size: 14px; transition: 0.2s; text-align: center; display: block; width: 100%; text-transform: uppercase; letter-spacing: 0.05em; }
-.btn-modal-primary:hover { background: var(--primary); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); }
-.btn-modal-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-modal-primary { background: #000; color: white; padding: 14px 24px; border-radius: 16px; font-weight: 900; font-size: 14px; transition: 0.2s; text-align: center; display: block; width: 100%; text-transform: uppercase; letter-spacing: 0.05em; border: none; cursor: pointer; }
+.btn-modal-primary:hover:not(:disabled) { background: var(--primary); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); }
+.btn-modal-primary:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(1); }
 
-.btn-modal-secondary { background: #f1f5f9; color: #64748b; padding: 14px 24px; border-radius: 16px; font-weight: 800; font-size: 14px; transition: 0.2s; text-align: center; display: block; width: 100%; text-transform: uppercase; }
+.btn-modal-secondary { background: #f1f5f9; color: #64748b; padding: 14px 24px; border-radius: 16px; font-weight: 800; font-size: 14px; transition: 0.2s; text-align: center; display: block; width: 100%; text-transform: uppercase; border: none; cursor: pointer; }
 .btn-modal-secondary:hover { background: #e2e8f0; color: #1e293b; }
 
 .dynamic-meta-container { background: #f8fafc; border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-top: 10px; margin-bottom: 24px; }
@@ -198,14 +207,30 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
                         else if ("CANCELLATION_REQUESTED".equalsIgnoreCase(code)) badgeCls = "status-cancellation-requested";
 
                         String startDisplay = "-", endDisplay = "-", appliedDisplay = "-";
+                        String evtDisp = "N/A", disDisp = "N/A";
                         boolean isStartedOrPassed = false;
                         try {
                             Date sD = (String.valueOf(l.get("start")).contains("-")) ? sdfDb.parse(String.valueOf(l.get("start"))) : sdfDisplay.parse(String.valueOf(l.get("start")));
                             Date eD = (String.valueOf(l.get("end")).contains("-")) ? sdfDb.parse(String.valueOf(l.get("end"))) : sdfDisplay.parse(String.valueOf(l.get("end")));
                             Date aD = (String.valueOf(l.get("appliedOn")).contains("-")) ? sdfTimeDb.parse(String.valueOf(l.get("appliedOn"))) : sdfTimeDisplay.parse(String.valueOf(l.get("appliedOn")));
+                            
                             startDisplay = sdfDisplay.format(sD);
                             endDisplay = sdfDisplay.format(eD);
                             appliedDisplay = sdfTimeDisplay.format(aD);
+                            
+                            // FORMAT METADATA DATES TO DD/MM/YYYY
+                            Object evtRaw = l.get("eventDate");
+                            if (evtRaw != null && !String.valueOf(evtRaw).isEmpty()) {
+                                Date eDt = (String.valueOf(evtRaw).contains("-")) ? sdfDb.parse(String.valueOf(evtRaw)) : sdfDisplay.parse(String.valueOf(evtRaw));
+                                evtDisp = sdfDisplay.format(eDt);
+                            }
+                            
+                            Object disRaw = l.get("dischargeDate");
+                            if (disRaw != null && !String.valueOf(disRaw).isEmpty()) {
+                                Date dDt = (String.valueOf(disRaw).contains("-")) ? sdfDb.parse(String.valueOf(disRaw)) : sdfDisplay.parse(String.valueOf(disRaw));
+                                disDisp = sdfDisplay.format(dDt);
+                            }
+
                             if (!todayMidnight.before(sD)) isStartedOrPassed = true;
                         } catch(Exception e) {}
                 %>
@@ -228,26 +253,22 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
                                data-med="<%= l.get("medicalFacility") %>"
                                data-ref="<%= l.get("refSerialNo") %>"
                                data-pre="<%= l.get("weekPregnancy") %>"
-                               data-evt="<%= l.get("eventDate") %>"
-                               data-dis="<%= l.get("dischargeDate") %>"
+                               data-evt="<%= evtDisp %>"
+                               data-dis="<%= disDisp %>"
                                data-cat="<%= l.get("emergencyCategory") %>"
                                data-cnt="<%= l.get("emergencyContact") %>"
                                data-spo="<%= l.get("spouseName") %>">
-                               LR-<%= l.get("id") %>
+                                LR-<%= l.get("id") %>
                             </a>
                         </td>
                         <td class="font-black text-slate-700 uppercase"><%= l.get("type") %></td>
                         <td>
-                            <%-- DARKER SLATE GREY FOR DATES --%>
                             <span class="font-bold text-slate-700"><%= startDisplay %></span>
                             <% if(!startDisplay.equals(endDisplay)) { %><span class="text-[11px] text-slate-500 block font-bold uppercase tracking-tight">to <%= endDisplay %></span><% } %>
                         </td>
                         <td class="font-black text-blue-600 text-base"><%= l.get("totalDays") %></td>
                         <td><span class="badge <%= badgeCls %>"><span class="w-1.5 h-1.5 rounded-full bg-current"></span> <%= code %></span></td>
-                        
-                        <%-- DARKER SLATE GREY FOR APPLIED --%>
                         <td class="text-slate-600 text-[12px] font-bold"><%= appliedDisplay %></td>
-                        
                         <td>
                             <div class="flex gap-2 justify-end">
                                 <% if ("PENDING".equalsIgnoreCase(code)) { %>
@@ -257,7 +278,6 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
                                     <% if (!isStartedOrPassed) { %>
                                         <button class="btn-action text-orange-500" onclick="askConfirm('REQ_CANCEL', '<%= l.get("id") %>')"><%= RotateCcwIcon("w-4 h-4") %></button>
                                     <% } else { %>
-                                        <%-- DARKER SLATE GREY FOR ACTION COLUMN LABELS --%>
                                         <span class="text-[11px] font-black text-slate-500 uppercase tracking-widest">Locked</span>
                                     <% } %>
                                 <% } else { %>
@@ -276,7 +296,6 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
 <!-- DETAIL POPUP MODAL -->
 <div class="modal-overlay" id="detailModal">
     <div class="modal-content">
-        <%-- FIXED: Replaced FontAwesome icon with internal SVG method --%>
         <button type="button" class="btn-close" onclick="closeModal('detailModal')"><%= XCircleIcon("w-6 h-6") %></button>
         <div class="modal-body">
             <h3 class="text-2xl font-black text-slate-800 tracking-tight uppercase mb-8 pr-12 border-b border-slate-100 pb-4">Application Details</h3>
@@ -330,16 +349,11 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
                 <div class="info-item">
                     <span class="info-label">Supportive Attachment</span>
                     <div id="attachBox" class="hidden">
-<a id="modalAttachLink" href="#" target="_blank" class="inline-flex items-center gap-3 bg-white border-2 border-slate-100 px-5 py-3 rounded-2xl text-[11px] font-black text-slate-600 hover:border-blue-200 hover:text-blue-600 transition-all">
-    <%-- Using your existing icon system instead of FontAwesome --%>
-    <span class="text-red-500">
-        <%= FilePlusIcon("w-5 h-5") %> 
-    </span>
-    VIEW DOCUMENT 
-    <span class="opacity-20">
-        <%= ExternalLinkIcon("w-3 h-3") %>
-    </span>
-</a>
+                        <a id="modalAttachLink" href="#" target="_blank" class="inline-flex items-center gap-3 bg-white border-2 border-slate-100 px-5 py-3 rounded-2xl text-[11px] font-black text-slate-600 hover:border-blue-200 hover:text-blue-600 transition-all">
+                            <span class="text-red-500"><%= FilePlusIcon("w-5 h-5") %> </span>
+                            VIEW DOCUMENT 
+                            <span class="opacity-20"><%= ExternalLinkIcon("w-3 h-3") %></span>
+                        </a>
                     </div>
                     <div id="noAttachLabel" class="text-xs text-slate-300 font-bold italic py-2">No document attached</div>
                 </div>
@@ -369,7 +383,6 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
 <!-- EDIT MODAL -->
 <div class="modal-overlay" id="editOverlay">
     <div class="modal-content" style="max-width: 550px;">
-        <%-- FIXED: Replaced FontAwesome icon with internal SVG method --%>
         <button type="button" class="btn-close" onclick="closeModal('editOverlay')"><%= XCircleIcon("w-6 h-6") %></button>
         <div class="modal-body">
             <h3 class="text-2xl font-black text-slate-800 tracking-tight uppercase mb-8 pr-12 border-b border-slate-100 pb-4">Edit Application</h3>
@@ -379,23 +392,23 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
                 
                 <div class="form-group">
                     <label class="info-label">Leave Category</label>
-                    <select name="leaveType" id="editType" class="w-full"></select>
+                    <select name="leaveType" id="editType" class="w-full pointer-events-none bg-slate-50 text-slate-400"></select>
                 </div>
 
                 <div class="grid grid-cols-2 gap-6">
                     <div class="form-group">
                         <label class="info-label">Start Date</label>
-                        <input type="date" name="startDate" id="editStart" class="w-full p-2 border rounded-xl">
+                        <input type="date" name="startDate" id="editStart" class="w-full p-2 border rounded-xl" onchange="validateEdit()">
                     </div>
                     <div class="form-group">
                         <label class="info-label">End Date</label>
-                        <input type="date" name="endDate" id="editEnd" class="w-full p-2 border rounded-xl">
+                        <input type="date" name="endDate" id="editEnd" class="w-full p-2 border rounded-xl" onchange="validateEdit()">
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label class="info-label">Duration Type</label>
-                    <select name="duration" id="editDuration" class="w-full">
+                    <select name="duration" id="editDuration" class="w-full" onchange="validateEdit()">
                         <option value="FULL_DAY">Full Day</option>
                         <option value="HALF_DAY_AM">Half Day (AM)</option>
                         <option value="HALF_DAY_PM">Half Day (PM)</option>
@@ -406,6 +419,8 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
                     <label class="info-label">Personal Reason</label>
                     <textarea name="reason" id="editReason" class="w-full h-24 border rounded-xl p-3" placeholder="Briefly explain the reason for leave..."></textarea>
                 </div>
+                
+                <div id="editValidationError" class="text-[10px] font-black text-red-500 uppercase tracking-widest hidden"></div>
 
                 <div class="flex gap-4 mt-8">
                     <button type="button" class="btn-modal-secondary flex-1" onclick="closeModal('editOverlay')">Discard</button>
@@ -419,7 +434,6 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
 <!-- CONFIRMATION MODAL -->
 <div class="modal-overlay" id="confirmOverlay">
     <div class="modal-content" style="max-width: 450px; text-align: center;">
-        <%-- FIXED: Replaced FontAwesome icon with internal SVG method --%>
         <button type="button" class="btn-close" onclick="closeModal('confirmOverlay')"><%= XCircleIcon("w-6 h-6") %></button>
         <div class="modal-body">
             <div id="confIcon" class="mx-auto mb-6"></div>
@@ -439,6 +453,8 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
 
 <script>
 const CTX = "<%=request.getContextPath()%>";
+let activeBalance = 0; 
+let originalDays = 0; // Added: Track the original duration to recalculate allowed balance
 
 function viewDetails(btn) {
     const d = btn.dataset;
@@ -513,13 +529,30 @@ async function openEditModal(id) {
     try {
         const res = await fetch(CTX + "/EditLeave?id=" + id, { headers: {'Accept': 'application/json'} });
         const data = await res.json();
+        
+        // Logic fix: Fetch balance AND current record duration
+        activeBalance = parseFloat(data.balance) || 0; 
+        
+        // Calculate original duration from dates provided in JSON if durationDays isn't directly sent
+        // However, we can use the dates in the record to estimate it or wait for server verification.
+        // For accurate client-side feedback, let's estimate original duration (excluding weekends)
+        const oStart = new Date(data.startDate);
+        const oEnd = new Date(data.endDate);
+        if (data.duration.startsWith('HALF_DAY')) {
+            originalDays = 0.5;
+        } else {
+            originalDays = estimateWorkingDays(oStart, oEnd);
+        }
+
         document.getElementById('editLeaveId').value = data.leaveId;
         document.getElementById('editStart').value = data.startDate;
         document.getElementById('editEnd').value = data.endDate;
         document.getElementById('editReason').value = data.reason || "";
+        
         let dur = data.duration || "FULL_DAY";
         if(dur === 'HALF_DAY') dur = data.halfSession === 'PM' ? 'HALF_DAY_PM' : 'HALF_DAY_AM';
         document.getElementById('editDuration').value = dur;
+        
         const ts = document.getElementById('editType');
         ts.innerHTML = "";
         data.leaveTypes.forEach(t => {
@@ -527,7 +560,69 @@ async function openEditModal(id) {
             if(o.value == data.leaveTypeId) o.selected = true;
             ts.add(o);
         });
+
+        validateEdit(); 
     } catch (e) { closeModal('editOverlay'); }
+}
+
+// Helper: Estimate working days (excludes Sat/Sun)
+function estimateWorkingDays(start, end) {
+    if (end < start) return 0;
+    let count = 0;
+    let cur = new Date(start);
+    while (cur <= end) {
+        const day = cur.getDay();
+        if (day !== 0 && day !== 6) count++; // Not Sun (0) or Sat (6)
+        cur.setDate(cur.getDate() + 1);
+    }
+    return count;
+}
+
+function validateEdit() {
+    const sStr = document.getElementById('editStart').value;
+    const eStr = document.getElementById('editEnd').value;
+    const durType = document.getElementById('editDuration').value;
+    const btn = document.getElementById('editSubmitBtn');
+    const err = document.getElementById('editValidationError');
+    
+    if (!sStr || !eStr) return;
+
+    const start = new Date(sStr);
+    const end = new Date(eStr);
+    
+    let newDays = 0;
+    if (durType.startsWith('HALF_DAY')) {
+        newDays = 0.5;
+    } else {
+        newDays = estimateWorkingDays(start, end);
+    }
+
+    let errorMsg = "";
+    let isInvalid = false;
+
+    // Fixed logic: newDays must be <= (current available balance + the days from the record being edited)
+    // Because activeBalance already had originalDays deducted when the request was first submitted.
+    const maxAllowed = activeBalance + originalDays;
+
+    if (end < start) {
+        errorMsg = "End date cannot be before start date.";
+        isInvalid = true;
+    } else if (newDays === 0) {
+        errorMsg = "Selected dates fall on weekends.";
+        isInvalid = true;
+    } else if (newDays > maxAllowed) {
+        errorMsg = "Insufficient balance. Total allowed (including this record): " + maxAllowed + " days. Requested: " + newDays;
+        isInvalid = true;
+    }
+
+    if (isInvalid) {
+        err.textContent = errorMsg;
+        err.classList.remove('hidden');
+        btn.disabled = true;
+    } else {
+        err.classList.add('hidden');
+        btn.disabled = false;
+    }
 }
 
 document.getElementById('editForm').onsubmit = async function(e) {
@@ -540,7 +635,17 @@ document.getElementById('editForm').onsubmit = async function(e) {
     if (d.startsWith('HALF_DAY')) { fd.set('duration', 'HALF_DAY'); fd.set('halfSession', d.includes('AM') ? 'AM' : 'PM'); }
     try {
         const res = await fetch(CTX + "/EditLeave", { method: 'POST', body: fd, headers: {'Content-Type': 'application/x-www-form-urlencoded'} });
-        if (res.ok && (await res.text()).trim() === "OK") window.location.reload();
+        const txt = await res.text();
+        if (txt.trim() === "OK") {
+            window.location.reload();
+        } else {
+            // Show error returned from server (e.g., actual balance check with holidays)
+            const err = document.getElementById('editValidationError');
+            err.textContent = txt;
+            err.classList.remove('hidden');
+            btn.disabled = false;
+            btn.textContent = "UPDATE APPLICATION";
+        }
     } catch (err) {
         btn.disabled = false;
         btn.textContent = "UPDATE APPLICATION";

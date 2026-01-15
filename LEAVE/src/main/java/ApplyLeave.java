@@ -1,6 +1,7 @@
 import bean.LeaveRequest;
+import bean.LeaveBalance;
 import dao.LeaveDAO;
-import dao.EmployeeDAO;
+import dao.LeaveBalanceDAO;
 import util.DatabaseConnection;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.MultipartConfig;
@@ -20,7 +21,6 @@ import java.util.*;
 public class ApplyLeave extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private LeaveDAO leaveDAO = new LeaveDAO();
-    private EmployeeDAO employeeDAO = new EmployeeDAO(); 
 
     private String url(String s) { return URLEncoder.encode(s, StandardCharsets.UTF_8); }
     private boolean hasVal(String s) { return s != null && !s.trim().isEmpty(); }
@@ -36,24 +36,27 @@ public class ApplyLeave extends HttpServlet {
             return;
         }
 
-        try {
+        try (Connection con = DatabaseConnection.getConnection()) {
             int empId = Integer.parseInt(String.valueOf(session.getAttribute("empid")));
             
-            // Refresh Gender from DB to handle gender-specific leave restrictions dynamically
-            try (Connection con = DatabaseConnection.getConnection()) {
-                String sql = "SELECT GENDER FROM USERS WHERE EMPID = ?";
-                try (PreparedStatement ps = con.prepareStatement(sql)) {
-                    ps.setInt(1, empId);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) {
-                            String dbGender = rs.getString("GENDER");
-                            session.setAttribute("gender", (dbGender != null) ? dbGender.trim().toUpperCase() : "");
-                        }
+            // 1. Refresh Gender
+            String sql = "SELECT GENDER FROM USERS WHERE EMPID = ?";
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setInt(1, empId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        session.setAttribute("gender", rs.getString("GENDER"));
                     }
                 }
             }
 
+            // 2. Fetch Latest Balances for validation
+            LeaveBalanceDAO lbDAO = new LeaveBalanceDAO(con);
+            List<LeaveBalance> balances = lbDAO.getEmployeeBalances(empId);
+            
+            request.setAttribute("balances", balances);
             request.setAttribute("leaveTypes", leaveDAO.getAllLeaveTypes());
+            
         } catch (Exception e) {
             e.printStackTrace();
             request.setAttribute("typeError", "System Error: " + e.getMessage());
@@ -76,7 +79,6 @@ public class ApplyLeave extends HttpServlet {
             lr.setLeaveTypeId(Integer.parseInt(request.getParameter("leaveTypeId")));
             lr.setReason(request.getParameter("reason"));
 
-            // Handle Duration UI values (FULL_DAY, HALF_DAY_AM, HALF_DAY_PM)
             String durationUi = request.getParameter("duration");
             boolean isHalf = "HALF_DAY_AM".equalsIgnoreCase(durationUi) || "HALF_DAY_PM".equalsIgnoreCase(durationUi);
             
@@ -85,54 +87,40 @@ public class ApplyLeave extends HttpServlet {
             lr.setDuration(isHalf ? "HALF_DAY" : "FULL_DAY");
             lr.setHalfSession(isHalf ? (durationUi.contains("AM") ? "AM" : "PM") : null);
 
+            // Double check working days logic
             double days = isHalf ? 0.5 : leaveDAO.calculateWorkingDays(lr.getStartDate(), lr.getEndDate());
             if (days <= 0) {
-                response.sendRedirect("ApplyLeave?error=" + url("Invalid dates selected."));
+                response.sendRedirect("ApplyLeave?error=" + url("Invalid dates selected. End date must be after start date."));
                 return;
             }
             lr.setDurationDays(days);
 
-            // ========================================================
-            // ROBUST METADATA MAPPING (Capturing shared field inputs)
-            // ========================================================
-            
-            // 1. Mapping MEDICAL_FACILITY (Clinic / Hospital / Location)
+            // Mapping Metadata
             String facility = request.getParameter("clinicName");
             if (!hasVal(facility)) facility = request.getParameter("hospitalName");
             if (!hasVal(facility)) facility = request.getParameter("maternityClinic");
             if (!hasVal(facility)) facility = request.getParameter("hospitalLocation");
             lr.setMedicalFacility(facility);
-
-            // 2. Mapping REF_SERIAL_NO (MC Number / Reference Serial)
             lr.setRefSerialNo(request.getParameter("mcSerialNumber"));
 
-            // 3. Mapping EVENT_DATE (Admission Date / Due Date / Delivery Date)
             String eventDateStr = request.getParameter("admissionDate");
             if (!hasVal(eventDateStr)) eventDateStr = request.getParameter("expectedDueDate");
             if (!hasVal(eventDateStr)) eventDateStr = request.getParameter("deliveryDate");
+            if (hasVal(eventDateStr)) lr.setEventDate(LocalDate.parse(eventDateStr));
             
-            if (hasVal(eventDateStr)) {
-                lr.setEventDate(LocalDate.parse(eventDateStr));
-            }
+            if (hasVal(request.getParameter("dischargeDate"))) lr.setDischargeDate(LocalDate.parse(request.getParameter("dischargeDate")));
+            if (hasVal(request.getParameter("weekPregnancy"))) lr.setWeekPregnancy(Integer.parseInt(request.getParameter("weekPregnancy")));
 
-            // 4. Mapping DISCHARGE_DATE
-            if (hasVal(request.getParameter("dischargeDate"))) {
-                lr.setDischargeDate(LocalDate.parse(request.getParameter("dischargeDate")));
-            }
-
-            // 5. Mapping Emergency & Spouse Data
             lr.setEmergencyCategory(request.getParameter("emergencyCategory"));
             lr.setEmergencyContact(request.getParameter("emergencyContact"));
             lr.setSpouseName(request.getParameter("spouseName"));
 
-            // Handle File Attachment
             Part filePart = request.getPart("attachment");
             
-            // Execute Database Submission
             if (leaveDAO.submitRequest(lr, filePart)) {
                 response.sendRedirect("ApplyLeave?msg=" + url("success"));
             } else {
-                response.sendRedirect("ApplyLeave?error=" + url("Submit failed. Please check your leave balance."));
+                response.sendRedirect("ApplyLeave?error=" + url("Submission failed. You may have insufficient leave balance or a overlapping request."));
             }
         } catch (Exception e) {
             e.printStackTrace();
