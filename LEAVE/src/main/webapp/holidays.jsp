@@ -14,7 +14,9 @@
     List<Holiday> holidays = (List<Holiday>) request.getAttribute("holidays");
     String error = request.getParameter("error");
     String msg = request.getParameter("msg");
-    String highlightId = request.getParameter("id"); // Captured from redirect URL
+    
+    // Capture the ID of the just-added or edited record to trigger highlighting
+    String highlightId = request.getParameter("id"); 
 
     DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 %>
@@ -31,7 +33,7 @@
 
     <style>
         :root {
-            --bg: #f8fafc;
+            --bg: #F1F5F9;
             --card: #ffffff;
             --border: #cbd5e1;
             --text: #1e293b;
@@ -58,25 +60,27 @@
 
         table { width: 100%; border-collapse: collapse; }
         th, td { border-bottom: 1px solid #f1f5f9; padding: 18px 24px; text-align: left; vertical-align: middle; }
-        th { background: #f8fafc; font-size: 10px; text-transform: uppercase; color: var(--muted); font-weight: 900; letter-spacing: 0.05em; }
+        th { background: #f8fafc; font-size: 13px; text-transform: uppercase; color: var(--muted); font-weight: 900; letter-spacing: 0.05em; }
 
-        /* SLATE GREY HIGHLIGHT - Active for 3 seconds */
+        /* ✅ ACTIVE ROW HIGHLIGHT - Visible for 3 seconds */
         .row-highlight { 
-            background-color: #e2e8f0 !important; 
-            border-left: 4px solid #64748b; 
-            transition: background-color 0.8s ease, border-left 0.8s ease; 
+            background-color: #f1f5f9 !important; 
+            border-left: 4px solid #2563eb; 
+            transition: all 0.8s ease; 
         }
         
         .just-now-badge { 
-            background: #1e293b; 
+            background: #2563eb; 
             color: white; 
             padding: 2px 8px; 
-            border-radius: 4px; 
+            border-radius: 6px; 
             font-size: 9px; 
-            font-weight: 900; 
-            margin-left: 8px; 
+            font-weight: 950; 
+            margin-left: 12px; 
             vertical-align: middle; 
             display: inline-block; 
+            letter-spacing: 0.05em;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
             transition: opacity 0.5s ease; 
         }
 
@@ -87,7 +91,7 @@
         .btn-edit:hover { background: var(--blue-light); border-color: var(--blue-primary); color: var(--blue-primary); }
         .btn-delete:hover { background: #fef2f2; border-color: var(--red); color: var(--red); }
 
-        .pill { display: inline-block; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 10px; text-transform: uppercase; border: 1px solid transparent; }
+        .pill { display: inline-block; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 13px; text-transform: uppercase; border: 1px solid transparent; }
         .pill-public { background: #eff6ff; color: var(--blue-primary); border-color: #dbeafe; }
         .pill-company { background: #ecfdf5; color: var(--green); border-color: #d1fae5; }
         .pill-state { background: #fef3c7; color: #d97706; border-color: #fde68a; }
@@ -102,7 +106,22 @@
         
         .form-group { margin-bottom: 18px; }
         .form-group label { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 6px; letter-spacing: 0.05em; }
-        .form-control { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); outline: none; font-size: 14px; font-weight: 600; color: var(--text); text-transform: uppercase; }
+        
+        /* UPDATED: form-control to 45px height and 20px padding */
+        .form-control { 
+            width: 100%; 
+            height: 45px !important; 
+            padding: 0 20px !important; 
+            border-radius: 12px; 
+            border: 1px solid var(--border); 
+            outline: none; 
+            font-size: 14px; 
+            font-weight: 600; 
+            color: var(--text); 
+            text-transform: uppercase; 
+            transition: all 0.2s;
+        }
+        .form-control:focus { border-color: var(--blue-primary); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); }
 
         .btn-submit { width: 100%; background: #1e293b; color: white; padding: 14px; border-radius: 12px; font-size: 12px; font-weight: 800; text-transform: uppercase; transition: 0.2s; margin-top: 10px; letter-spacing: 0.05em; border:none; cursor:pointer;}
         .btn-submit:hover { background: var(--blue-primary); transform: translateY(-1px); }
@@ -123,7 +142,7 @@
             <div class="flex justify-between items-end mb-8">
                 <div>
                     <h2 class="title">Holiday Calendar</h2>
-                    <span class="sub-label">Administrator Control Panel: Manage Public Holidays and Events</span>
+                    <span class="sub-label">Manage Public Holidays and Events</span>
                 </div>
                 <button onclick="openModal('ADD')" class="btn-add shadow-sm">
                     <%= PlusIcon("w-4 h-4") %> Add Holiday
@@ -271,12 +290,12 @@
             if (highlightId) {
                 const row = document.getElementById('holiday_row_' + highlightId);
                 if (row) {
-                    // Slight delay to allow table rendering
+                    // Smooth scroll to the updated row
                     setTimeout(() => {
                         row.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }, 400);
 
-                    // Fade out slate grey background after exactly 3 seconds
+                    // Revert background color and badge after exactly 3 seconds
                     setTimeout(() => {
                         row.classList.remove('row-highlight');
                         const badge = row.querySelector('.just-now-badge');
@@ -287,7 +306,7 @@
                     }, 3000);
                 }
                 
-                // Remove ID from URL to prevent re-highlighting on manual refresh
+                // Clean the URL parameters without reloading
                 setTimeout(() => {
                     const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
                     window.history.pushState({path:newUrl}, '', newUrl);

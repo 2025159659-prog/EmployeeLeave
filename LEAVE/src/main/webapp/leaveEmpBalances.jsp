@@ -114,7 +114,7 @@
         position: sticky; top: 0; z-index: 20;
         background: #f8fafc; border-bottom: 1px solid #f1f5f9;
         padding: 12px 16px;
-        text-align: left; font-size: 10px; text-transform: uppercase;
+        text-align: left; font-size: 13px; text-transform: uppercase;
         color: var(--muted); font-weight: 900;
     }
 
@@ -127,10 +127,10 @@
     .row-inactive { opacity: 0.55; filter: grayscale(1); background-color: #f8fafc; }
 
     .empBox { width: 180px; display: flex; align-items: flex-start; gap: 10px; }
-    .emp-name { font-size: 14px; font-weight: 800; color: #0f172a; line-height: 1.3; text-transform: uppercase; }
-    .role-badge { font-size: 8px; font-weight: 900; background: #eff6ff; color: #2563eb; padding: 2px 6px; border-radius: 4px; border: 1px solid #dbeafe; text-transform: uppercase; margin-top: 4px; display: inline-block; }
-    .emp-meta { font-size: 9px; font-weight: 700; color: #3b4a5f; text-transform: uppercase; margin-top: 2px; display: block; }
-    .status-tag { font-size: 8px; font-weight: 950; text-transform: uppercase; margin-top: 4px; display: block; }
+    .emp-name { font-size: 17px; font-weight: 800; color: #0f172a; line-height: 1.3; text-transform: uppercase; }
+    .role-badge { font-size: 10px; font-weight: 900; background: #eff6ff; color: #2563eb; padding: 2px 6px; border-radius: 4px; border: 1px solid #dbeafe; text-transform: uppercase; margin-top: 4px; display: inline-block; }
+    .emp-meta { font-size: 12px; font-weight: 700; color: #3b4a5f; text-transform: uppercase; margin-top: 2px; display: block; }
+    .status-tag { font-size: 10px; font-weight: 950; text-transform: uppercase; margin-top: 4px; display: block; }
 
     .balCard { 
       background: #f1f5f9; 
@@ -142,14 +142,14 @@
     }
     .balCard:hover { background: #ffffff; transform: scale(1.02); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
     
-    .avail-lbl { color: #0f172a; font-size: 10px; font-weight: 900; text-transform: uppercase; display: block; margin-bottom: 4px; }
+    .avail-lbl { color: #0f172a; font-size: 16px; font-weight: 900; text-transform: uppercase; display: block; margin-bottom: 5px; }
     
     .avail-summary { font-size: 20px; font-weight: 900; color: #1e3a8a; line-height: 1; margin-bottom: 10px; display: flex; align-items: baseline; gap: 2px; }
     .avail-total-base { font-size: 13px; font-weight: 700; color: var(--muted); }
 
     .miniRow { 
       display: flex; justify-content: space-between; align-items: center; 
-      font-size: 10px; padding-top: 6px; margin-top: 6px; 
+      font-size: 11px; padding-top: 6px; margin-top: 6px; 
       border-top: 1px solid #e2e8f0; 
     }
     .miniRow span { color: #475569; font-size: 10px; font-weight: 900; text-transform: uppercase; }
@@ -168,7 +168,7 @@
         <div class="pageWrap">
             <div class="flex-shrink-0">
                 <h2 class="title">Leave Balances</h2>
-                <span class="sub-label">Organization-wide record entitlements and usage status</span>
+                <span class="sub-label">Record employee leave balance and usage status</span>
             </div>
 
             <% if (error != null) { %>
@@ -180,7 +180,7 @@
             <div class="card">
                 <div class="cardHead">
                     <span>Staff Entitlements Matrix</span>
-                    <div class="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
+                    <div class="text-[13px] font-black text-slate-400 uppercase bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
                         Total Staff: <%= (employees != null ? employees.size() : 0) %>
                     </div>
                 </div>
@@ -245,7 +245,7 @@
                                             LeaveBalance bal = (empBals != null ? empBals.get(typeId) : null);
 
                                             if (bal == null) { %>
-                                                <td class="text-center"><div class="text-[9px] font-black text-slate-200">N/A</div></td>
+                                                <td class="text-center"><div class="text-[15px] font-black text-slate-900">NOT ASSIGNED</div></td>
                                     <%      } else {
                                                 double available = bal.getTotalAvailable();
                                                 double used      = bal.getUsed();
@@ -259,11 +259,11 @@
                                                         <div class="avail-summary">
                                                             <span class="<%= (available <= 0 ? "text-warning" : "") %>"><%= (int)available %></span>
                                                             <span class="avail-total-base">/<%= (int)totalQuota %></span>
-                                                            <span class="text-[10px] font-bold text-slate-400 ml-1">DAYS</span>
+                                                            <span class="text-[12px] font-bold text-slate-600 ml-1">DAYS</span>
                                                         </div>
 
                                                         <div class="miniRow">
-                                                            <span>Quota</span>
+                                                            <span>Entitlement</span>
                                                             <b><%= (int)entitlement %></b>
                                                         </div>
                                                         <div class="miniRow">

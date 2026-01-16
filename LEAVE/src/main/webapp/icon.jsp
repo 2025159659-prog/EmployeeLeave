@@ -138,5 +138,15 @@ public String ExternalLinkIcon(String cls) {
  return "<svg class='" + cls + "' xmlns='http://www.w3.org/2000/svg' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/><polyline points='15 3 21 3 21 9'/><line x1='10' y1='14' x2='21' y2='3'/></svg>";
 }
 
+//Refresh Icon (Replaces fas fa-sync-alt)
+public String RefreshIcon(String cls) {
+  return "<svg class='" + cls + "' xmlns='http://www.w3.org/2000/svg' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'>"
+       + "<polyline points='23 4 23 10 17 10'/>"
+       + "<polyline points='1 20 1 14 7 14'/>"
+       + "<path d='M3.51 9a9 9 0 0 1 14.13-3.36L23 10'/>"
+       + "<path d='M20.49 15a9 9 0 0 1-14.13 3.36L1 14'/>"
+       + "</svg>";
+}
+
 
 %>

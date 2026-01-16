@@ -25,7 +25,7 @@
 
   <style>
     :root {
-      --bg: #f8fafc;
+      --bg: #f1f5f9;
       --card: #fff;
       --border: #cbd5e1;
       --text: #1e293b;
@@ -84,9 +84,12 @@
     .modal-content { background: white; width: 400px; border-radius: 16px; padding: 32px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); text-align: center; }
     .modal-active { display: flex; }
 
-    /* Message Fade-out Animation */
     .msg-fade { transition: opacity 0.5s ease, transform 0.5s ease; opacity: 1; }
     .msg-hidden { opacity: 0; transform: translateY(-10px); pointer-events: none; }
+
+    /* Custom color for Cancel Button */
+    .btn-cancel { background: #f1f5f9; color: #475569; }
+    .btn-cancel:hover { background: #e2e8f0; }
   </style>
 </head>
 
@@ -219,13 +222,13 @@
             <div class="modal-content">
                 <div id="modalIconContainer" class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"></div>
                 <h3 id="modalTitle" class="text-xl font-black text-slate-800 mb-2 uppercase tracking-tight">Are you sure?</h3>
-                <p id="modalBody" class="text-slate-500 text-sm mb-8 font-medium uppercase leading-relaxed"></p>
+                <p id="modalBody" class="text-slate-500 text-sm mb-8 font-medium leading-relaxed"></p>
                 
                 <form id="modalForm" action="ToggleEmployeeStatus" method="post">
                     <input type="hidden" name="empid" id="modalEmpId">
                     <input type="hidden" name="targetStatus" id="modalTargetStatus">
                     <div class="flex gap-3">
-                        <button type="button" class="flex-1 px-4 py-3 rounded-xl border border-slate-200 font-bold text-xs uppercase text-slate-600" onclick="closeModal()">Cancel</button>
+                        <button type="button" class="flex-1 px-4 py-3 rounded-xl border border-slate-200 font-bold text-xs uppercase btn-cancel" onclick="closeModal()">Cancel</button>
                         <button type="submit" id="modalSubmitBtn" class="flex-1 px-4 py-3 rounded-xl font-bold text-xs uppercase text-white shadow-lg">Confirm</button>
                     </div>
                 </form>
@@ -240,7 +243,6 @@
             if (statusMsg) {
                 setTimeout(() => {
                     statusMsg.classList.add('msg-hidden');
-                    // Remove from DOM after fade animation ends
                     setTimeout(() => statusMsg.remove(), 500);
                 }, 3000);
             }
@@ -258,15 +260,18 @@
             formId.value = id;
             formStatus.value = target;
 
+            // Convert staff name to uppercase for strict styling
+            const upperName = name.toUpperCase();
+
             if (target === 'INACTIVE') {
-                title.innerText = "Deactivate Staff?";
-                body.innerText = "Are you sure you want to deactivate " + name + "? Access will be revoked immediately.";
+                title.innerText = "DEACTIVATE STAFF?";
+                body.innerHTML = "Are you sure you want to deactivate <b class='text-slate-900'>" + upperName + "</b>? Access will be revoked immediately.";
                 submitBtn.style.backgroundColor = "#ef4444";
                 iconBox.style.backgroundColor = "#fee2e2";
                 iconBox.innerHTML = `<%= XCircleIcon("w-8 h-8 text-red-500") %>`;
             } else {
-                title.innerText = "Reactivate Staff?";
-                body.innerText = "Are you sure you want to reactivate " + name + "? System access will be restored.";
+                title.innerText = "REACTIVATE STAFF?";
+                body.innerHTML = "Are you sure you want to reactivate <b class='text-slate-900'>" + upperName + "</b>? System access will be restored.";
                 submitBtn.style.backgroundColor = "#10b981";
                 iconBox.style.backgroundColor = "#ecfdf5";
                 iconBox.innerHTML = `<%= CheckCircleIcon("w-8 h-8 text-emerald-500") %>`;

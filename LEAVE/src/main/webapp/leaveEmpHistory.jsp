@@ -13,18 +13,38 @@
         response.sendRedirect("login.jsp"); return;
     }
 
-    // CASTING TO BEAN LIST
+    // DATA RETRIEVAL
     List<LeaveRecord> history = (List<LeaveRecord>) request.getAttribute("history");
     List<String> years = (List<String>) request.getAttribute("years");
     
-    // Defaulting logic for filtering
+    // Filtering Parameters
     String currentStatus = request.getParameter("status") != null ? request.getParameter("status") : "ALL";
     String currentMonth = request.getParameter("month") != null ? request.getParameter("month") : ""; // Empty = Full Year
-    
-    // Default to Current Year if no year is selected
     String currentYear = request.getParameter("year");
     if (currentYear == null || currentYear.isEmpty()) {
         currentYear = String.valueOf(LocalDate.now().getYear());
+    }
+
+    // =========================
+    // PAGINATION LOGIC (10 Rows)
+    // =========================
+    int pageSize = 10;
+    int totalRecords = (history != null) ? history.size() : 0;
+    int currentPage = 1;
+    try {
+        if(request.getParameter("page") != null) currentPage = Integer.parseInt(request.getParameter("page"));
+    } catch(NumberFormatException e) { currentPage = 1; }
+
+    int totalPages = (int) Math.ceil((double) totalRecords / pageSize);
+    if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    
+    int startIndex = (currentPage - 1) * pageSize;
+    int endIndex = Math.min(startIndex + pageSize, totalRecords);
+    
+    List<LeaveRecord> paginatedList = new ArrayList<>();
+    if (history != null && !history.isEmpty() && startIndex < totalRecords) {
+        paginatedList = history.subList(startIndex, endIndex);
     }
     
     Calendar cal = Calendar.getInstance();
@@ -42,7 +62,7 @@
 
     <style>
         :root {
-            --bg: #f8fafc;
+            --bg: #f1f5f9;
             --card: #fff;
             --border: #cbd5e1;
             --text: #1e293b;
@@ -64,12 +84,21 @@
 
         .filter-bar { background: #fff; border: 1px solid var(--border); border-radius: 1.5rem; padding: 20px 24px; box-shadow: var(--shadow); margin-bottom: 24px; }
         .filter-group { display: flex; flex-direction: column; gap: 4px; }
-        .filter-label { font-size: 10px; font-weight: 900; color: var(--muted); text-transform: uppercase; tracking-widest; margin-left: 4px; }
+        .filter-label { font-size: 10px; font-weight: 900; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-left: 4px; }
         
+        /* UPDATED: Filter box styling 45px height and 20px padding */
         select {
-            padding: 10px 16px; border-radius: 12px; border: 1px solid var(--border); 
-            outline: none; font-size: 14px; font-weight: 600; cursor: pointer; background: #fff;
+            height: 45px !important;
+            padding: 0 20px !important; 
+            border-radius: 12px; 
+            border: 1px solid var(--border); 
+            outline: none; 
+            font-size: 14px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            background: #fff;
             transition: all 0.2s;
+            min-width: 180px;
         }
         select:focus { border-color: var(--blue-primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
 
@@ -86,6 +115,12 @@
         .status-cancelled { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; } 
         .status-cancellation-requested { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; }
 
+        /* Pagination Styles */
+        .pagination-btn { padding: 8px 16px; border-radius: 10px; border: 1px solid var(--border); font-size: 12px; font-weight: 800; transition: 0.2s; color: var(--muted); background: white; }
+        .pagination-btn:hover:not(:disabled) { border-color: var(--blue-primary); color: var(--blue-primary); background: var(--blue-light); }
+        .pagination-btn.active { background: var(--blue-primary); color: #fff; border-color: var(--blue-primary); }
+        .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
         .modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.6); display:none; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px); padding: 20px; }
         .modal-overlay.show { display:flex; }
         .modal-content { background:white; width: 100%; max-width: 750px; max-height: 90vh; border-radius: 32px; padding: 40px; position: relative; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); display: flex; flex-direction: column; overflow: hidden; animation: slideUp 0.3s ease; }
@@ -96,7 +131,6 @@
         .btn-close { position: absolute; top: 24px; right: 24px; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #94a3b8; transition: 0.2s; z-index: 10; }
         .btn-close:hover { background: #fef2f2; border-color: #fecaca; color: #ef4444; }
         .dynamic-meta-container { background: #f8fafc; border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-top: 10px; margin-bottom: 24px; }
-        .type-id-tag { background: #eff6ff; color: #2563eb; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-family: monospace; font-weight: 800; border: 1px solid #dbeafe; }
     </style>
 </head>
 <body>
@@ -111,17 +145,20 @@
             <div class="flex justify-between items-end mb-8">
                 <div>
                     <h2 class="title">LEAVE HISTORY</h2>
-                    <span class="sub-label">Administrator Panel: Showing records for <%= currentYear %></span>
+                    <span class="sub-label">Administrator Panel: Audit Log for <%= currentYear %></span>
                 </div>
-                <div class="bg-white border border-slate-200 px-4 py-2 rounded-xl text-xs font-black text-slate-500 shadow-sm">
-                    Total Records Found: <%= (history != null ? history.size() : 0) %>
+                <div class="bg-white border border-slate-200 px-4 py-2 rounded-xl text-xs font-black text-slate-500 shadow-sm uppercase tracking-tighter">
+                    Total Records: <%= totalRecords %>
                 </div>
             </div>
 
-            <form action="leaveEmpHistory" method="get" class="filter-bar flex flex-wrap items-center gap-6">
+            <!-- Automatic Filter Form -->
+            <form id="filterForm" action="leaveEmpHistory" method="get" class="filter-bar flex flex-wrap items-center gap-6">
+                <input type="hidden" name="page" value="1">
+                
                 <div class="filter-group">
                     <span class="filter-label">Status</span>
-                    <select name="status">
+                    <select name="status" onchange="this.form.submit()">
                         <option value="ALL" <%= "ALL".equals(currentStatus)?"selected":"" %>>All Statuses</option>
                         <option value="PENDING" <%= "PENDING".equals(currentStatus)?"selected":"" %>>Pending</option>
                         <option value="APPROVED" <%= "APPROVED".equals(currentStatus)?"selected":"" %>>Approved</option>
@@ -133,7 +170,7 @@
 
                 <div class="filter-group">
                     <span class="filter-label">Month</span>
-                    <select name="month">
+                    <select name="month" onchange="this.form.submit()">
                         <option value="">Full Year</option>
                         <% for(int m=1; m<=12; m++) { 
                             String mVal = String.format("%02d", m);
@@ -146,16 +183,12 @@
 
                 <div class="filter-group">
                     <span class="filter-label">Year</span>
-                    <select name="year">
+                    <select name="year" onchange="this.form.submit()">
                         <% if(years != null) { for(String yr : years) { %>
                             <option value="<%=yr%>" <%= yr.equals(currentYear)?"selected":"" %>><%=yr%></option>
                         <% } } %>
                     </select>
                 </div>
-
-                <button type="submit" class="mt-4 bg-blue-600 text-white px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center gap-2 ml-auto">
-                    <i class="fas fa-filter text-[10px]"></i> Refresh History
-                </button>
             </form>
 
             <div class="card">
@@ -172,9 +205,9 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <% if (history == null || history.isEmpty()) { %>
+                            <% if (paginatedList.isEmpty()) { %>
                                 <tr><td colspan="6" class="text-center py-24 text-slate-300 font-bold uppercase text-xs italic tracking-widest">No matching history records found.</td></tr>
-                            <% } else { for (LeaveRecord r : history) { 
+                            <% } else { for (LeaveRecord r : paginatedList) { 
                                 String status = r.getStatusCode();
                                 String badgeClass = "status-pending";
                                 if ("APPROVED".equalsIgnoreCase(status)) badgeClass = "status-approved";
@@ -199,7 +232,7 @@
                                                 <% } %>
                                             </div>
                                             <div>
-                                                <div class="font-bold text-slate-800 text-sm"><%= r.getFullName() %></div>
+                                                <div class="font-bold text-slate-800 text-sm uppercase"><%= r.getFullName() %></div>
                                                 <div class="text-[10px] text-blue-600 font-bold uppercase tracking-tighter"><%= displayEmpId %></div>
                                             </div>
                                         </div>
@@ -218,14 +251,12 @@
                                                 data-name="<%= r.getFullName() %>" 
                                                 data-idcode="<%= displayEmpId %>"
                                                 data-type="<%= r.getTypeCode() %>" 
-                                                data-typeid="<%= r.getLeaveTypeId() %>"
                                                 data-start="<%= r.getStartDate() %>" 
                                                 data-end="<%= r.getEndDate() %>" 
                                                 data-days="<%= r.getDurationDays() %>" 
                                                 data-duration="<%= r.getDuration() %>" 
                                                 data-applied="<%= r.getAppliedOn() %>" 
                                                 data-reason="<%= r.getReason() %>" 
-                                                data-status="<%= status %>" 
                                                 data-attachment="<%= r.getAttachment() != null ? r.getAttachment() : "" %>"
                                                 data-med="<%= r.getMedicalFacility() %>" 
                                                 data-ref="<%= r.getRefSerialNo() %>"
@@ -236,7 +267,7 @@
                                                 data-cnt="<%= r.getEmergencyContact() %>"
                                                 data-spo="<%= r.getSpouseName() %>" 
                                                 data-comment="<%= r.getManagerComment() != null ? r.getManagerComment() : "-" %>">
-                                            <%= EyeIcon("w-3 h-3") %> View
+                                            <%= EyeIcon("w-3.5 h-3.5") %> View
                                         </button>
                                     </td>
                                 </tr>
@@ -244,11 +275,37 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- PAGINATION FOOTER -->
+                <div class="px-6 py-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                    <div class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                        Showing <%= totalRecords == 0 ? 0 : startIndex + 1 %> to <%= endIndex %> of <%= totalRecords %> entries
+                    </div>
+                    
+                    <% if (totalPages > 1) { %>
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="pagination-btn" onclick="goToPage(<%= currentPage - 1 %>)" <%= currentPage == 1 ? "disabled" : "" %>>
+                            <i class="fas fa-chevron-left mr-1"></i> Prev
+                        </button>
+                        
+                        <% for(int p=1; p<=totalPages; p++) { %>
+                            <button type="button" class="pagination-btn <%= p == currentPage ? "active" : "" %>" onclick="goToPage(<%= p %>)">
+                                <%= p %>
+                            </button>
+                        <% } %>
+                        
+                        <button type="button" class="pagination-btn" onclick="goToPage(<%= currentPage + 1 %>)" <%= currentPage == totalPages ? "disabled" : "" %>>
+                            Next <i class="fas fa-chevron-right ml-1"></i>
+                        </button>
+                    </div>
+                    <% } %>
+                </div>
             </div>
         </div>
     </main>
 </div>
 
+<!-- POPUP MODAL (UNCHANGED LOGIC) -->
 <div class="modal-overlay" id="detailModal">
     <div class="modal-content">
         <button type="button" class="btn-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
@@ -270,7 +327,6 @@
                 <span class="info-label">Leave Category</span>
                 <div class="flex items-center gap-3">
                     <span class="info-value text-blue-600 mb-0" id="popType"></span>
-                    <span id="popTypeIdTag" class="type-id-tag"></span>
                 </div>
             </div>
             
@@ -337,6 +393,23 @@
 <script>
     const CTX = "<%=request.getContextPath()%>";
 
+    // Auto-Dismiss Messages
+    window.onload = function() {
+        const msg = document.getElementById('statusAlert');
+        if (msg) {
+            setTimeout(() => {
+                msg.style.opacity = '0';
+                setTimeout(() => msg.remove(), 500);
+            }, 3000);
+        }
+    };
+
+    function goToPage(pageNum) {
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('page', pageNum);
+        window.location.search = urlParams.toString();
+    }
+
     function viewDetails(btn) {
         const d = btn.dataset;
         document.getElementById('popName').textContent = d.name;
@@ -349,14 +422,6 @@
         document.getElementById('popApplied').textContent = d.applied;
         document.getElementById('popReason').textContent = d.reason || "No reason provided.";
         document.getElementById('popComment').textContent = d.comment && d.comment !== "-" ? d.comment : "No remarks available.";
-
-        const tag = document.getElementById('popTypeIdTag');
-        if(d.typeid && d.typeid !== "null" && d.typeid !== "N/A") {
-            tag.textContent = "ID: " + d.typeid;
-            tag.style.display = 'inline-block';
-        } else {
-            tag.style.display = 'none';
-        }
 
         const abox = document.getElementById('attachBox');
         const noAttach = document.getElementById('noAttachLabel');
@@ -376,7 +441,7 @@
         
         const addAttr = (label, val) => {
             if(val && val !== "null" && val !== "" && val !== "undefined" && val !== "N/A" && val !== "0") {
-                grid.innerHTML += '<div class="info-item border-b border-slate-100 pb-2 flex justify-between items-center"><span class="info-label text-slate-400 mb-0">'+label+'</span><span class="info-value mb-0 text-slate-600 font-bold">'+val+'</span></div>';
+                grid.innerHTML += '<div class="info-item border-b border-slate-100 pb-2 flex justify-between items-center"><span class="info-label text-slate-400 mb-0">'+label+'</span><span class="info-value mb-0 text-slate-600 font-bold uppercase text-[11px]">'+val+'</span></div>';
                 count++;
             }
         };

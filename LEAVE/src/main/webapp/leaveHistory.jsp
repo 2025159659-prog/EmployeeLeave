@@ -20,15 +20,34 @@ if (ses == null || ses.getAttribute("empid") == null ||
 // =========================
 // DATA RETRIEVAL
 // =========================
-List<Map<String, Object>> leaves = (List<Map<String, Object>>) request.getAttribute("leaves");
+List<Map<String, Object>> allLeaves = (List<Map<String, Object>>) request.getAttribute("leaves");
 List<String> years = (List<String>) request.getAttribute("years");
 String dbError = (String) request.getAttribute("error");
 
-if (leaves == null) leaves = new ArrayList<>();
+if (allLeaves == null) allLeaves = new ArrayList<>();
 if (years == null) years = new ArrayList<>();
 
 String currentStatus = request.getParameter("status") != null ? request.getParameter("status") : "ALL";
 String currentYear = request.getParameter("year") != null ? request.getParameter("year") : "";
+
+// =========================
+// PAGINATION LOGIC (10 entries)
+// =========================
+int pageSize = 10;
+int totalRecords = allLeaves.size();
+int currentPage = 1;
+try {
+    if(request.getParameter("p") != null) currentPage = Integer.parseInt(request.getParameter("p"));
+} catch(Exception e) { currentPage = 1; }
+
+int totalPages = (int) Math.ceil((double) totalRecords / pageSize);
+if (currentPage < 1) currentPage = 1;
+if (totalPages > 0 && currentPage > totalPages) currentPage = totalPages;
+
+int startIdx = (currentPage - 1) * pageSize;
+int endIdx = Math.min(startIdx + pageSize, totalRecords);
+
+List<Map<String, Object>> leaves = (totalRecords > 0) ? allLeaves.subList(startIdx, endIdx) : new ArrayList<>();
 
 // Formatting setup - STRICT DD/MM/YYYY
 SimpleDateFormat sdfDb = new SimpleDateFormat("yyyy-MM-dd");
@@ -58,7 +77,7 @@ Date todayMidnight = calToday.getTime();
 
 <style>
 :root {
-  --bg: #f8fafc;
+  --bg: #f1f5f9;
   --card: #ffffff;
   --primary: #2563eb;
   --text-main: #1e293b;
@@ -76,7 +95,7 @@ body { background: var(--bg); color: var(--text-main); margin: 0; overflow-x: hi
 .title { font-size: 26px; font-weight: 800; margin: 0; text-transform: uppercase; color: #000; letter-spacing: -0.02em; }
 .sub-label { color: var(--primary); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; display: block; }
 
-/* Filter Styling */
+/* Filter Styling - 45px height and 20px padding */
 .filter-card {
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 14px 24px; display: flex; justify-content: space-between; align-items: center;
@@ -85,17 +104,33 @@ body { background: var(--bg); color: var(--text-main); margin: 0; overflow-x: hi
 .filter-group { display: flex; align-items: center; gap: 12px; }
 .filter-group label { font-size: 11px; font-weight: 900; color: #233f66; text-transform: uppercase; letter-spacing: 0.05em; }
 
+/* Standard styling for dropdowns */
+.filter-card select { 
+    height: 45px !important; 
+    padding: 0 20px !important; 
+    border-radius: 12px; 
+    border: 2.1px solid var(--border); 
+    background: #fff; 
+    font-size: 14px; 
+    font-weight: 600; 
+    outline: none; 
+    transition: 0.2s; 
+    cursor: pointer;
+}
+.filter-card select:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.05); }
+
 select, input[type="date"], textarea { padding: 10px 16px; border-radius: 12px; border: 2.1px solid var(--border); background: #fff; font-size: 14px; font-weight: 600; outline: none; transition: 0.2s; }
-select:focus, input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.05); }
 
 /* UPDATED: Modal Input Specific Styling */
 .modal-body select, 
 .modal-body input[type="date"] { 
     height: 45px !important; 
     padding: 0 20px !important; 
+    border: 2px solid var(--border);
 }
 .modal-body textarea { 
     padding: 20px !important; 
+    border: 2px solid var(--border);
 }
 
 /* Table Optimization */
@@ -110,6 +145,15 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
 .status-rejected { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; } 
 .status-cancelled { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; } 
 .status-cancellation-requested { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; } 
+
+/* Pagination UI */
+.pagination-container { padding: 16px 24px; background: #fcfcfd; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+.pagination-info { font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+.pagination-nav { display: flex; gap: 6px; }
+.nav-btn { padding: 6px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; font-size: 11px; font-weight: 800; color: #64748b; transition: 0.2s; text-decoration: none; }
+.nav-btn:hover:not(.disabled) { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+.nav-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.nav-btn.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 
 .lr-id { color: var(--primary); font-weight: 900; font-family: monospace; font-size: 14px; text-decoration: none; border-bottom: 1px dashed transparent; }
 .lr-id:hover { border-bottom-color: var(--primary); }
@@ -137,6 +181,7 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
 .btn-modal-primary:hover:not(:disabled) { background: var(--primary); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); }
 .btn-modal-primary:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(1); }
 
+/* Updated: Standard Light Button for Cancel as per Directory style */
 .btn-modal-secondary { background: #f1f5f9; color: #64748b; padding: 14px 24px; border-radius: 16px; font-weight: 800; font-size: 14px; transition: 0.2s; text-align: center; display: block; width: 100%; text-transform: uppercase; border: none; cursor: pointer; }
 .btn-modal-secondary:hover { background: #e2e8f0; color: #1e293b; }
 
@@ -158,27 +203,28 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
             </div>
         </div>
 
-        <% if (dbError != null) { %><div class="bg-red-50 text-red-600 p-4 rounded-2xl mb-6 text-sm font-bold border border-red-100 uppercase"><i class="fas fa-exclamation-circle mr-2"></i> <%= dbError %></div><% } %>
+        <% if (dbError != null) { %><div id="statusAlert" class="bg-red-50 text-red-600 p-4 rounded-2xl mb-6 text-sm font-bold border border-red-100 uppercase transition-opacity duration-500"><i class="fas fa-exclamation-circle mr-2"></i> <%= dbError %></div><% } %>
 
         <form action="<%=request.getContextPath()%>/LeaveHistory" method="get" class="filter-card">
+            <input type="hidden" name="p" value="1">
             <div class="filter-group">
                 <label>Status</label>
-                <select name="status">
-                    <option value="ALL" <%= currentStatus.equals("ALL")?"selected":"" %>>ALL STATUS</option>
-                    <option value="PENDING" <%= currentStatus.equals("PENDING")?"selected":"" %>>PENDING</option>
-                    <option value="APPROVED" <%= currentStatus.equals("APPROVED")?"selected":"" %>>APPROVED</option>
-                    <option value="REJECTED" <%= currentStatus.equals("REJECTED")?"selected":"" %>>REJECTED</option>
+                <%-- Automatic submit on change + all 5 status --%>
+                <select name="status" onchange="this.form.submit()">
+                    <option value="ALL" <%= currentStatus.equals("ALL")?"selected":"" %>>All Statuses</option>
+                    <option value="PENDING" <%= currentStatus.equals("PENDING")?"selected":"" %>>Pending Approval</option>
+                    <option value="APPROVED" <%= currentStatus.equals("APPROVED")?"selected":"" %>>Approved</option>
+                    <option value="REJECTED" <%= currentStatus.equals("REJECTED")?"selected":"" %>>Rejected</option>
+                    <option value="CANCELLED" <%= currentStatus.equals("CANCELLED")?"selected":"" %>>Cancelled</option>
+                    <option value="CANCELLATION_REQUESTED" <%= currentStatus.equals("CANCELLATION_REQUESTED")?"selected":"" %>>Cancellation Requested</option>
                 </select>
                 <label class="ml-4">Year</label>
-                <select name="year">
-                    <option value="">ALL YEARS</option>
+                <select name="year" onchange="this.form.submit()">
+                    <option value="">All Years</option>
                     <% for(String yr : years) { %><option value="<%=yr%>" <%= yr.equals(currentYear)?"selected":"" %>><%=yr%></option><% } %>
                 </select>
-                <button type="submit" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-all ml-4">
-                    Filter Records
-                </button>
             </div>
-            <div class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Total Records: <%= leaves.size() %></div>
+            <div class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Total Records: <%= totalRecords %></div>
         </form>
 
         <div class="table-card">
@@ -267,16 +313,16 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
                             <% if(!startDisplay.equals(endDisplay)) { %><span class="text-[11px] text-slate-500 block font-bold uppercase tracking-tight">to <%= endDisplay %></span><% } %>
                         </td>
                         <td class="font-black text-blue-600 text-base"><%= l.get("totalDays") %></td>
-                        <td><span class="badge <%= badgeCls %>"><span class="w-1.5 h-1.5 rounded-full bg-current"></span> <%= code %></span></td>
+                        <td><span class="badge <%= badgeCls %>"><span class="w-1.5 h-1.5 rounded-full bg-current"></span> <%= code.replace("_", " ") %></span></td>
                         <td class="text-slate-600 text-[12px] font-bold"><%= appliedDisplay %></td>
                         <td>
                             <div class="flex gap-2 justify-end">
                                 <% if ("PENDING".equalsIgnoreCase(code)) { %>
                                     <button class="btn-action" onclick="openEditModal('<%= l.get("id") %>')"><%= EditIcon("w-4 h-4") %></button>
-                                    <button class="btn-action btn-danger" onclick="askConfirm('DELETE', '<%= l.get("id") %>')"><%= TrashIcon("w-4 h-4") %></button>
+                                    <button class="btn-action btn-danger" onclick="askConfirm('DELETE', '<%= l.get("id") %>', '#LR-<%= l.get("id") %>')"><%= TrashIcon("w-4 h-4") %></button>
                                 <% } else if ("APPROVED".equalsIgnoreCase(code)) { %>
                                     <% if (!isStartedOrPassed) { %>
-                                        <button class="btn-action text-orange-500" onclick="askConfirm('REQ_CANCEL', '<%= l.get("id") %>')"><%= RotateCcwIcon("w-4 h-4") %></button>
+                                        <button class="btn-action text-orange-500" onclick="askConfirm('REQ_CANCEL', '<%= l.get("id") %>', '#LR-<%= l.get("id") %>')"><%= RotateCcwIcon("w-4 h-4") %></button>
                                     <% } else { %>
                                         <span class="text-[11px] font-black text-slate-500 uppercase tracking-widest">Locked</span>
                                     <% } %>
@@ -289,6 +335,23 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
                 <% } } %>
                 </tbody>
             </table>
+
+            <!-- PAGINATION FOOTER -->
+            <div class="pagination-container">
+                <div class="pagination-info">
+                    Showing <%= totalRecords == 0 ? 0 : startIdx + 1 %> to <%= endIdx %> of <%= totalRecords %> entries
+                </div>
+                <div class="pagination-nav">
+                    <% 
+                       String baseUrl = request.getContextPath() + "/LeaveHistory?status=" + currentStatus + "&year=" + currentYear;
+                    %>
+                    <a href="<%= baseUrl %>&p=<%= currentPage - 1 %>" class="nav-btn <%= currentPage == 1 ? "disabled" : "" %>">Previous</a>
+                    <% for(int i=1; i<=totalPages; i++) { %>
+                        <a href="<%= baseUrl %>&p=<%= i %>" class="nav-btn <%= currentPage == i ? "active" : "" %>"><%= i %></a>
+                    <% } %>
+                    <a href="<%= baseUrl %>&p=<%= currentPage + 1 %>" class="nav-btn <%= currentPage == totalPages || totalPages == 0 ? "disabled" : "" %>">Next</a>
+                </div>
+            </div>
         </div>
     </div>
 </main>
@@ -437,8 +500,8 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
         <button type="button" class="btn-close" onclick="closeModal('confirmOverlay')"><%= XCircleIcon("w-6 h-6") %></button>
         <div class="modal-body">
             <div id="confIcon" class="mx-auto mb-6"></div>
-            <h3 id="confTitle" class="text-2xl font-black text-slate-800 tracking-tight uppercase mb-2">Confirm Action</h3>
-            <p id="confMsg" class="text-slate-500 font-medium mb-10 text-sm leading-relaxed uppercase"></p>
+            <h3 id="confTitle" class="text-xl font-black text-slate-800 tracking-tight uppercase mb-2">Confirm Action</h3>
+            <p id="confMsg" class="text-slate-500 font-medium mb-10 text-sm leading-relaxed"></p>
             
             <form id="confForm">
                 <input type="hidden" name="id" id="confId">
@@ -455,6 +518,17 @@ td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; vert
 const CTX = "<%=request.getContextPath()%>";
 let activeBalance = 0; 
 let originalDays = 0; // Added: Track the original duration to recalculate allowed balance
+
+window.addEventListener('DOMContentLoaded', () => {
+    // Auto-dismiss alert messages
+    const alert = document.getElementById('statusAlert');
+    if (alert) {
+        setTimeout(() => {
+            alert.style.opacity = '0';
+            setTimeout(() => alert.remove(), 500);
+        }, 3000);
+    }
+});
 
 function viewDetails(btn) {
     const d = btn.dataset;
@@ -495,7 +569,7 @@ function viewDetails(btn) {
     
     const addAttr = (label, val) => {
         if(val && val !== "null" && val !== "" && val !== "undefined" && val !== "N/A") {
-            grid.innerHTML += '<div class="info-item border-b border-slate-100 pb-2 flex justify-between items-center"><span class="info-label text-slate-400 mb-0 font-bold uppercase">'+label+'</span><span class="info-value mb-0 text-slate-600 font-black">'+val+'</span></div>';
+            grid.innerHTML += '<div class="info-item border-b border-slate-100 pb-2 flex justify-between items-center"><span class="info-label text-slate-400 mb-0 font-bold uppercase">'+label+'</span><span class="info-value mb-0 text-slate-600 font-black text-xs">'+val+'</span></div>';
             count++;
         }
     };
@@ -530,12 +604,7 @@ async function openEditModal(id) {
         const res = await fetch(CTX + "/EditLeave?id=" + id, { headers: {'Accept': 'application/json'} });
         const data = await res.json();
         
-        // Logic fix: Fetch balance AND current record duration
         activeBalance = parseFloat(data.balance) || 0; 
-        
-        // Calculate original duration from dates provided in JSON if durationDays isn't directly sent
-        // However, we can use the dates in the record to estimate it or wait for server verification.
-        // For accurate client-side feedback, let's estimate original duration (excluding weekends)
         const oStart = new Date(data.startDate);
         const oEnd = new Date(data.endDate);
         if (data.duration.startsWith('HALF_DAY')) {
@@ -565,14 +634,13 @@ async function openEditModal(id) {
     } catch (e) { closeModal('editOverlay'); }
 }
 
-// Helper: Estimate working days (excludes Sat/Sun)
 function estimateWorkingDays(start, end) {
     if (end < start) return 0;
     let count = 0;
     let cur = new Date(start);
     while (cur <= end) {
         const day = cur.getDay();
-        if (day !== 0 && day !== 6) count++; // Not Sun (0) or Sat (6)
+        if (day !== 0 && day !== 6) count++;
         cur.setDate(cur.getDate() + 1);
     }
     return count;
@@ -599,19 +667,16 @@ function validateEdit() {
 
     let errorMsg = "";
     let isInvalid = false;
-
-    // Fixed logic: newDays must be <= (current available balance + the days from the record being edited)
-    // Because activeBalance already had originalDays deducted when the request was first submitted.
     const maxAllowed = activeBalance + originalDays;
 
     if (end < start) {
-        errorMsg = "End date cannot be before start date.";
+        errorMsg = "End date cannot be earlier than start date.";
         isInvalid = true;
     } else if (newDays === 0) {
         errorMsg = "Selected dates fall on weekends.";
         isInvalid = true;
     } else if (newDays > maxAllowed) {
-        errorMsg = "Insufficient balance. Total allowed (including this record): " + maxAllowed + " days. Requested: " + newDays;
+        errorMsg = "Insufficient balance. Allowed (including this record): " + maxAllowed + " days. Requested: " + newDays;
         isInvalid = true;
     }
 
@@ -639,7 +704,6 @@ document.getElementById('editForm').onsubmit = async function(e) {
         if (txt.trim() === "OK") {
             window.location.reload();
         } else {
-            // Show error returned from server (e.g., actual balance check with holidays)
             const err = document.getElementById('editValidationError');
             err.textContent = txt;
             err.classList.remove('hidden');
@@ -652,7 +716,7 @@ document.getElementById('editForm').onsubmit = async function(e) {
     }
 };
 
-function askConfirm(action, id) {
+function askConfirm(action, id, recordId) {
     const t = document.getElementById('confTitle');
     const m = document.getElementById('confMsg');
     const f = document.getElementById('confForm');
@@ -661,14 +725,14 @@ function askConfirm(action, id) {
     document.getElementById('confId').value = id;
 
     if(action === 'DELETE') {
-        t.innerText = "Delete Record?";
-        m.innerText = "Are you sure you want to remove this pending leave application? This cannot be undone.";
+        t.innerText = "DELETE RECORD?";
+        m.innerHTML = "Are you sure you want to delete <b class='text-slate-900'>" + recordId + "</b>? This pending leave application will be removed permanently.";
         f.dataset.action = CTX + "/DeleteLeave";
         b.className = "btn-modal-primary flex-1 bg-red-600 hover:bg-red-700 shadow-red-100";
         ic.innerHTML = `<div class='w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 text-3xl mx-auto shadow-inner'><%= TrashIcon("w-10 h-10") %></div>`;
     } else {
-        t.innerText = "Request Cancel?";
-        m.innerText = "Submit a request to cancel this approved leave. It will require manager approval.";
+        t.innerText = "REQUEST CANCELLATION?";
+        m.innerHTML = "Are you sure you want to request cancellation for <b class='text-slate-900'>" + recordId + "</b>? This will require manager approval.";
         f.dataset.action = CTX + "/CancelLeave";
         b.className = "btn-modal-primary flex-1 bg-orange-600 hover:bg-orange-700 shadow-orange-100";
         ic.innerHTML = `<div class='w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center text-orange-500 text-3xl mx-auto shadow-inner'><%= RotateCcwIcon("w-10 h-10") %></div>`;
@@ -695,6 +759,12 @@ window.onclick = (e) => {
         closeModal(e.target.id);
     }
 }
+
+document.addEventListener('input', function(e) {
+    if(e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && e.target.type === 'text')) {
+        e.target.value = e.target.value.toUpperCase();
+    }
+});
 </script>
 </body>
 </html>

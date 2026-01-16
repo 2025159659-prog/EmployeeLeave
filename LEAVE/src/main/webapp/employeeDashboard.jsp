@@ -74,7 +74,7 @@ return;
   
   <style>
     :root {
-      --bg: #f8fafc;
+      --bg: #f1f5f9;
       --card: #ffffff;
       --border: #e2e8f0;
       --text: #1e293b;

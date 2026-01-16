@@ -20,7 +20,7 @@
 
     <style>
         :root {
-            --bg: #f8fafc;
+            --bg: #f1f5f9;
             --card: #ffffff;
             --border: #e2e8f0;
             --text: #1e293b;
@@ -343,9 +343,11 @@
                         </div>
 
                         <div class="actions">
-                            <a class="btn btnGhost" href="EmployeeDirectory">
-                                <%= ArrowLeftIcon("icon-sm") %> Cancel
-                            </a>
+                            <!-- Updated from link to Reset button -->
+                            <button type="reset" class="btn btnGhost">
+                                <%= RefreshIcon("icon-sm") %> Reset
+                            </button>
+                            
                             <button class="btn btnPrimary" type="submit">
                                 <%= SaveIcon("icon-sm") %> Create Account
                             </button>

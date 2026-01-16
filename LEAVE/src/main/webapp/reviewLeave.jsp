@@ -1,6 +1,7 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ page import="java.util.*" %>
 <%@ page import="java.time.*" %>
+<%@ page import="java.time.format.TextStyle" %>
 <%@ page import="bean.LeaveRecord" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
 <%@ include file="icon.jsp" %>
@@ -19,11 +20,48 @@
     }
 
     // DATA CASTING
-    List<LeaveRecord> leaves = (List<LeaveRecord>) request.getAttribute("leaves");
+    List<LeaveRecord> allLeaves = (List<LeaveRecord>) request.getAttribute("leaves");
+    if (allLeaves == null) allLeaves = new ArrayList<>();
+    
     Integer pendingCount = (Integer) request.getAttribute("pendingCount") != null ? (Integer) request.getAttribute("pendingCount") : 0;
     Integer cancelReqCount = (Integer) request.getAttribute("cancelReqCount") != null ? (Integer) request.getAttribute("cancelReqCount") : 0;
+    
+    List<String> years = (List<String>) request.getAttribute("years");
+    if (years == null) {
+        years = new ArrayList<>();
+        int curYr = LocalDate.now().getYear();
+        for(int i=0; i<5; i++) years.add(String.valueOf(curYr - i));
+    }
+
     String msg = request.getParameter("msg");
     String error = request.getParameter("error");
+    
+    // Filtering state
+    String currentStatus = request.getParameter("status") != null ? request.getParameter("status") : "ALL";
+    String currentMonth = request.getParameter("month") != null ? request.getParameter("month") : "";
+    String currentYear = request.getParameter("year") != null ? request.getParameter("year") : String.valueOf(LocalDate.now().getYear());
+
+    // =========================
+    // PAGINATION LOGIC (10 Rows)
+    // =========================
+    int pageSize = 10;
+    int totalRecords = allLeaves.size();
+    int currentPage = 1;
+    try {
+        if(request.getParameter("page") != null) currentPage = Integer.parseInt(request.getParameter("page"));
+    } catch(NumberFormatException e) { currentPage = 1; }
+
+    int totalPages = (int) Math.ceil((double) totalRecords / pageSize);
+    if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    
+    int startIndex = (currentPage - 1) * pageSize;
+    int endIndex = Math.min(startIndex + pageSize, totalRecords);
+    
+    List<LeaveRecord> leaves = new ArrayList<>();
+    if (!allLeaves.isEmpty() && startIndex < totalRecords) {
+        leaves = allLeaves.subList(startIndex, endIndex);
+    }
     
     Calendar cal = Calendar.getInstance();
 %>
@@ -40,7 +78,7 @@
 
     <style>
         :root {
-            --bg: #f8fafc;
+            --bg: #f1f5f9;
             --card: #fff;
             --border: #cbd5e1;
             --text: #1e293b;
@@ -59,6 +97,28 @@
         .title { font-size: 26px; font-weight: 800; margin: 0; text-transform: uppercase; color: var(--text); }
         .sub-label { color: var(--blue-primary); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; display: block; }
 
+        /* Filter bar with automatic selection style */
+        .filter-bar { background: #fff; border: 1px solid var(--border); border-radius: 1.5rem; padding: 20px 24px; box-shadow: var(--shadow); margin-bottom: 24px; }
+        .filter-group { display: flex; flex-direction: column; gap: 4px; }
+        .filter-label { font-size: 10px; font-weight: 900; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-left: 4px; }
+        
+        /* UPDATED: Dropdowns 45px height and 20px padding */
+        select { 
+            height: 45px !important; 
+            padding: 0 20px !important; 
+            width: 100%; 
+            border-radius: 12px; 
+            border: 1px solid var(--border); 
+            outline: none; 
+            font-size: 13px; 
+            font-weight: 600; 
+            background: #fff; 
+            margin-top: 8px; 
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        select:focus { border-color: var(--blue-primary); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08); }
+
         .stat-grid { display: grid; grid-template-cols: repeat(2, 1fr); gap: 20px; margin-bottom: 32px; }
         .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; border-left: 5px solid var(--blue-primary); box-shadow: var(--shadow); }
         .stat-card.orange { border-left-color: #f97316; }
@@ -67,11 +127,17 @@
         
         table { width: 100%; border-collapse: collapse; }
         th, td { border-bottom: 1px solid #f1f5f9; padding: 16px 20px; text-align: left; vertical-align: middle; }
-        th { background: #f8fafc; font-size: 10px; text-transform: uppercase; color: var(--muted); font-weight: 800; letter-spacing: 0.05em; }
+        th { background: #f8fafc; font-size: 14px; text-transform: uppercase; color: var(--muted); font-weight: 800; letter-spacing: 0.05em; }
 
-        .badge { padding: 4px 12px; border-radius: 20px; font-size: 9px; font-weight: 800; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px; }
+        .badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px; }
         .status-pending { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; } 
         .status-cancellation-requested { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; }
+
+        /* Pagination Controls */
+        .pagination-btn { padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border); font-size: 12px; font-weight: 800; transition: 0.2s; color: var(--muted); background: white; }
+        .pagination-btn:hover:not(:disabled) { border-color: var(--blue-primary); color: var(--blue-primary); background: var(--blue-light); }
+        .pagination-btn.active { background: var(--blue-primary); color: #fff; border-color: var(--blue-primary); }
+        .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
         .modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.6); display:none; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px); padding: 20px; }
         .modal-overlay.show { display:flex; }
@@ -79,63 +145,23 @@
         @keyframes slideUp { from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
         .modal-body { overflow-y: auto; padding: 40px; flex: 1; }
         
-        .info-label { font-size:10px; font-weight:800; color:#94a3b8; text-transform:uppercase; display:block; margin-bottom:4px; letter-spacing:0.05em; }
-        .info-value { font-size:14px; font-weight:700; color:#1e293b; display:block; margin-bottom:18px; }
+        .info-label { font-size:12px; font-weight:800; color:#94a3b8; text-transform:uppercase; display:block; margin-bottom:4px; letter-spacing:0.05em; }
+        .info-value { font-size:15px; font-weight:700; color:#1e293b; display:block; margin-bottom:18px; }
         
         .btn-close { position: absolute; top: 24px; right: 24px; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #94a3b8; transition: 0.2s; z-index: 10; }
 
         .decision-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 24px; padding: 28px; margin-top: 24px; }
-        select, textarea { width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); outline: none; font-size: 13px; font-weight: 600; background: #fff; margin-top: 8px; }
+        textarea { width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); outline: none; font-size: 13px; font-weight: 600; background: #fff; margin-top: 8px; }
 
-       /* Container to hold both buttons */
-.button-group {
-    display: flex;
-    gap: 12px; /* Space between buttons */
-    width: 100%;
-    margin-top: 20px;
-}
-
-/* Base styles for both buttons to ensure same size */
-.btn-submit, .btn-cancel {
-    flex: 1; /* This makes them exactly the same width */
-    padding: 16px;
-    border-radius: 14px;
-    font-weight: 800;
-    text-transform: uppercase;
-    cursor: pointer;
-    border: none;
-    font-size: 11px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    transition: 0.2s;
-    letter-spacing: 0.1em;
-}
-
-/* Submit specific color */
-.btn-submit {
-    background: var(--blue-primary);
-    color: white;
-}
-
-/* Cancel specific color (Gray/Light) */
-.btn-cancel {
-    background: #f1f5f9;
-    color: #64748b;
-}
-
-.btn-submit:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-}
-
-.btn-cancel:hover {
-    background: #e2e8f0;
-    color: #0f172a;
-}
+        .button-group { display: flex; gap: 12px; width: 100%; margin-top: 20px; }
+        .btn-submit, .btn-cancel { flex: 1; padding: 16px; border-radius: 14px; font-weight: 800; text-transform: uppercase; cursor: pointer; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s; letter-spacing: 0.1em; }
+        .btn-submit { background: var(--blue-primary); color: white; }
+        .btn-cancel { background: #f1f5f9; color: #64748b; }
+        .btn-submit:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-cancel:hover { background: #e2e8f0; color: #0f172a; }
         
-.dynamic-meta-container { background: #f8fafc; border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-top: 10px; margin-bottom: 10px; }    </style>
+        .dynamic-meta-container { background: #f8fafc; border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-top: 10px; margin-bottom: 10px; }
+    </style>
 </head>
 <body>
 
@@ -153,7 +179,7 @@
                 </div>
             </div>
             
-                       <%-- Success Alert with Auto-hide ID --%>
+            <%-- Success Alert with Auto-hide --%>
             <% if (msg != null) { %>
                 <div id="statusAlert" class="bg-emerald-50 border-2 border-emerald-100 text-emerald-700 p-5 rounded-2xl mb-8 flex items-center gap-4 font-black text-sm transition-all duration-500">
                     <i class="fas fa-check-circle text-lg"></i>
@@ -161,7 +187,7 @@
                 </div>
             <% } %>
 
-            <%-- Error Alert with Auto-hide ID --%>
+            <%-- Error Alert with Auto-hide --%>
             <% if (error != null) { %>
                 <div id="statusAlert" class="bg-red-50 border-2 border-red-100 text-red-700 p-5 rounded-2xl mb-8 flex items-center gap-4 font-black text-sm transition-all duration-500">
                     <i class="fas fa-exclamation-circle text-lg"></i>
@@ -169,31 +195,30 @@
                 </div>
             <% } %>
             
-                    
-<div class="grid grid-cols-1 md:grid-cols-2 gap-x-10">
-    <div class="stat-card flex justify-between items-center">
-        <div>
-            <span class="info-label">Pending Approval</span>
-            <div class="text-2xl font-black text-slate-800 mt-1"><%= pendingCount %></div>
-        </div>
-        <div class="bg-blue-50 p-3 rounded-2xl text-blue-600">
-            <%= ClipboardListIcon("w-6 h-6") %>
-        </div>
-    </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10">
+                <div class="stat-card flex justify-between items-center">
+                    <div>
+                        <span class="info-label">Pending Approval</span>
+                        <div class="text-2xl font-black text-slate-800 mt-1"><%= pendingCount %></div>
+                    </div>
+                    <div class="bg-blue-50 p-3 rounded-2xl text-blue-600">
+                        <%= ClipboardListIcon("w-6 h-6") %>
+                    </div>
+                </div>
 
-    <div class="stat-card orange flex justify-between items-center">
-        <div>
-            <span class="info-label">Cancellation Requested</span>
-            <div class="text-2xl font-black text-slate-800 mt-1"><%= cancelReqCount %></div>
-        </div>
-        <div class="bg-orange-50 p-3 rounded-2xl text-orange-600">
-            <%= RotateCcwIcon("w-6 h-6") %>
-        </div>
-    </div>
-</div>
-<br>
-<br>
+                <div class="stat-card orange flex justify-between items-center">
+                    <div>
+                        <span class="info-label">Cancellation Requested</span>
+                        <div class="text-2xl font-black text-slate-800 mt-1"><%= cancelReqCount %></div>
+                    </div>
+                    <div class="bg-orange-50 p-3 rounded-2xl text-orange-600">
+                        <%= RotateCcwIcon("w-6 h-6") %>
+                    </div>
+                </div>
+            </div>
+            <br>
 
+          
             <div class="card">
                 <div class="overflow-x-auto">
                     <table>
@@ -208,8 +233,8 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <% if (leaves == null || leaves.isEmpty()) { %>
-                                <tr><td colspan="6" class="text-center py-24 text-slate-300 font-bold uppercase text-xs italic tracking-widest">No pending applications in your queue.</td></tr>
+                            <% if (leaves.isEmpty()) { %>
+                                <tr><td colspan="6" class="text-center py-24 text-slate-300 font-bold uppercase text-xs italic tracking-widest">No pending applications found.</td></tr>
                             <% } else { for (LeaveRecord r : leaves) { 
                                 String status = r.getStatusCode();
                                 boolean isCancel = "CANCELLATION_REQUESTED".equalsIgnoreCase(status);
@@ -264,11 +289,35 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Pagination Footer -->
+                <div class="px-6 py-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                    <div class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                        Showing <%= totalRecords == 0 ? 0 : startIndex + 1 %> to <%= endIndex %> of <%= totalRecords %> entries
+                    </div>
+                    
+                    <% if (totalPages > 1) { %>
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="pagination-btn" onclick="goToPage(<%= currentPage - 1 %>)" <%= currentPage == 1 ? "disabled" : "" %>>
+                            <i class="fas fa-chevron-left mr-1"></i> Prev
+                        </button>
+                        <% for(int p=1; p<=totalPages; p++) { %>
+                            <button type="button" class="pagination-btn <%= p == currentPage ? "active" : "" %>" onclick="goToPage(<%= p %>)">
+                                <%= p %>
+                            </button>
+                        <% } %>
+                        <button type="button" class="pagination-btn" onclick="goToPage(<%= currentPage + 1 %>)" <%= currentPage == totalPages ? "disabled" : "" %>>
+                            Next <i class="fas fa-chevron-right ml-1"></i>
+                        </button>
+                    </div>
+                    <% } %>
+                </div>
             </div>
         </div>
     </main>
 </div>
 
+<!-- Modal Overlay -->
 <div class="modal-overlay" id="detailModal">
     <div class="modal-content">
         <button type="button" class="btn-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
@@ -319,24 +368,27 @@
                 <div class="dynamic-meta-container space-y-4" id="dynamicGrid"></div>
             </div>
             <div id="popCommentBox" class="hidden mt-4"><span class="info-label">Previous Remark</span><p class="text-sm text-blue-600 font-semibold italic" id="popComment"></p></div>
+            
+            <!-- DECISION FORM -->
             <form action="ReviewLeave" method="post" class="decision-box">
                 <input type="hidden" name="leaveId" id="formLeaveId">
                 <div class="flex items-center gap-3 mb-6"><i class="fas fa-gavel text-blue-600"></i><h4 class="text-[11px] font-black text-blue-600 uppercase tracking-widest">Decision Console</h4></div>
                 <div class="grid grid-cols-1 gap-5">
-                    <div><span class="info-label">Select Action</span><select name="action" id="decisionSelect" required></select></div>
+                    <div>
+                        <span class="info-label">Select Action</span>
+                        <!-- Standard selection dropdown with 45px height via CSS -->
+                        <select name="action" id="decisionSelect" required></select>
+                    </div>
                     <div><span class="info-label">Decision Remark</span><textarea name="comment" rows="3" placeholder="State reason..."></textarea></div>
                 </div>
-                <div class="flex items-center gap-3 mt-6">
-    <button type="submit" class="btn-submit flex items-center gap-2">
-        <i class="fas fa-check-circle"></i> 
-        Confirm Decision
-    </button>
-
-    <button type="button" class="btn-cancel flex items-center gap-2" onclick="window.history.back()">
-        <i class="fas fa-times-circle"></i> 
-        Cancel
-    </button>
-</div>
+                <div class="button-group">
+                    <button type="submit" class="btn-submit">
+                        <i class="fas fa-check-circle"></i> Confirm Decision
+                    </button>
+                    <button type="button" class="btn-cancel" onclick="closeModal()">
+                        <i class="fas fa-times-circle"></i> Cancel
+                    </button>
+                </div>
             </form>
         </div>
     </div>
@@ -345,20 +397,24 @@
 <script>
     const CTX = "<%=request.getContextPath()%>";
     
-    // AUTO-HIDE ALERT Logic
-    window.addEventListener('DOMContentLoaded', () => {
+    // Auto-hide messages after 3 seconds
+    window.addEventListener('load', () => {
         const alert = document.getElementById('statusAlert');
         if (alert) {
             setTimeout(() => {
                 alert.style.opacity = '0';
-                setTimeout(() => {
-                    alert.style.display = 'none';
-                }, 500); // Wait for transition
-            }, 3000); // 3 seconds
+                setTimeout(() => alert.remove(), 500);
+            }, 3000);
         }
     });
 
+    function goToPage(pageNum) {
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('page', pageNum);
+        window.location.search = urlParams.toString();
+    }
     
+    // REST OF POPUP VIEW LOGIC (UNTOUCHED)
     function openReview(btn) {
         const d = btn.dataset;
         document.getElementById('formLeaveId').value = d.id || "";
@@ -377,8 +433,6 @@
             pComm.textContent = d.popcomm;
             document.getElementById('popCommentBox').classList.remove('hidden');
         } else document.getElementById('popCommentBox').classList.add('hidden');
-
-        
 
         const abox = document.getElementById('attachBox');
         const noLab = document.getElementById('noAttachLabel');
@@ -409,33 +463,28 @@
         };
 
         const code = (d.type || "").toUpperCase();
-        if (code.includes("SICK")) 
-        { 
-        	addAttr("Clinic Name ", d.med); 
-       		addAttr("MC Serial No", d.ref); 
+        if (code.includes("SICK")) { 
+            addAttr("Clinic Name ", d.med); 
+            addAttr("MC Serial No", d.ref); 
         }
-        else if (code.includes("HOSPITAL")) 
-        { 
-        	addAttr("Hospital Name", d.med); 
-        	addAttr("Admit Date", d.evt); 
-        	addAttr("Discharge Date", d.dis); 
-        	}
-        else if (code.includes("MATERNITY")) 
-        { 
-        	addAttr("Consulation Clinic ", d.med); 
-        addAttr("Expected Due Date", d.evt); 
-        addAttr("Week Pregenancy", d.pre); 
+        else if (code.includes("HOSPITAL")) { 
+            addAttr("Hospital Name", d.med); 
+            addAttr("Admit Date", d.evt); 
+            addAttr("Discharge Date", d.dis); 
         }
-        else if (code.includes("PATERNITY")) 
-        { 
-        	addAttr("Spouse Name", d.spo); 
-        addAttr("Medical Location ", d.med); 
-        addAttr("Date of Birth", d.evt); 
+        else if (code.includes("MATERNITY")) { 
+            addAttr("Consulation Clinic ", d.med); 
+            addAttr("Expected Due Date", d.evt); 
+            addAttr("Week Pregenancy", d.pre); 
         }
-        else if (code.includes("EMERGENCY")) 
-        { 
-        	addAttr("Emergency Category", d.cat); 
-        addAttr("Emergency Contact", d.cnt); 
+        else if (code.includes("PATERNITY")) { 
+            addAttr("Spouse Name", d.spo); 
+            addAttr("Medical Location ", d.med); 
+            addAttr("Date of Birth", d.evt); 
+        }
+        else if (code.includes("EMERGENCY")) { 
+            addAttr("Emergency Category", d.cat); 
+            addAttr("Emergency Contact", d.cnt); 
         }
 
         document.getElementById('dynamicBox').classList.toggle('hidden', count === 0);

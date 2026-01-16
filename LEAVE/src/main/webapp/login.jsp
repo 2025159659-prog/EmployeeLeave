@@ -12,7 +12,7 @@
         body {
             margin: 0; padding: 0;
             font-family: Arial, sans-serif;
-            background: #f4f6fb;
+            background: #f1f5f9;
             display: flex; align-items: center; justify-content: center;
             min-height: 100vh;
         }
