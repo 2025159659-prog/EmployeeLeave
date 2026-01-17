@@ -1,43 +1,89 @@
 package bean;
 
 public class LeaveBalance {
-    private int empId;
-    private int leaveTypeId;
-    private String typeCode;
-    private String description;
-    private double entitlement;      // Changed to double for prorating
-    private double carriedForward;   // Changed to double
-    private double used;
-    private double pending;
-    private double totalAvailable;
+	private int empId;
+	private int leaveTypeId;
+	private String typeCode;
+	private String description;
+	private double entitlement; // Changed to double for prorating
+	private double carriedForward; // Changed to double
+	private double used;
+	private double pending;
+	private double totalAvailable;
 
-    public LeaveBalance() {}
+	public LeaveBalance() {
+	}
 
-    // Getters and Setters
-    public int getEmpId() { return empId; }
-    public void setEmpId(int empId) { this.empId = empId; }
-    
-    public int getLeaveTypeId() { return leaveTypeId; }
-    public void setLeaveTypeId(int leaveTypeId) { this.leaveTypeId = leaveTypeId; }
+	// Getters and Setters
+	public int getEmpId() {
+		return empId;
+	}
 
-    public String getTypeCode() { return typeCode; }
-    public void setTypeCode(String typeCode) { this.typeCode = typeCode; }
+	public void setEmpId(int empId) {
+		this.empId = empId;
+	}
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+	public int getLeaveTypeId() {
+		return leaveTypeId;
+	}
 
-    public double getEntitlement() { return entitlement; }
-    public void setEntitlement(double entitlement) { this.entitlement = entitlement; }
+	public void setLeaveTypeId(int leaveTypeId) {
+		this.leaveTypeId = leaveTypeId;
+	}
 
-    public double getCarriedForward() { return carriedForward; }
-    public void setCarriedForward(double carriedForward) { this.carriedForward = carriedForward; }
+	public String getTypeCode() {
+		return typeCode;
+	}
 
-    public double getUsed() { return used; }
-    public void setUsed(double used) { this.used = used; }
+	public void setTypeCode(String typeCode) {
+		this.typeCode = typeCode;
+	}
 
-    public double getPending() { return pending; }
-    public void setPending(double pending) { this.pending = pending; }
+	public String getDescription() {
+		return description;
+	}
 
-    public double getTotalAvailable() { return totalAvailable; }
-    public void setTotalAvailable(double totalAvailable) { this.totalAvailable = totalAvailable; }
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public double getEntitlement() {
+		return entitlement;
+	}
+
+	public void setEntitlement(double entitlement) {
+		this.entitlement = entitlement;
+	}
+
+	public double getCarriedForward() {
+		return carriedForward;
+	}
+
+	public void setCarriedForward(double carriedForward) {
+		this.carriedForward = carriedForward;
+	}
+
+	public double getUsed() {
+		return used;
+	}
+
+	public void setUsed(double used) {
+		this.used = used;
+	}
+
+	public double getPending() {
+		return pending;
+	}
+
+	public void setPending(double pending) {
+		this.pending = pending;
+	}
+
+	public double getTotalAvailable() {
+		return totalAvailable;
+	}
+
+	public void setTotalAvailable(double totalAvailable) {
+		this.totalAvailable = totalAvailable;
+	}
 }

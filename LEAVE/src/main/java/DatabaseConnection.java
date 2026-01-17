@@ -4,15 +4,14 @@ import java.sql.SQLException;
 
 public class DatabaseConnection {
 
-	private static final String ORACLE_DRIVER = "oracle.jdbc.driver.OracleDriver"; 
-	private static final String ORACLE_URL = "jdbc:oracle:thin:@//localhost:1521/freepdb1"; 
-	private static final String ORACLE_USER = "LEAVE"; 
-	private static final String ORACLE_PASS = "leave";    
-	
-	
+	private static final String ORACLE_DRIVER = "oracle.jdbc.driver.OracleDriver";
+	private static final String ORACLE_URL = "jdbc:oracle:thin:@//localhost:1521/freepdb1";
+	private static final String ORACLE_USER = "LEAVE";
+	private static final String ORACLE_PASS = "leave";
+
 	public static Connection getConnection() throws SQLException, ClassNotFoundException {
 		Class.forName(ORACLE_DRIVER);
-		
+
 		// Return the database connection
 		return DriverManager.getConnection(ORACLE_URL, ORACLE_USER, ORACLE_PASS);
 	}

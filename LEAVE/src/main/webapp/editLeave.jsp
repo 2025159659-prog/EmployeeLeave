@@ -1,69 +1,111 @@
-<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <!DOCTYPE html>
 <html>
 <head>
-  <style>
-    .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .dynamic-edit-box { 
-        grid-column: span 2; background: #f8fafc; border: 1px solid #e2e8f0; 
-        padding: 20px; border-radius: 12px; display: none; margin: 10px 0;
-        animation: fadeIn 0.3s ease;
-    }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    
-    .edit-field label { display: block; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 5px; }
-    .edit-field input, .edit-field select, .edit-field textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; font-size: 14px; outline: none; }
-    .edit-field input:focus, .edit-field select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
-  </style>
+<style>
+.edit-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 20px;
+}
+
+.dynamic-edit-box {
+	grid-column: span 2;
+	background: #f8fafc;
+	border: 1px solid #e2e8f0;
+	padding: 20px;
+	border-radius: 12px;
+	display: none;
+	margin: 10px 0;
+	animation: fadeIn 0.3s ease;
+}
+
+@
+keyframes fadeIn {from { opacity:0;
+	
+}
+
+to {
+	opacity: 1;
+}
+
+}
+.edit-field label {
+	display: block;
+	font-size: 11px;
+	font-weight: 700;
+	color: #64748b;
+	text-transform: uppercase;
+	margin-bottom: 5px;
+}
+
+.edit-field input, .edit-field select, .edit-field textarea {
+	width: 100%;
+	border: 1px solid #cbd5e1;
+	border-radius: 8px;
+	padding: 10px;
+	font-size: 14px;
+	outline: none;
+}
+
+.edit-field input:focus, .edit-field select:focus {
+	border-color: #2563eb;
+	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+</style>
 </head>
 <body>
 
-  <form id="editForm">
-    <input type="hidden" id="editLeaveId" name="leaveId">
+	<form id="editForm">
+		<input type="hidden" id="editLeaveId" name="leaveId">
 
-    <div class="edit-grid">
-      <div class="edit-field" style="grid-column: 1 / -1;">
-        <label>Type of Leave</label>
-        <select id="editLeaveType" name="leaveType" required onchange="handleEditTypeChange()"></select>
-      </div>
+		<div class="edit-grid">
+			<div class="edit-field" style="grid-column: 1/-1;">
+				<label>Type of Leave</label> <select id="editLeaveType"
+					name="leaveType" required onchange="handleEditTypeChange()"></select>
+			</div>
 
-      <div class="edit-field">
-        <label>Start Date</label>
-        <input type="date" id="editStartDate" name="startDate" required onchange="syncEditDates()">
-      </div>
+			<div class="edit-field">
+				<label>Start Date</label> <input type="date" id="editStartDate"
+					name="startDate" required onchange="syncEditDates()">
+			</div>
 
-      <div class="edit-field">
-        <label>End Date</label>
-        <input type="date" id="editEndDate" name="endDate" required>
-      </div>
+			<div class="edit-field">
+				<label>End Date</label> <input type="date" id="editEndDate"
+					name="endDate" required>
+			</div>
 
-      <div class="edit-field" style="grid-column: 1 / -1;">
-        <label>Duration Period</label>
-        <select id="editDuration" name="duration" required onchange="syncEditDates()">
-          <option value="FULL_DAY">Full Day</option>
-          <option value="HALF_DAY_AM">Half Day (AM)</option>
-          <option value="HALF_DAY_PM">Half Day (PM)</option>
-        </select>
-      </div>
+			<div class="edit-field" style="grid-column: 1/-1;">
+				<label>Duration Period</label> <select id="editDuration"
+					name="duration" required onchange="syncEditDates()">
+					<option value="FULL_DAY">Full Day</option>
+					<option value="HALF_DAY_AM">Half Day (AM)</option>
+					<option value="HALF_DAY_PM">Half Day (PM)</option>
+				</select>
+			</div>
 
-      <!-- Container for Dynamic Fields -->
-      <div id="editDynamicBox" class="dynamic-edit-box">
-          <div id="editDynamicFields" class="edit-grid" style="gap: 15px;"></div>
-      </div>
+			<!-- Container for Dynamic Fields -->
+			<div id="editDynamicBox" class="dynamic-edit-box">
+				<div id="editDynamicFields" class="edit-grid" style="gap: 15px;"></div>
+			</div>
 
-      <div class="edit-field" style="grid-column: 1 / -1;">
-        <label>Reason</label>
-        <textarea id="editReason" name="reason" required style="height: 80px;"></textarea>
-      </div>
-    </div>
+			<div class="edit-field" style="grid-column: 1/-1;">
+				<label>Reason</label>
+				<textarea id="editReason" name="reason" required
+					style="height: 80px;"></textarea>
+			</div>
+		</div>
 
-    <div class="edit-actions" style="margin-top: 25px; display: flex; gap: 10px; justify-content: flex-end;">
-      <button type="button" class="btn-modal btn-gray" onclick="closeEditModal()">Cancel</button>
-      <button type="submit" class="btn-modal btn-blue" id="editSubmitBtn">Save Changes</button>
-    </div>
-  </form>
+		<div class="edit-actions"
+			style="margin-top: 25px; display: flex; gap: 10px; justify-content: flex-end;">
+			<button type="button" class="btn-modal btn-gray"
+				onclick="closeEditModal()">Cancel</button>
+			<button type="submit" class="btn-modal btn-blue" id="editSubmitBtn">Save
+				Changes</button>
+		</div>
+	</form>
 
-  <script>
+	<script>
     // Global variable to store metadata returned by the EditLeave Servlet
     let currentMetadata = {};
 

@@ -10,76 +10,82 @@ import java.sql.*;
 @WebServlet("/ChangePassword")
 public class ChangePassword extends HttpServlet {
 
-    private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1L;
 
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        
-        // Security Check
-        HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("empid") == null) {
-            response.sendRedirect("login.jsp?error=Please login.");
-            return;
-        }
+	@Override
+	protected void doGet(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
 
-        request.getRequestDispatcher("changePassword.jsp").forward(request, response);
-    }
+		// Security Check
+		HttpSession session = request.getSession(false);
+		if (session == null || session.getAttribute("empid") == null) {
+			response.sendRedirect("login.jsp?error=Please login.");
+			return;
+		}
 
-    @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
+		request.getRequestDispatcher("changePassword.jsp").forward(request, response);
+	}
 
-        HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("empid") == null) {
-            response.sendRedirect("login.jsp?error=Please login.");
-            return;
-        }
+	@Override
+	protected void doPost(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
 
-        int empid = (Integer) session.getAttribute("empid");
-        String oldPass = request.getParameter("oldPassword");
-        String newPass = request.getParameter("newPassword");
-        String confirmPass = request.getParameter("confirmPassword");
+		HttpSession session = request.getSession(false);
+		if (session == null || session.getAttribute("empid") == null) {
+			response.sendRedirect("login.jsp?error=Please login.");
+			return;
+		}
 
-        // 1. Validation: Match
-        if (newPass == null || !newPass.equals(confirmPass)) {
-            response.sendRedirect("ChangePassword?error=" + url("New passwords do not match."));
-            return;
-        }
+		int empid = (Integer) session.getAttribute("empid");
+		String oldPass = request.getParameter("oldPassword");
+		String newPass = request.getParameter("newPassword");
+		String confirmPass = request.getParameter("confirmPassword");
 
-        // 2. Database Logic
-        try (Connection con = DatabaseConnection.getConnection()) {
-            // Verify Old Password
-            String checkSql = "SELECT PASSWORD FROM USERS WHERE EMPID = ?";
-            try (PreparedStatement psCheck = con.prepareStatement(checkSql)) {
-                psCheck.setInt(1, empid);
-                try (ResultSet rs = psCheck.executeQuery()) {
-                    if (rs.next()) {
-                        String dbPass = rs.getString("PASSWORD");
-                        if (!dbPass.equals(oldPass)) {
-                            response.sendRedirect("ChangePassword?error=" + url("Incorrect current password."));
-                            return;
-                        }
-                    }
-                }
-            }
+		// 1. Validation: Match
+		if (newPass == null || !newPass.equals(confirmPass)) {
+			response.sendRedirect("ChangePassword?error=" + url("New passwords do not match."));
+			return;
+		}
 
-            // Update to New Password
-            String updateSql = "UPDATE USERS SET PASSWORD = ? WHERE EMPID = ?";
-            try (PreparedStatement psUpdate = con.prepareStatement(updateSql)) {
-                psUpdate.setString(1, newPass);
-                psUpdate.setInt(2, empid);
-                psUpdate.executeUpdate();
-                response.sendRedirect("ChangePassword?msg=" + url("Password updated successfully."));
-            }
+		if (newPass.equals(oldPass)) {
+			response.sendRedirect(
+					"ChangePassword?error=" + url("New password must be different from your current password."));
+			return;
+		}
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            response.sendRedirect("ChangePassword?error=" + url("Database error occurred."));
-        }
-    }
+		// 2. Database Logic
+		try (Connection con = DatabaseConnection.getConnection()) {
+			// Verify Old Password
+			String checkSql = "SELECT PASSWORD FROM USERS WHERE EMPID = ?";
+			try (PreparedStatement psCheck = con.prepareStatement(checkSql)) {
+				psCheck.setInt(1, empid);
+				try (ResultSet rs = psCheck.executeQuery()) {
+					if (rs.next()) {
+						String dbPass = rs.getString("PASSWORD");
+						if (!dbPass.equals(oldPass)) {
+							response.sendRedirect("ChangePassword?error=" + url("Incorrect current password."));
+							return;
+						}
+					}
+				}
+			}
 
-    private String url(String s) {
-        return URLEncoder.encode(s, StandardCharsets.UTF_8);
-    }
+			// Update to New Password
+			String updateSql = "UPDATE USERS SET PASSWORD = ? WHERE EMPID = ?";
+			try (PreparedStatement psUpdate = con.prepareStatement(updateSql)) {
+				psUpdate.setString(1, newPass);
+				psUpdate.setInt(2, empid);
+				psUpdate.executeUpdate();
+				response.sendRedirect("ChangePassword?msg=" + url("Password updated successfully."));
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			response.sendRedirect("ChangePassword?error=" + url("Database error occurred."));
+		}
+	}
+
+	private String url(String s) {
+		return URLEncoder.encode(s, StandardCharsets.UTF_8);
+	}
 }

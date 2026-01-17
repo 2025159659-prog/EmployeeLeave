@@ -31,16 +31,14 @@ public class LeaveEmpBalances extends HttpServlet {
             List<User> allUsers = userDAO.getAllUsers();
             
             // 2. Filter list to include ONLY those with the role 'EMPLOYEE'
-            // This excludes 'MANAGER' and 'ADMIN' roles from the display
             List<User> employeesOnly = allUsers.stream()
                 .filter(u -> "EMPLOYEE".equalsIgnoreCase(u.getRole()))
                 .collect(Collectors.toList());
             
-            // 3. Get all leave types for the table column headers
+            // 3. Get all leave types
             List<Map<String, Object>> leaveTypes = leaveDAO.getAllLeaveTypes();
             
-            // 4. Map to store balances indexed by EmpID then LeaveTypeID
-            // Structure: Map<UserId, Map<LeaveTypeId, LeaveBalanceBean>>
+            // 4. Index balances by UserId then LeaveTypeId
             Map<Integer, Map<Integer, LeaveBalance>> balanceIndex = new HashMap<>();
             LeaveBalanceDAO lbDAO = new LeaveBalanceDAO(con);
 
@@ -53,7 +51,6 @@ public class LeaveEmpBalances extends HttpServlet {
                 balanceIndex.put(u.getEmpId(), typeMap);
             }
 
-            // 5. Set attributes matching the JSP requirements
             request.setAttribute("employees", employeesOnly);
             request.setAttribute("leaveTypes", leaveTypes);
             request.setAttribute("balanceIndex", balanceIndex);

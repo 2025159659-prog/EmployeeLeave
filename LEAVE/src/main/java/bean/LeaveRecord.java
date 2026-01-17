@@ -4,115 +4,235 @@ import java.io.Serializable;
 import java.util.Date;
 
 /**
- * LeaveRecord Bean
- * Comprehensive data object used for Admin Leave History views.
- * Updated to include leaveTypeId and all sub-table metadata fields.
+ * LeaveRecord Bean Comprehensive data object used for Admin Leave History
+ * views. Updated to include leaveTypeId and all sub-table metadata fields.
  */
 public class LeaveRecord implements Serializable {
-    private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1L;
 
-    // Primary Leave Details
-    private int leaveId;
-    private int empId;
-    private String fullName;
-    private Date hireDate;
-    private String profilePic;
-    private String typeCode;
-    private String statusCode;
-    private double durationDays;
-    private String duration;
-    private String startDate;
-    private String endDate;
-    private String appliedOn;
-    private String reason;
-    private String managerComment;
-    private String attachment;
+	// Primary Leave Details
+	private int leaveId;
+	private int empId;
+	private String fullName;
+	private Date hireDate;
+	private String profilePic;
+	private String typeCode;
+	private String statusCode;
+	private double durationDays;
+	private String duration;
+	private String startDate;
+	private String endDate;
+	private String appliedOn;
+	private String reason;
+	private String managerComment;
+	private String attachment;
 
-    // Type Tracking
-    private String leaveTypeId; 
+	// Type Tracking
+	private String leaveTypeId;
 
-    // Metadata / Dynamic Attributes (Class Table Inheritance)
-    private String medicalFacility;
-    private String refSerialNo;
-    private String eventDate;
-    private String dischargeDate;
-    private String emergencyCategory;
-    private String emergencyContact;
-    private String spouseName;
-    private int weekPregnancy; // Added for Maternity Leave tracking
+	// Metadata / Dynamic Attributes (Class Table Inheritance)
+	private String medicalFacility;
+	private String refSerialNo;
+	private String eventDate;
+	private String dischargeDate;
+	private String emergencyCategory;
+	private String emergencyContact;
+	private String spouseName;
+	private int weekPregnancy; // Added for Maternity Leave tracking
 
-    public LeaveRecord() {}
+	public LeaveRecord() {
+	}
 
-    // Getters and Setters
-    public int getLeaveId() { return leaveId; }
-    public void setLeaveId(int leaveId) { this.leaveId = leaveId; }
+	// Getters and Setters
+	public int getLeaveId() {
+		return leaveId;
+	}
 
-    public int getEmpId() { return empId; }
-    public void setEmpId(int empId) { this.empId = empId; }
+	public void setLeaveId(int leaveId) {
+		this.leaveId = leaveId;
+	}
 
-    public String getFullName() { return fullName; }
-    public void setFullName(String fullName) { this.fullName = fullName; }
+	public int getEmpId() {
+		return empId;
+	}
 
-    public Date getHireDate() { return hireDate; }
-    public void setHireDate(Date hireDate) { this.hireDate = hireDate; }
+	public void setEmpId(int empId) {
+		this.empId = empId;
+	}
 
-    public String getProfilePic() { return profilePic; }
-    public void setProfilePic(String profilePic) { this.profilePic = profilePic; }
+	public String getFullName() {
+		return fullName;
+	}
 
-    public String getTypeCode() { return typeCode; }
-    public void setTypeCode(String typeCode) { this.typeCode = typeCode; }
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
+	}
 
-    public String getStatusCode() { return statusCode; }
-    public void setStatusCode(String statusCode) { this.statusCode = statusCode; }
+	public Date getHireDate() {
+		return hireDate;
+	}
 
-    public double getDurationDays() { return durationDays; }
-    public void setDurationDays(double durationDays) { this.durationDays = durationDays; }
+	public void setHireDate(Date hireDate) {
+		this.hireDate = hireDate;
+	}
 
-    public String getDuration() { return duration; }
-    public void setDuration(String duration) { this.duration = duration; }
+	public String getProfilePic() {
+		return profilePic;
+	}
 
-    public String getStartDate() { return startDate; }
-    public void setStartDate(String startDate) { this.startDate = startDate; }
+	public void setProfilePic(String profilePic) {
+		this.profilePic = profilePic;
+	}
 
-    public String getEndDate() { return endDate; }
-    public void setEndDate(String endDate) { this.endDate = endDate; }
+	public String getTypeCode() {
+		return typeCode;
+	}
 
-    public String getAppliedOn() { return appliedOn; }
-    public void setAppliedOn(String appliedOn) { this.appliedOn = appliedOn; }
+	public void setTypeCode(String typeCode) {
+		this.typeCode = typeCode;
+	}
 
-    public String getReason() { return reason; }
-    public void setReason(String reason) { this.reason = reason; }
+	public String getStatusCode() {
+		return statusCode;
+	}
 
-    public String getManagerComment() { return managerComment; }
-    public void setManagerComment(String managerComment) { this.managerComment = managerComment; }
+	public void setStatusCode(String statusCode) {
+		this.statusCode = statusCode;
+	}
 
-    public String getAttachment() { return attachment; }
-    public void setAttachment(String attachment) { this.attachment = attachment; }
+	public double getDurationDays() {
+		return durationDays;
+	}
 
-    public String getLeaveTypeId() { return leaveTypeId; }
-    public void setLeaveTypeId(String leaveTypeId) { this.leaveTypeId = leaveTypeId; }
+	public void setDurationDays(double durationDays) {
+		this.durationDays = durationDays;
+	}
 
-    public String getMedicalFacility() { return medicalFacility; }
-    public void setMedicalFacility(String medicalFacility) { this.medicalFacility = medicalFacility; }
+	public String getDuration() {
+		return duration;
+	}
 
-    public String getRefSerialNo() { return refSerialNo; }
-    public void setRefSerialNo(String refSerialNo) { this.refSerialNo = refSerialNo; }
+	public void setDuration(String duration) {
+		this.duration = duration;
+	}
 
-    public String getEventDate() { return eventDate; }
-    public void setEventDate(String eventDate) { this.eventDate = eventDate; }
+	public String getStartDate() {
+		return startDate;
+	}
 
-    public String getDischargeDate() { return dischargeDate; }
-    public void setDischargeDate(String dischargeDate) { this.dischargeDate = dischargeDate; }
+	public void setStartDate(String startDate) {
+		this.startDate = startDate;
+	}
 
-    public String getEmergencyCategory() { return emergencyCategory; }
-    public void setEmergencyCategory(String emergencyCategory) { this.emergencyCategory = emergencyCategory; }
+	public String getEndDate() {
+		return endDate;
+	}
 
-    public String getEmergencyContact() { return emergencyContact; }
-    public void setEmergencyContact(String emergencyContact) { this.emergencyContact = emergencyContact; }
+	public void setEndDate(String endDate) {
+		this.endDate = endDate;
+	}
 
-    public String getSpouseName() { return spouseName; }
-    public void setSpouseName(String spouseName) { this.spouseName = spouseName; }
+	public String getAppliedOn() {
+		return appliedOn;
+	}
 
-    public int getWeekPregnancy() { return weekPregnancy; }
-    public void setWeekPregnancy(int weekPregnancy) { this.weekPregnancy = weekPregnancy; }
+	public void setAppliedOn(String appliedOn) {
+		this.appliedOn = appliedOn;
+	}
+
+	public String getReason() {
+		return reason;
+	}
+
+	public void setReason(String reason) {
+		this.reason = reason;
+	}
+
+	public String getManagerComment() {
+		return managerComment;
+	}
+
+	public void setManagerComment(String managerComment) {
+		this.managerComment = managerComment;
+	}
+
+	public String getAttachment() {
+		return attachment;
+	}
+
+	public void setAttachment(String attachment) {
+		this.attachment = attachment;
+	}
+
+	public String getLeaveTypeId() {
+		return leaveTypeId;
+	}
+
+	public void setLeaveTypeId(String leaveTypeId) {
+		this.leaveTypeId = leaveTypeId;
+	}
+
+	public String getMedicalFacility() {
+		return medicalFacility;
+	}
+
+	public void setMedicalFacility(String medicalFacility) {
+		this.medicalFacility = medicalFacility;
+	}
+
+	public String getRefSerialNo() {
+		return refSerialNo;
+	}
+
+	public void setRefSerialNo(String refSerialNo) {
+		this.refSerialNo = refSerialNo;
+	}
+
+	public String getEventDate() {
+		return eventDate;
+	}
+
+	public void setEventDate(String eventDate) {
+		this.eventDate = eventDate;
+	}
+
+	public String getDischargeDate() {
+		return dischargeDate;
+	}
+
+	public void setDischargeDate(String dischargeDate) {
+		this.dischargeDate = dischargeDate;
+	}
+
+	public String getEmergencyCategory() {
+		return emergencyCategory;
+	}
+
+	public void setEmergencyCategory(String emergencyCategory) {
+		this.emergencyCategory = emergencyCategory;
+	}
+
+	public String getEmergencyContact() {
+		return emergencyContact;
+	}
+
+	public void setEmergencyContact(String emergencyContact) {
+		this.emergencyContact = emergencyContact;
+	}
+
+	public String getSpouseName() {
+		return spouseName;
+	}
+
+	public void setSpouseName(String spouseName) {
+		this.spouseName = spouseName;
+	}
+
+	public int getWeekPregnancy() {
+		return weekPregnancy;
+	}
+
+	public void setWeekPregnancy(int weekPregnancy) {
+		this.weekPregnancy = weekPregnancy;
+	}
 }

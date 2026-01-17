@@ -19,7 +19,7 @@
         response.sendRedirect("login.jsp?error=AccessDenied"); return;
     }
 
-    // DATA CASTING
+    // DATA RETRIEVAL
     List<LeaveRecord> allLeaves = (List<LeaveRecord>) request.getAttribute("leaves");
     if (allLeaves == null) allLeaves = new ArrayList<>();
     
@@ -36,10 +36,7 @@
     String msg = request.getParameter("msg");
     String error = request.getParameter("error");
     
-    // Filtering state
-    String currentStatus = request.getParameter("status") != null ? request.getParameter("status") : "ALL";
-    String currentMonth = request.getParameter("month") != null ? request.getParameter("month") : "";
-    String currentYear = request.getParameter("year") != null ? request.getParameter("year") : String.valueOf(LocalDate.now().getYear());
+ 
 
     // =========================
     // PAGINATION LOGIC (10 Rows)
@@ -78,7 +75,7 @@
 
     <style>
         :root {
-            --bg: #f1f5f9;
+            --bg: #f8fafc;
             --card: #fff;
             --border: #cbd5e1;
             --text: #1e293b;
@@ -97,12 +94,11 @@
         .title { font-size: 26px; font-weight: 800; margin: 0; text-transform: uppercase; color: var(--text); }
         .sub-label { color: var(--blue-primary); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; display: block; }
 
-        /* Filter bar with automatic selection style */
-        .filter-bar { background: #fff; border: 1px solid var(--border); border-radius: 1.5rem; padding: 20px 24px; box-shadow: var(--shadow); margin-bottom: 24px; }
-        .filter-group { display: flex; flex-direction: column; gap: 4px; }
-        .filter-label { font-size: 10px; font-weight: 900; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-left: 4px; }
+        .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; border-left: 5px solid var(--blue-primary); box-shadow: var(--shadow); }
+        .stat-card.orange { border-left-color: #f97316; }
+
         
-        /* UPDATED: Dropdowns 45px height and 20px padding */
+        /* Updated selection style: 45px height and 20px padding */
         select { 
             height: 45px !important; 
             padding: 0 20px !important; 
@@ -113,43 +109,38 @@
             font-size: 13px; 
             font-weight: 600; 
             background: #fff; 
-            margin-top: 8px; 
             transition: all 0.2s;
             cursor: pointer;
         }
         select:focus { border-color: var(--blue-primary); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08); }
 
-        .stat-grid { display: grid; grid-template-cols: repeat(2, 1fr); gap: 20px; margin-bottom: 32px; }
-        .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; border-left: 5px solid var(--blue-primary); box-shadow: var(--shadow); }
-        .stat-card.orange { border-left-color: #f97316; }
-
         .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
         
         table { width: 100%; border-collapse: collapse; }
-        th, td { border-bottom: 1px solid #f1f5f9; padding: 16px 20px; text-align: left; vertical-align: middle; }
-        th { background: #f8fafc; font-size: 14px; text-transform: uppercase; color: var(--muted); font-weight: 800; letter-spacing: 0.05em; }
+        th, td { border-bottom: 1px solid #f1f5f9; padding: 18px 24px; text-align: left; vertical-align: middle; }
+        th { background: #f8fafc; font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 800; letter-spacing: 0.05em; }
 
-        .badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px; }
+        .badge { padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px; }
         .status-pending { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; } 
         .status-cancellation-requested { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; }
 
-        /* Pagination Controls */
         .pagination-btn { padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border); font-size: 12px; font-weight: 800; transition: 0.2s; color: var(--muted); background: white; }
-        .pagination-btn:hover:not(:disabled) { border-color: var(--blue-primary); color: var(--blue-primary); background: var(--blue-light); }
+        .pagination-btn:hover:not(:disabled) { border-color: var(--blue-primary); color: var(--blue-primary); background: #eff6ff; }
         .pagination-btn.active { background: var(--blue-primary); color: #fff; border-color: var(--blue-primary); }
         .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
         .modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.6); display:none; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px); padding: 20px; }
         .modal-overlay.show { display:flex; }
-        .modal-content { background:white; width: 100%; max-width: 750px; max-height: 90vh; border-radius: 28px; position: relative; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); display: flex; flex-direction: column; overflow: hidden; animation: slideUp 0.3s ease; }
+        .modal-content { background:white; width: 100%; max-width: 750px; max-height: 90vh; border-radius: 32px; padding: 40px; position: relative; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); display: flex; flex-direction: column; overflow: hidden; animation: slideUp 0.3s ease; }
         @keyframes slideUp { from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
-        .modal-body { overflow-y: auto; padding: 40px; flex: 1; }
+        .modal-body { overflow-y: auto; padding-right: 8px; flex: 1; }
         
-        .info-label { font-size:12px; font-weight:800; color:#94a3b8; text-transform:uppercase; display:block; margin-bottom:4px; letter-spacing:0.05em; }
-        .info-value { font-size:15px; font-weight:700; color:#1e293b; display:block; margin-bottom:18px; }
+        .info-label { font-size:10px; font-weight:800; color:#94a3b8; text-transform:uppercase; display:block; margin-bottom:4px; letter-spacing:0.05em; }
+        .info-value { font-size:14px; font-weight:700; color:#1e293b; display:block; margin-bottom:18px; }
         
         .btn-close { position: absolute; top: 24px; right: 24px; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #94a3b8; transition: 0.2s; z-index: 10; }
 
+        /* Decision Console Styling */
         .decision-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 24px; padding: 28px; margin-top: 24px; }
         textarea { width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); outline: none; font-size: 13px; font-weight: 600; background: #fff; margin-top: 8px; }
 
@@ -179,23 +170,19 @@
                 </div>
             </div>
             
-            <%-- Success Alert with Auto-hide --%>
+            <%-- Alerts with Auto-hide --%>
             <% if (msg != null) { %>
                 <div id="statusAlert" class="bg-emerald-50 border-2 border-emerald-100 text-emerald-700 p-5 rounded-2xl mb-8 flex items-center gap-4 font-black text-sm transition-all duration-500">
-                    <i class="fas fa-check-circle text-lg"></i>
-                    <%= msg %>
+                    <i class="fas fa-check-circle text-lg"></i> <%= msg %>
                 </div>
             <% } %>
-
-            <%-- Error Alert with Auto-hide --%>
             <% if (error != null) { %>
                 <div id="statusAlert" class="bg-red-50 border-2 border-red-100 text-red-700 p-5 rounded-2xl mb-8 flex items-center gap-4 font-black text-sm transition-all duration-500">
-                    <i class="fas fa-exclamation-circle text-lg"></i>
-                    <%= error %>
+                    <i class="fas fa-exclamation-circle text-lg"></i> <%= error %>
                 </div>
             <% } %>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 mb-8">
                 <div class="stat-card flex justify-between items-center">
                     <div>
                         <span class="info-label">Pending Approval</span>
@@ -216,9 +203,8 @@
                     </div>
                 </div>
             </div>
-            <br>
 
-          
+
             <div class="card">
                 <div class="overflow-x-auto">
                     <table>
@@ -267,21 +253,29 @@
                                         </span>
                                     </td>
                                     <td style="text-align:right">
-                                        <button onclick="openReview(this)" class="bg-white border border-slate-200 text-slate-600 px-5 py-2 rounded-xl text-[10px] font-black hover:bg-slate-900 hover:text-white transition-all uppercase tracking-widest shadow-sm flex items-center gap-2 ml-auto"
+                                        <button onclick="viewDetails(this)" class="bg-white border border-slate-200 text-slate-600 px-5 py-2 rounded-xl text-[10px] font-black hover:bg-slate-900 hover:text-white transition-all uppercase tracking-widest shadow-sm flex items-center gap-2 ml-auto"
                                                 data-id="<%= r.getLeaveId() %>"
-                                                data-name="<%= r.getFullName() %>" data-idcode="<%= displayEmpId %>"
-                                                data-type="<%= r.getTypeCode() %>" data-typeid="<%= r.getLeaveTypeId() %>"
-                                                data-start="<%= r.getStartDate() %>" data-end="<%= r.getEndDate() %>" 
-                                                data-days="<%= r.getDurationDays() %>" data-duration="<%= r.getDuration() %>" 
-                                                data-applied="<%= r.getAppliedOn() %>" data-reason="<%= (r.getReason() != null) ? r.getReason() : "" %>" 
-                                                data-status="<%= status %>" data-attachment="<%= r.getAttachment() != null ? r.getAttachment() : "" %>"
-                                                data-med="<%= r.getMedicalFacility() %>" data-ref="<%= r.getRefSerialNo() %>"
+                                                data-name="<%= r.getFullName() %>" 
+                                                data-idcode="<%= displayEmpId %>"
+                                                data-type="<%= r.getTypeCode() %>" 
+                                                data-start="<%= r.getStartDate() %>" 
+                                                data-end="<%= r.getEndDate() %>" 
+                                                data-days="<%= r.getDurationDays() %>" 
+                                                data-duration="<%= r.getDuration() %>" 
+                                                data-applied="<%= r.getAppliedOn() %>" 
+                                                data-reason="<%= (r.getReason() != null) ? r.getReason() : "" %>" 
+                                                data-status="<%= status %>"
+                                                data-attachment="<%= r.getAttachment() != null ? r.getAttachment() : "" %>"
+                                                data-med="<%= r.getMedicalFacility() %>" 
+                                                data-ref="<%= r.getRefSerialNo() %>"
                                                 data-pre="<%= r.getWeekPregnancy() %>" 
-                                                data-evt="<%= r.getEventDate() %>" data-dis="<%= r.getDischargeDate() %>"
-                                                data-cat="<%= r.getEmergencyCategory() %>" data-cnt="<%= r.getEmergencyContact() %>"
-                                                data-spo="<%= r.getSpouseName() %>"
-                                                data-popcomm="<%= (r.getManagerComment() != null) ? r.getManagerComment() : "" %>">
-                                            <%= EyeIcon("w-3 h-3") %> Review
+                                                data-evt="<%= r.getEventDate() %>" 
+                                                data-dis="<%= r.getDischargeDate() %>"
+                                                data-cat="<%= r.getEmergencyCategory() %>" 
+                                                data-cnt="<%= r.getEmergencyContact() %>"
+                                                data-spo="<%= r.getSpouseName() %>" 
+                                                data-comment="<%= r.getManagerComment() != null ? r.getManagerComment() : "-" %>">
+                                            <%= EyeIcon("w-3.5 h-3.5") %> Review
                                         </button>
                                     </td>
                                 </tr>
@@ -290,21 +284,18 @@
                     </table>
                 </div>
 
-                <!-- Pagination Footer -->
+                <!-- PAGINATION FOOTER -->
                 <div class="px-6 py-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
                     <div class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                         Showing <%= totalRecords == 0 ? 0 : startIndex + 1 %> to <%= endIndex %> of <%= totalRecords %> entries
                     </div>
-                    
                     <% if (totalPages > 1) { %>
                     <div class="flex items-center gap-2">
                         <button type="button" class="pagination-btn" onclick="goToPage(<%= currentPage - 1 %>)" <%= currentPage == 1 ? "disabled" : "" %>>
                             <i class="fas fa-chevron-left mr-1"></i> Prev
                         </button>
                         <% for(int p=1; p<=totalPages; p++) { %>
-                            <button type="button" class="pagination-btn <%= p == currentPage ? "active" : "" %>" onclick="goToPage(<%= p %>)">
-                                <%= p %>
-                            </button>
+                            <button type="button" class="pagination-btn <%= p == currentPage ? "active" : "" %>" onclick="goToPage(<%= p %>)"><%= p %></button>
                         <% } %>
                         <button type="button" class="pagination-btn" onclick="goToPage(<%= currentPage + 1 %>)" <%= currentPage == totalPages ? "disabled" : "" %>>
                             Next <i class="fas fa-chevron-right ml-1"></i>
@@ -317,31 +308,54 @@
     </main>
 </div>
 
-<!-- Modal Overlay -->
+<!-- POPUP MODAL (Manager Review Function) -->
 <div class="modal-overlay" id="detailModal">
     <div class="modal-content">
         <button type="button" class="btn-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
         <div class="modal-body">
-            <h3 class="text-2xl font-black text-slate-800 tracking-tight uppercase mb-8 border-b border-slate-100 pb-4">Application Details</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10">
-                <div><span class="info-label">Staff Name</span><span class="info-value" id="popName"></span></div>
-                <div><span class="info-label">Staff ID</span><span class="info-value" id="popId"></span></div>
+            <h3 class="text-2xl font-black text-slate-800 tracking-tight uppercase mb-8 pr-12 border-b border-slate-100 pb-4">Application Details</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12">
+                <div class="info-item">
+                    <span class="info-label">Staff Name</span>
+                    <span class="info-value" id="popName"></span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Staff ID</span>
+                    <span class="info-value" id="popId"></span>
+                </div>
             </div>
-            <div>
+
+            <div class="info-item">
                 <span class="info-label">Leave Category</span>
                 <div class="flex items-center gap-3">
                     <span class="info-value text-blue-600 mb-0" id="popType"></span>
-                 </div>
+                </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 mt-4">
-                <div><span class="info-label">Start Date</span><span class="info-value" id="popStart"></span></div>
-                <div><span class="info-label">End Date</span><span class="info-value" id="popEnd"></span></div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 mt-4">
+                <div class="info-item">
+                    <span class="info-label">Start Date</span>
+                    <span class="info-value" id="popStart"></span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">End Date</span>
+                    <span class="info-value" id="popEnd"></span>
+                </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10">
-                <div><span class="info-label">Duration Type</span><span class="info-value uppercase" id="popDuration"></span></div>
-                <div><span class="info-label">Total Days</span><span class="info-value font-black text-blue-600" id="popDays"></span></div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12">
+                <div class="info-item">
+                    <span class="info-label">Duration Type</span>
+                    <span class="info-value uppercase" id="popDuration"></span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Total Days</span>
+                    <span class="info-value font-black text-blue-600" id="popDays"></span>
+                </div>
             </div>
-           <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12">
                 <div class="info-item">
                     <span class="info-label">Submission Date</span>
                     <span class="info-value" id="popApplied"></span>
@@ -356,36 +370,45 @@
                     <div id="noAttachLabel" class="text-xs text-slate-300 font-bold italic py-2">No document attached</div>
                 </div>
             </div>
-            <div class="mt-2">
+
+            <div class="info-item">
                 <span class="info-label">Employee Reason</span>
-                <p class="text-sm text-slate-500 bg-slate-50 p-5 rounded-2xl border border-slate-100 italic" id="popReason"></p>
+                <p class="text-sm text-slate-500 mb-6 bg-slate-50 p-5 rounded-2xl border border-slate-100 font-medium leading-relaxed italic" id="popReason"></p>
             </div>
-            <div id="dynamicBox" class="hidden mt-6">
+
+            <!-- Dynamic Metadata Section -->
+            <div id="dynamicBox" class="hidden">
                 <div class="flex items-center gap-3 mb-4">
-                <div class="w-1 h-4 bg-blue-600 rounded-full">
-                </div><h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Metadata Attributes</h4>
+                    <div class="w-1 h-4 bg-blue-600 rounded-full"></div>
+                    <h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Metadata Attributes (Specific To Type)</h4>
                 </div>
                 <div class="dynamic-meta-container space-y-4" id="dynamicGrid"></div>
             </div>
-            <div id="popCommentBox" class="hidden mt-4"><span class="info-label">Previous Remark</span><p class="text-sm text-blue-600 font-semibold italic" id="popComment"></p></div>
-            
-            <!-- DECISION FORM -->
-            <form action="ReviewLeave" method="post" class="decision-box">
+
+            <!-- Decision Form integrated for Manager Function -->
+            <form id="decisionForm" action="ReviewLeave" method="post" class="decision-box">
                 <input type="hidden" name="leaveId" id="formLeaveId">
-                <div class="flex items-center gap-3 mb-6"><i class="fas fa-gavel text-blue-600"></i><h4 class="text-[11px] font-black text-blue-600 uppercase tracking-widest">Decision Console</h4></div>
-                <div class="grid grid-cols-1 gap-5">
+                <div class="flex items-center gap-3 mb-6">
+                    <i class="fas fa-gavel text-blue-600"></i>
+                    <h4 class="text-[11px] font-black text-blue-600 uppercase tracking-widest">Decision Console</h4>
+                </div>
+                
+                <div class="grid grid-cols-1 gap-6">
                     <div>
                         <span class="info-label">Select Action</span>
-                        <!-- Standard selection dropdown with 45px height via CSS -->
                         <select name="action" id="decisionSelect" required></select>
                     </div>
-                    <div><span class="info-label">Decision Remark</span><textarea name="comment" rows="3" placeholder="State reason..."></textarea></div>
+                    <div>
+                        <span class="info-label">Decision Remark</span>
+                        <textarea name="comment" rows="3" placeholder="State reason for your decision..."></textarea>
+                    </div>
                 </div>
+
                 <div class="button-group">
-                    <button type="submit" class="btn-submit">
+                    <button type="submit" class="btn-submit flex items-center gap-2">
                         <i class="fas fa-check-circle"></i> Confirm Decision
                     </button>
-                    <button type="button" class="btn-cancel" onclick="closeModal()">
+                    <button type="button" class="btn-cancel flex items-center gap-2" onclick="closeModal()">
                         <i class="fas fa-times-circle"></i> Cancel
                     </button>
                 </div>
@@ -396,93 +419,89 @@
 
 <script>
     const CTX = "<%=request.getContextPath()%>";
-    
-    // Auto-hide messages after 3 seconds
-    window.addEventListener('load', () => {
-        const alert = document.getElementById('statusAlert');
-        if (alert) {
+
+    // Auto-Dismiss Messages
+    window.onload = function() {
+        const msg = document.getElementById('statusAlert');
+        if (msg) {
             setTimeout(() => {
-                alert.style.opacity = '0';
-                setTimeout(() => alert.remove(), 500);
+                msg.style.opacity = '0';
+                setTimeout(() => msg.remove(), 500);
             }, 3000);
         }
-    });
+    };
 
     function goToPage(pageNum) {
         const urlParams = new URLSearchParams(window.location.search);
         urlParams.set('page', pageNum);
         window.location.search = urlParams.toString();
     }
-    
-    // REST OF POPUP VIEW LOGIC (UNTOUCHED)
-    function openReview(btn) {
+
+    function viewDetails(btn) {
         const d = btn.dataset;
-        document.getElementById('formLeaveId').value = d.id || "";
-        document.getElementById('popName').textContent = d.name || "";
-        document.getElementById('popId').textContent = d.idcode || "";
-        document.getElementById('popType').textContent = d.type || "";
-        document.getElementById('popStart').textContent = d.start || "";
-        document.getElementById('popEnd').textContent = d.end || "";
-        document.getElementById('popDuration').textContent = (d.duration || "").replace(/_/g, ' ');
-        document.getElementById('popDays').textContent = d.days || "0";
-        document.getElementById('popApplied').textContent = d.applied || "";
+        
+        // Populate standard details
+        document.getElementById('popName').textContent = d.name;
+        document.getElementById('popId').textContent = d.idcode;
+        document.getElementById('popType').textContent = d.type;
+        document.getElementById('popStart').textContent = d.start;
+        document.getElementById('popEnd').textContent = d.end;
+        document.getElementById('popDuration').textContent = d.duration.replace(/_/g, ' ');
+        document.getElementById('popDays').textContent = d.days;
+        document.getElementById('popApplied').textContent = d.applied;
         document.getElementById('popReason').textContent = d.reason || "No reason provided.";
 
-        const pComm = document.getElementById('popComment');
-        if(d.popcomm && d.popcomm !== "null" && d.popcomm !== "") {
-            pComm.textContent = d.popcomm;
-            document.getElementById('popCommentBox').classList.remove('hidden');
-        } else document.getElementById('popCommentBox').classList.add('hidden');
-
-        const abox = document.getElementById('attachBox');
-        const noLab = document.getElementById('noAttachLabel');
-        if(d.attachment && d.attachment !== "" && d.attachment !== "null") {
-            abox.classList.remove('hidden');
-            noLab.classList.add('hidden');
-            document.getElementById('modalAttachLink').href = CTX + "/ViewAttachment?id=" + d.id;
-        } else {
-            abox.classList.add('hidden');
-            noLab.classList.remove('hidden');
-        }
-
+        // Populate Decision Form Fields
+        document.getElementById('formLeaveId').value = d.id;
         const sel = document.getElementById('decisionSelect');
         if (d.status === "CANCELLATION_REQUESTED") {
-            sel.innerHTML = '<option value="APPROVE_CANCEL">Approve Cancellation</option><option value="REJECT_CANCEL">Maintain Leave</option>';
+            sel.innerHTML = '<option value="APPROVE_CANCEL">Approve Cancellation</option><option value="REJECT_CANCEL">Maintain Leave (Reject Request)</option>';
         } else {
             sel.innerHTML = '<option value="APPROVE">Approve Request</option><option value="REJECT">Reject Request</option>';
         }
 
+        // Attachment logic
+        const abox = document.getElementById('attachBox');
+        const noAttach = document.getElementById('noAttachLabel');
+        if(d.attachment && d.attachment !== "" && d.attachment !== "null") {
+            abox.classList.remove('hidden');
+            noAttach.classList.add('hidden');
+            document.getElementById('modalAttachLink').href = CTX + "/ViewAttachment?id=" + d.id;
+        } else { 
+            abox.classList.add('hidden'); 
+            noAttach.classList.remove('hidden');
+        }
+
+        // Metadata logic
+        const dBox = document.getElementById('dynamicBox');
         const grid = document.getElementById('dynamicGrid');
         grid.innerHTML = "";
         let count = 0;
+        
         const addAttr = (label, val) => {
-            if(val && val !== "null" && val !== "" && val !== "0") {
-                grid.innerHTML += '<div class="flex justify-between items-center border-b border-slate-100 pb-2"><span class="info-label text-slate-400 mb-0">'+label+'</span><span class="info-value mb-0 text-slate-600 font-bold text-xs">'+val+'</span></div>';
+            if(val && val !== "null" && val !== "" && val !== "undefined" && val !== "N/A" && val !== "0") {
+                grid.innerHTML += '<div class="info-item border-b border-slate-100 pb-2 flex justify-between items-center"><span class="info-label text-slate-400 mb-0 font-bold uppercase" style="font-size:9px;">' + label + '</span><span class="info-value mb-0 text-slate-600 font-bold uppercase" style="font-size:11px;">' + val + '</span></div>';
                 count++;
             }
         };
 
         const code = (d.type || "").toUpperCase();
         if (code.includes("SICK")) { 
-            addAttr("Clinic Name ", d.med); 
+            addAttr("Clinic Name", d.med); 
             addAttr("MC Serial No", d.ref); 
-        }
-        else if (code.includes("HOSPITAL")) { 
+        } else if (code.includes("HOSPITAL")) { 
             addAttr("Hospital Name", d.med); 
             addAttr("Admit Date", d.evt); 
             addAttr("Discharge Date", d.dis); 
-        }
-        else if (code.includes("MATERNITY")) { 
-            addAttr("Consulation Clinic ", d.med); 
+        } else if (code.includes("MATERNITY")) { 
+            addAttr("Consulation Clinic", d.med); 
             addAttr("Expected Due Date", d.evt); 
             addAttr("Week Pregenancy", d.pre); 
-        }
-        else if (code.includes("PATERNITY")) { 
+        } else if (code.includes("PATERNITY")) { 
             addAttr("Spouse Name", d.spo); 
-            addAttr("Medical Location ", d.med); 
+            addAttr("Medical Location", d.med); 
             addAttr("Date of Birth", d.evt); 
-        }
-        else if (code.includes("EMERGENCY")) { 
+        } else if (code.includes("EMERGENCY")) { 
             addAttr("Emergency Category", d.cat); 
             addAttr("Emergency Contact", d.cnt); 
         }
@@ -490,8 +509,10 @@
         document.getElementById('dynamicBox').classList.toggle('hidden', count === 0);
         document.getElementById('detailModal').classList.add('show');
     }
+    
     function closeModal() { document.getElementById('detailModal').classList.remove('show'); }
     window.onclick = (e) => { if (e.target == document.getElementById('detailModal')) closeModal(); }
 </script>
+
 </body>
 </html>
