@@ -46,6 +46,46 @@ public class LeaveDAO {
         return list;
     }
 
+    /**
+ * Fetch leave request by ID + EMPID (FOR EDIT LEAVE)
+ */
+public LeaveRequest getLeaveById(int leaveId, int empId) throws Exception {
+
+    String sql = """
+        SELECT lr.*, lt.type_code, ls.status_code
+        FROM leave.leave_requests lr
+        JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
+        JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
+        WHERE lr.leave_id = ? AND lr.empid = ?
+    """;
+
+    try (Connection con = DatabaseConnection.getConnection();
+         PreparedStatement ps = con.prepareStatement(sql)) {
+
+        ps.setInt(1, leaveId);
+        ps.setInt(2, empId);
+
+        try (ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                LeaveRequest lr = new LeaveRequest();
+                lr.setLeaveId(rs.getInt("leave_id"));
+                lr.setEmpId(rs.getInt("empid"));
+                lr.setLeaveTypeId(rs.getInt("leave_type_id"));
+                lr.setStartDate(rs.getDate("start_date").toLocalDate());
+                lr.setEndDate(rs.getDate("end_date").toLocalDate());
+                lr.setDuration(rs.getString("duration"));
+                lr.setDurationDays(rs.getDouble("duration_days"));
+                lr.setReason(rs.getString("reason"));
+                lr.setHalfSession(rs.getString("half_session"));
+                lr.setStatusCode(rs.getString("status_code"));
+                return lr;
+            }
+        }
+    }
+    return null;
+}
+
+
     /* =====================================================
        WORKING DAYS CALCULATION
        ===================================================== */
@@ -219,3 +259,4 @@ public class LeaveDAO {
         }
     }
 }
+
