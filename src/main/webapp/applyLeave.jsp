@@ -79,25 +79,32 @@ textarea{height:120px;padding:16px}
 
 <!-- TYPE -->
 <label class="block mb-2 mt-2">Type of Leave *</label>
-<select name="leaveTypeId" required>
+<select name="leaveTypeId" id="leaveTypeId" required>
   <option value="" disabled selected>-- SELECT TYPE --</option>
+
 <%
-for (Map<String,Object> t : leaveTypes) {
-    String id = String.valueOf(t.get("id"));
-    String code = String.valueOf(t.get("code")).toUpperCase();
+for (Map<String, Object> t : leaveTypes) {
+
+    String id   = String.valueOf(t.get("leave_type_id"));
+    String code = String.valueOf(t.get("type_code")).toUpperCase();
+    String desc = String.valueOf(t.get("description"));
 
     boolean canView = true;
+
     if (code.contains("MATERNITY") && !isFemale) canView = false;
     if (code.contains("PATERNITY") && !isMale) canView = false;
 
     if (canView) {
 %>
-  <option value="<%=id%>"><%=code%></option>
+  <option value="<%= id %>" data-code="<%= code %>">
+      <%= code %>
+  </option>
 <%
     }
 }
 %>
 </select>
+
 
 <!-- DATES -->
 <div class="grid grid-cols-2 gap-6 mt-6">
@@ -127,3 +134,4 @@ for (Map<String,Object> t : leaveTypes) {
 </main>
 </body>
 </html>
+
