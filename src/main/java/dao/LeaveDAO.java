@@ -224,80 +224,95 @@ public class LeaveDAO {
     /* =====================================================
        DELETE LEAVE (PENDING ONLY)
        ===================================================== */
-    public boolean deleteLeave(int leaveId, int empId) throws Exception {
-
-            Connection con = DatabaseConnection.getConnection();
-        
-            try {
-                con.setAutoCommit(false);
-        
-                int leaveTypeId = 0;
-                double days = 0;
-        
-                // 1️⃣ GET LEAVE INFO (ONLY PENDING)
-                String fetchSql = """
-                    SELECT leave_type_id, duration_days
-                    FROM leave.leave_requests
-                    WHERE leave_id=? AND empid=?
-                      AND status_id = (
-                          SELECT status_id
-                          FROM leave.leave_statuses
-                          WHERE status_code='PENDING'
-                      )
-                """;
-        
-                try (PreparedStatement ps = con.prepareStatement(fetchSql)) {
-                    ps.setInt(1, leaveId);
-                    ps.setInt(2, empId);
-        
-                    ResultSet rs = ps.executeQuery();
-                    if (!rs.next()) {
+                public boolean deleteLeave(int leaveId, int empId) throws Exception {
+            
+                try (Connection con = DatabaseConnection.getConnection()) {
+            
+                    con.setAutoCommit(false);
+            
+                    try {
+                        int leaveTypeId;
+                        double days;
+                        String typeCode;
+            
+                        // 1️⃣ FETCH LEAVE (PENDING ONLY)
+                        String fetchSql = """
+                            SELECT lr.leave_type_id, lr.duration_days, lt.type_code
+                            FROM leave.leave_requests lr
+                            JOIN leave.leave_types lt
+                              ON lr.leave_type_id = lt.leave_type_id
+                            JOIN leave.leave_statuses ls
+                              ON lr.status_id = ls.status_id
+                            WHERE lr.leave_id = ?
+                              AND lr.empid = ?
+                              AND ls.status_code = 'PENDING'
+                        """;
+            
+                        try (PreparedStatement ps = con.prepareStatement(fetchSql)) {
+                            ps.setInt(1, leaveId);
+                            ps.setInt(2, empId);
+            
+                            try (ResultSet rs = ps.executeQuery()) {
+                                if (!rs.next()) {
+                                    con.rollback();
+                                    return false; // not pending / not exist
+                                }
+            
+                                leaveTypeId = rs.getInt("leave_type_id");
+                                days = rs.getDouble("duration_days");
+                                typeCode = rs.getString("type_code");
+                            }
+                        }
+            
+                        boolean isUnpaid = typeCode != null && typeCode.toUpperCase().contains("UNPAID");
+            
+                        // 2️⃣ UPDATE STATUS → CANCELLED
+                        String updateSql = """
+                            UPDATE leave.leave_requests
+                            SET status_id = (
+                                SELECT status_id
+                                FROM leave.leave_statuses
+                                WHERE status_code = 'CANCELLED'
+                            )
+                            WHERE leave_id = ?
+                        """;
+            
+                        try (PreparedStatement ps = con.prepareStatement(updateSql)) {
+                            ps.setInt(1, leaveId);
+                            ps.executeUpdate();
+                        }
+            
+                        // 3️⃣ ROLLBACK BALANCE (PAID LEAVE ONLY)
+                        if (!isUnpaid) {
+                            String balanceSql = """
+                                UPDATE leave.leave_balances
+                                SET pending = pending - ?,
+                                    total   = total + ?
+                                WHERE empid = ?
+                                  AND leave_type_id = ?
+                            """;
+            
+                            try (PreparedStatement ps = con.prepareStatement(balanceSql)) {
+                                ps.setDouble(1, days);
+                                ps.setDouble(2, days);
+                                ps.setInt(3, empId);
+                                ps.setInt(4, leaveTypeId);
+                                ps.executeUpdate();
+                            }
+                        }
+            
+                        con.commit();
+                        return true;
+            
+                    } catch (Exception e) {
                         con.rollback();
-                        return false; // Not pending or not exist
+                        throw e;
+                    } finally {
+                        con.setAutoCommit(true);
                     }
-        
-                    leaveTypeId = rs.getInt("leave_type_id");
-                    days = rs.getDouble("duration_days");
                 }
-        
-                // 2️⃣ DELETE LEAVE REQUEST
-                String deleteSql = """
-                    DELETE FROM leave.leave_requests
-                    WHERE leave_id=? AND empid=?
-                """;
-        
-                try (PreparedStatement ps = con.prepareStatement(deleteSql)) {
-                    ps.setInt(1, leaveId);
-                    ps.setInt(2, empId);
-                    ps.executeUpdate();
-                }
-        
-                // 3️⃣ ROLLBACK BALANCE
-                String balanceSql = """
-                    UPDATE leave.leave_balances
-                    SET pending = pending - ?,
-                        total = total + ?
-                    WHERE empid=? AND leave_type_id=?
-                """;
-        
-                try (PreparedStatement ps = con.prepareStatement(balanceSql)) {
-                    ps.setDouble(1, days);
-                    ps.setDouble(2, days);
-                    ps.setInt(3, empId);
-                    ps.setInt(4, leaveTypeId);
-                    ps.executeUpdate();
-                }
-        
-                con.commit();
-                return true;
-        
-            } catch (Exception e) {
-                con.rollback();
-                throw e;
-            } finally {
-                con.close();
             }
-        }
+
 
 
     /* =====================================================
@@ -447,6 +462,7 @@ public class LeaveDAO {
         }
     }
 }
+
 
 
 
