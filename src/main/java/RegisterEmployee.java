@@ -1,3 +1,23 @@
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import bean.User;
+import dao.UserDAO;
+import dao.LeaveBalanceDAO;
+import util.DatabaseConnection;
+
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.time.LocalDate;
+
+
 @WebServlet("/RegisterEmployee")
 public class RegisterEmployee extends HttpServlet {
 
@@ -85,3 +105,4 @@ public class RegisterEmployee extends HttpServlet {
         }
     }
 }
+
