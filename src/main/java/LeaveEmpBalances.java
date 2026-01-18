@@ -14,59 +14,55 @@ import java.util.stream.Collectors;
 
 @WebServlet("/LeaveEmpBalances")
 public class LeaveEmpBalances extends HttpServlet {
-    private static final long serialVersionUID = 1L;
+
     private final UserDAO userDAO = new UserDAO();
     private final LeaveDAO leaveDAO = new LeaveDAO();
 
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
         HttpSession session = request.getSession(false);
         if (session == null || !"ADMIN".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
             response.sendRedirect("login.jsp?error=Admin+access+required");
             return;
         }
 
+        List<User> employees = new ArrayList<>();
+        List<Map<String, Object>> leaveTypes = new ArrayList<>();
+        Map<Integer, Map<Integer, LeaveBalance>> balanceIndex = new HashMap<>();
+
         try (Connection con = DatabaseConnection.getConnection()) {
-            // 1. Get all users
-            List<User> allUsers = userDAO.getAllUsers();
-            
-            // 2. Filter list to include ONLY those with the role 'EMPLOYEE'
-            List<User> employeesOnly = allUsers.stream()
-                .filter(u -> "EMPLOYEE".equalsIgnoreCase(u.getRole()))
-                .collect(Collectors.toList());
-            
-            // 3. Get all leave types
-            List<Map<String, Object>> leaveTypes = leaveDAO.getAllLeaveTypes();
-            
-            // 4. Index balances by UserId then LeaveTypeId
-            Map<Integer, Map<Integer, LeaveBalance>> balanceIndex = new HashMap<>();
+
+            // 1. Employees (EMPLOYEE sahaja)
+            employees = userDAO.getAllUsers().stream()
+                    .filter(u -> "EMPLOYEE".equalsIgnoreCase(u.getRole()))
+                    .toList();
+
+            // 2. Leave Types
+            leaveTypes = leaveDAO.getAllLeaveTypes(); // mesti return id + code
+
+            // 3. Leave Balances
             LeaveBalanceDAO lbDAO = new LeaveBalanceDAO(con);
 
-            for (User u : employeesOnly) {
-                List<LeaveBalance> bals = lbDAO.getEmployeeBalances(u.getEmpId());
-                Map<Integer, LeaveBalance> typeMap = new HashMap<>();
-                for (LeaveBalance b : bals) {
-                    typeMap.put(b.getLeaveTypeId(), b);
+            for (User u : employees) {
+                Map<Integer, LeaveBalance> map = new HashMap<>();
+                for (LeaveBalance b : lbDAO.getEmployeeBalances(u.getEmpId())) {
+                    map.put(b.getLeaveTypeId(), b);
                 }
-                balanceIndex.put(u.getEmpId(), typeMap);
+                balanceIndex.put(u.getEmpId(), map);
             }
-
-            request.setAttribute("employees", employeesOnly);
-            request.setAttribute("leaveTypes", leaveTypes);
-            request.setAttribute("balanceIndex", balanceIndex);
-            
-            request.getRequestDispatcher("leaveEmpBalances.jsp").forward(request, response);
-
-            System.out.println("EMPLOYEES SIZE = " + employeesOnly.size());
-            System.out.println("LEAVE TYPES SIZE = " + leaveTypes.size());
-            System.out.println("BALANCE INDEX SIZE = " + balanceIndex.size());
-
 
         } catch (Exception e) {
             e.printStackTrace();
             request.setAttribute("error", "System Error: " + e.getMessage());
-            request.getRequestDispatcher("leaveEmpBalances.jsp").forward(request, response);
         }
-    }
 
+        // 🔐 WAJIB ADA (ELAK JSP MATI)
+        request.setAttribute("employees", employees);
+        request.setAttribute("leaveTypes", leaveTypes);
+        request.setAttribute("balanceIndex", balanceIndex);
+
+        request.getRequestDispatcher("leaveEmpBalances.jsp").forward(request, response);
+    }
 }
