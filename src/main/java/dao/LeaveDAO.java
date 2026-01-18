@@ -147,8 +147,8 @@ public class LeaveDAO {
                 ps.setInt(1, req.getEmpId());
                 ps.setInt(2, req.getLeaveTypeId());
                 ps.setInt(3, statusId);
-                ps.setDate(4, Date.valueOf(req.getStartDate()));
-                ps.setDate(5, Date.valueOf(req.getEndDate()));
+                ps.setDate(4, java.sql.Date.valueOf(req.getStartDate()));
+                ps.setDate(5, java.sql.Date.valueOf(req.getEndDate()));
                 ps.setString(6, req.getDuration());
                 ps.setDouble(7, req.getDurationDays());
                 ps.setString(8, req.getReason());
@@ -208,8 +208,8 @@ public class LeaveDAO {
         try (Connection con = DatabaseConnection.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
 
-            ps.setDate(1, Date.valueOf(req.getStartDate()));
-            ps.setDate(2, Date.valueOf(req.getEndDate()));
+            ps.setDate(1, java.sql.Date.valueOf(req.getStartDate()));
+            ps.setDate(2, java.sql.Date.valueOf(req.getEndDate()));
             ps.setString(3, req.getDuration());
             ps.setDouble(4, req.getDurationDays());
             ps.setString(5, req.getReason());
@@ -390,4 +390,5 @@ public class LeaveDAO {
         }
     }
 }
+
 
