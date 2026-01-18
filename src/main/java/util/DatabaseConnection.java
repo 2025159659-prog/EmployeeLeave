@@ -2,20 +2,31 @@ package util;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.SQLException;
+import java.net.URI;
 
 public class DatabaseConnection {
 
-	private static final String ORACLE_DRIVER = "oracle.jdbc.driver.OracleDriver"; 
-	private static final String ORACLE_URL = "jdbc:oracle:thin:@//localhost:1521/freepdb1"; 
-	private static final String ORACLE_USER = "LEAVE"; 
-	private static final String ORACLE_PASS = "leave";    
-	
-	
-	public static Connection getConnection() throws SQLException, ClassNotFoundException {
-		Class.forName(ORACLE_DRIVER);
-		
-		// Return the database connection
-		return DriverManager.getConnection(ORACLE_URL, ORACLE_USER, ORACLE_PASS);
-	}
+    public static Connection getConnection() throws Exception {
+
+        String dbUrl = System.getenv("DATABASE_URL");
+
+        if (dbUrl == null) {
+            throw new RuntimeException("DATABASE_URL not found");
+        }
+
+        URI uri = new URI(dbUrl);
+
+        String userInfo = uri.getUserInfo();
+        String username = userInfo.split(":")[0];
+        String password = userInfo.split(":")[1];
+
+        String jdbcUrl = "jdbc:postgresql://" 
+                + uri.getHost() 
+                + ":" + uri.getPort() 
+                + uri.getPath()
+                + "?sslmode=require";
+
+        Class.forName("org.postgresql.Driver");
+        return DriverManager.getConnection(jdbcUrl, username, password);
+    }
 }
