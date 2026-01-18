@@ -16,6 +16,23 @@ public class ChangePassword extends HttpServlet {
 
     private static final long serialVersionUID = 1L;
 
+    // ✅ HANDLE GET (OPEN PAGE)
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession(false);
+
+        if (session == null || session.getAttribute("empid") == null) {
+            response.sendRedirect("login.jsp?error=Session expired");
+            return;
+        }
+
+        request.getRequestDispatcher("changePassword.jsp")
+               .forward(request, response);
+    }
+
+    // ✅ HANDLE POST (UPDATE PASSWORD)
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -32,67 +49,47 @@ public class ChangePassword extends HttpServlet {
         String newPassword = request.getParameter("newPassword");
         String confirmPassword = request.getParameter("confirmPassword");
 
-        // 🔒 Basic validation
         if (currentPassword == null || newPassword == null || confirmPassword == null ||
             currentPassword.isEmpty() || newPassword.isEmpty() || confirmPassword.isEmpty()) {
 
-            response.sendRedirect("ChangePassword?error=" + url("All fields are required"));
+            response.sendRedirect("ChangePassword?error=" +
+                    url("All fields are required"));
             return;
         }
 
         if (!newPassword.equals(confirmPassword)) {
-            response.sendRedirect("ChangePassword?error=" + url("Passwords do not match"));
+            response.sendRedirect("ChangePassword?error=" +
+                    url("Passwords do not match"));
             return;
         }
 
         try (Connection con = DatabaseConnection.getConnection()) {
 
-            // 1️⃣ Verify current password
-            String checkSql = """
-                SELECT password
-                FROM leave.users
-                WHERE empid = ?
-            """;
-
             String dbPassword = null;
 
-            try (PreparedStatement ps = con.prepareStatement(checkSql)) {
+            try (PreparedStatement ps = con.prepareStatement("""
+                SELECT password FROM leave.users WHERE empid = ?
+            """)) {
                 ps.setInt(1, empId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         dbPassword = rs.getString("password");
-                    } else {
-                        response.sendRedirect("ChangePassword?error=" +
-                                url("User not found"));
-                        return;
                     }
                 }
             }
 
-            if (!currentPassword.equals(dbPassword)) {
+            if (dbPassword == null || !dbPassword.equals(currentPassword)) {
                 response.sendRedirect("ChangePassword?error=" +
                         url("Current password is incorrect"));
                 return;
             }
 
-            // 2️⃣ Update password
-            String updateSql = """
-                UPDATE leave.users
-                SET password = ?
-                WHERE empid = ?
-            """;
-
-            try (PreparedStatement ps = con.prepareStatement(updateSql)) {
+            try (PreparedStatement ps = con.prepareStatement("""
+                UPDATE leave.users SET password = ? WHERE empid = ?
+            """)) {
                 ps.setString(1, newPassword);
                 ps.setInt(2, empId);
-
-                int updated = ps.executeUpdate();
-
-                if (updated == 0) {
-                    response.sendRedirect("ChangePassword?error=" +
-                            url("Unable to update password"));
-                    return;
-                }
+                ps.executeUpdate();
             }
 
             response.sendRedirect("ChangePassword?msg=" +
