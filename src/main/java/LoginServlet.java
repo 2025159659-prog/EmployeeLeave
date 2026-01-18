@@ -28,10 +28,12 @@ public class LoginServlet extends HttpServlet {
             return;
         }
 
-        String sql =
-                    "SELECT \"EMPID\", \"FULLNAME\", \"ROLE\", \"STATUS\" " +
-                    "FROM leave.\"USERS\" " +
-                    "WHERE \"EMAIL\" = ? AND \"PASSWORD\" = ?";
+        String sql = """
+                    SELECT empid, fullname, role, status
+                    FROM leave.users
+                    WHERE email = ? AND password = ?
+                """;
+
 
 
         try (Connection con = DatabaseConnection.getConnection();
@@ -78,4 +80,5 @@ public class LoginServlet extends HttpServlet {
         return URLEncoder.encode(s, StandardCharsets.UTF_8);
     }
 }
+
 
