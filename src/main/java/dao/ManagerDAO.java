@@ -152,161 +152,150 @@ public class ManagerDAO {
     /* =========================================================
        PROCESS MANAGER ACTION (APPROVE / REJECT / CANCEL)
        ========================================================= */
-                    public boolean processAction(int leaveId, String action, String comment) throws Exception {
-                
-                    try (Connection con = DatabaseConnection.getConnection()) {
-                
-                        con.setAutoCommit(false);
-                
-                        try {
-                            int empId;
-                            int leaveTypeId;
-                            double days;
-                            String typeCode = "";
-                
-                            /* ================================
-                               1️⃣ FETCH BASIC LEAVE INFO
-                               ================================ */
-                            String fetchSql = """
-                                SELECT empid, leave_type_id, duration_days
-                                FROM leave.leave_requests
-                                WHERE leave_id = ?
-                            """;
-                
-                            try (PreparedStatement ps = con.prepareStatement(fetchSql)) {
-                                ps.setInt(1, leaveId);
-                                try (ResultSet rs = ps.executeQuery()) {
-                                    if (!rs.next()) return false;
-                                    empId = rs.getInt("empid");
-                                    leaveTypeId = rs.getInt("leave_type_id");
-                                    days = rs.getDouble("duration_days");
-                                }
-                            }
-                
-                            /* ================================
-                               2️⃣ FETCH LEAVE TYPE CODE
-                               (CRITICAL FOR UNPAID)
-                               ================================ */
-                            String typeSql = """
-                                SELECT lt.type_code
-                                FROM leave.leave_requests lr
-                                JOIN leave.leave_types lt
-                                  ON lr.leave_type_id = lt.leave_type_id
-                                WHERE lr.leave_id = ?
-                            """;
-                
-                            try (PreparedStatement ps = con.prepareStatement(typeSql)) {
-                                ps.setInt(1, leaveId);
-                                try (ResultSet rs = ps.executeQuery()) {
-                                    if (rs.next()) {
-                                        typeCode = rs.getString("type_code");
-                                    }
-                                }
-                            }
-                
-                            if (typeCode == null) typeCode = "";
-                            typeCode = typeCode.trim().toUpperCase();
-                
-                            /* ================================
-                               3️⃣ DETERMINE ACTION
-                               ================================ */
-                            String finalStatus;
-                            String balanceSql = null;
-                
-                            switch (action) {
-                
-                                case "APPROVE" -> {
-                                    finalStatus = "APPROVED";
-                
-                                    // ✅ UNPAID & NORMAL LEAVE
-                                    balanceSql = """
-                                        UPDATE leave.leave_balances
-                                        SET pending = pending - ?, used = used + ?
-                                        WHERE empid = ? AND leave_type_id = ?
-                                    """;
-                                }
-                
-                                case "REJECT" -> {
-                                    finalStatus = "REJECTED";
-                
-                                    // ✅ UNPAID WILL JUST CLEAR PENDING
-                                    balanceSql = """
-                                        UPDATE leave.leave_balances
-                                        SET pending = pending - ?, total = total + ?
-                                        WHERE empid = ? AND leave_type_id = ?
-                                    """;
-                                }
-                
-                                case "APPROVE_CANCEL" -> {
-                                    finalStatus = "CANCELLED";
-                
-                                    balanceSql = """
-                                        UPDATE leave.leave_balances
-                                        SET used = used - ?, total = total + ?
-                                        WHERE empid = ? AND leave_type_id = ?
-                                    """;
-                                }
-                
-                                case "REJECT_CANCEL" -> {
-                                    finalStatus = "APPROVED";
-                                }
-                
-                                default -> throw new IllegalArgumentException("Invalid action: " + action);
-                            }
-                
-                            /* ================================
-                               4️⃣ UPDATE LEAVE STATUS & COMMENT
-                               ================================ */
-                            String updateLeave = """
-                                UPDATE leave.leave_requests
-                                SET status_id = (
-                                    SELECT status_id
-                                    FROM leave.leave_statuses
-                                    WHERE status_code = ?
-                                ),
-                                manager_comment = ?
-                                WHERE leave_id = ?
-                            """;
-                
-                            try (PreparedStatement ps = con.prepareStatement(updateLeave)) {
-                                ps.setString(1, finalStatus);
-                                ps.setString(2, comment);
-                                ps.setInt(3, leaveId);
-                                ps.executeUpdate();
-                            }
-                
-                            /* ================================
-                               5️⃣ UPDATE LEAVE BALANCE (IF ANY)
-                               ================================ */
-                            if (balanceSql != null) {
-                                try (PreparedStatement ps = con.prepareStatement(balanceSql)) {
-                                    ps.setDouble(1, days);
-                                    ps.setDouble(2, days);
-                                    ps.setInt(3, empId);
-                                    ps.setInt(4, leaveTypeId);
-                                    ps.executeUpdate();
-                                }
-                            }
-                
-                            con.commit();
-                            return true;
-                
-                        } catch (Exception e) {
-                            con.rollback();
-                            throw e;
-                        } finally {
-                            con.setAutoCommit(true);
-                        }
+    public boolean processAction(int leaveId, String action, String comment) throws Exception {
+
+    try (Connection con = DatabaseConnection.getConnection()) {
+
+        con.setAutoCommit(false);
+
+        try {
+            int empId;
+            int leaveTypeId;
+            double days;
+            String typeCode = "";
+
+            /* ================================
+               1️⃣ FETCH BASIC LEAVE INFO
+               ================================ */
+            String fetchSql = """
+                SELECT empid, leave_type_id, duration_days
+                FROM leave.leave_requests
+                WHERE leave_id = ?
+            """;
+
+            try (PreparedStatement ps = con.prepareStatement(fetchSql)) {
+                ps.setInt(1, leaveId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) return false;
+                    empId = rs.getInt("empid");
+                    leaveTypeId = rs.getInt("leave_type_id");
+                    days = rs.getDouble("duration_days");
+                }
+            }
+
+            /* ================================
+               2️⃣ FETCH LEAVE TYPE CODE
+               (CRITICAL FOR UNPAID)
+               ================================ */
+            String typeSql = """
+                SELECT lt.type_code
+                FROM leave.leave_requests lr
+                JOIN leave.leave_types lt
+                  ON lr.leave_type_id = lt.leave_type_id
+                WHERE lr.leave_id = ?
+            """;
+
+            try (PreparedStatement ps = con.prepareStatement(typeSql)) {
+                ps.setInt(1, leaveId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        typeCode = rs.getString("type_code");
                     }
                 }
-
-
-            } catch (Exception e) {
-                con.rollback();
-                throw e;
-            } finally {
-                con.setAutoCommit(true);
             }
+
+            if (typeCode == null) typeCode = "";
+            typeCode = typeCode.trim().toUpperCase();
+
+            /* ================================
+               3️⃣ DETERMINE ACTION
+               ================================ */
+            String finalStatus;
+            String balanceSql = null;
+
+            switch (action) {
+
+                case "APPROVE" -> {
+                    finalStatus = "APPROVED";
+
+                    // ✅ UNPAID & NORMAL LEAVE
+                    balanceSql = """
+                        UPDATE leave.leave_balances
+                        SET pending = pending - ?, used = used + ?
+                        WHERE empid = ? AND leave_type_id = ?
+                    """;
+                }
+
+                case "REJECT" -> {
+                    finalStatus = "REJECTED";
+
+                    // ✅ UNPAID WILL JUST CLEAR PENDING
+                    balanceSql = """
+                        UPDATE leave.leave_balances
+                        SET pending = pending - ?, total = total + ?
+                        WHERE empid = ? AND leave_type_id = ?
+                    """;
+                }
+
+                case "APPROVE_CANCEL" -> {
+                    finalStatus = "CANCELLED";
+
+                    balanceSql = """
+                        UPDATE leave.leave_balances
+                        SET used = used - ?, total = total + ?
+                        WHERE empid = ? AND leave_type_id = ?
+                    """;
+                }
+
+                case "REJECT_CANCEL" -> {
+                    finalStatus = "APPROVED";
+                }
+
+                default -> throw new IllegalArgumentException("Invalid action: " + action);
+            }
+
+            /* ================================
+               4️⃣ UPDATE LEAVE STATUS & COMMENT
+               ================================ */
+            String updateLeave = """
+                UPDATE leave.leave_requests
+                SET status_id = (
+                    SELECT status_id
+                    FROM leave.leave_statuses
+                    WHERE status_code = ?
+                ),
+                manager_comment = ?
+                WHERE leave_id = ?
+            """;
+
+            try (PreparedStatement ps = con.prepareStatement(updateLeave)) {
+                ps.setString(1, finalStatus);
+                ps.setString(2, comment);
+                ps.setInt(3, leaveId);
+                ps.executeUpdate();
+            }
+
+            /* ================================
+               5️⃣ UPDATE LEAVE BALANCE (IF ANY)
+               ================================ */
+            if (balanceSql != null) {
+                try (PreparedStatement ps = con.prepareStatement(balanceSql)) {
+                    ps.setDouble(1, days);
+                    ps.setDouble(2, days);
+                    ps.setInt(3, empId);
+                    ps.setInt(4, leaveTypeId);
+                    ps.executeUpdate();
+                }
+            }
+
+            con.commit();
+            return true;
+
+        } catch (Exception e) {
+            con.rollback();
+            throw e;
+        } finally {
+            con.setAutoCommit(true);
         }
     }
 }
