@@ -25,9 +25,9 @@ public class LeaveDAO {
         List<Map<String, Object>> list = new ArrayList<>();
     
         String sql = """
-            SELECT leave_type_id, leave_code, description
+            SELECT leave_type_id, type_code, description
             FROM leave.leave_types
-            ORDER BY leave_type_id
+            ORDER BY type_code
         """;
     
         try (Connection con = DatabaseConnection.getConnection();
@@ -37,7 +37,7 @@ public class LeaveDAO {
             while (rs.next()) {
                 Map<String, Object> m = new HashMap<>();
                 m.put("id", rs.getInt("leave_type_id"));
-                m.put("code", rs.getString("leave_code"));
+                m.put("code", rs.getString("type_code"));
                 m.put("desc", rs.getString("description"));
                 list.add(m);
             }
@@ -259,6 +259,7 @@ public LeaveRequest getLeaveById(int leaveId, int empId) throws Exception {
         }
     }
 }
+
 
 
 
