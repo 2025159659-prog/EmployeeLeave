@@ -222,8 +222,8 @@ public class AdminLeaveHistoryDAO {
             String sql = "SELECT holiday_date FROM holidays WHERE holiday_date BETWEEN ? AND ?";
 
             try (PreparedStatement ps = con.prepareStatement(sql)) {
-                ps.setDate(1, Date.valueOf(start));
-                ps.setDate(2, Date.valueOf(end));
+                ps.setDate(1, java.sql.Date.valueOf(start));
+                ps.setDate(2, java.sql.Date.valueOf(end));
 
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
@@ -245,3 +245,4 @@ public class AdminLeaveHistoryDAO {
         return count;
     }
 }
+
