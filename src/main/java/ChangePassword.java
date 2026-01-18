@@ -7,6 +7,12 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
 
+import util.DatabaseConnection;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
+
 @WebServlet("/ChangePassword")
 public class ChangePassword extends HttpServlet {
 
