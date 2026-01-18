@@ -28,22 +28,17 @@ public class LeaveEmpBalances extends HttpServlet {
             return;
         }
 
-        List<User> employees = new ArrayList<>();
-        List<Map<String, Object>> leaveTypes = new ArrayList<>();
-        Map<Integer, Map<Integer, LeaveBalance>> balanceIndex = new HashMap<>();
-
         try (Connection con = DatabaseConnection.getConnection()) {
 
-            // 1. Employees (EMPLOYEE sahaja)
-            employees = userDAO.getAllUsers().stream()
-                    .filter(u -> "EMPLOYEE".equalsIgnoreCase(u.getRole()))
-                    .toList();
+            // 1️⃣ Employees
+            List<User> employees = userDAO.getAllUsers();
 
-            // 2. Leave Types
-            leaveTypes = leaveDAO.getAllLeaveTypes(); // mesti return id + code
+            // 2️⃣ Leave types (KEY id & code)
+            List<Map<String, Object>> leaveTypes = leaveDAO.getAllLeaveTypes();
 
-            // 3. Leave Balances
+            // 3️⃣ Balances
             LeaveBalanceDAO lbDAO = new LeaveBalanceDAO(con);
+            Map<Integer, Map<Integer, LeaveBalance>> balanceIndex = new HashMap<>();
 
             for (User u : employees) {
                 Map<Integer, LeaveBalance> map = new HashMap<>();
@@ -53,16 +48,17 @@ public class LeaveEmpBalances extends HttpServlet {
                 balanceIndex.put(u.getEmpId(), map);
             }
 
+            request.setAttribute("employees", employees);
+            request.setAttribute("leaveTypes", leaveTypes);
+            request.setAttribute("balanceIndex", balanceIndex);
+
+            request.getRequestDispatcher("leaveEmpBalances.jsp").forward(request, response);
+
         } catch (Exception e) {
             e.printStackTrace();
             request.setAttribute("error", "System Error: " + e.getMessage());
+            request.getRequestDispatcher("leaveEmpBalances.jsp").forward(request, response);
         }
-
-        // 🔐 WAJIB ADA (ELAK JSP MATI)
-        request.setAttribute("employees", employees);
-        request.setAttribute("leaveTypes", leaveTypes);
-        request.setAttribute("balanceIndex", balanceIndex);
-
-        request.getRequestDispatcher("leaveEmpBalances.jsp").forward(request, response);
     }
 }
+
