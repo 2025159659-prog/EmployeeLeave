@@ -5,6 +5,11 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
+import util.DatabaseConnection;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
 
 @WebServlet("/ManagerLeaveActionServlet")
 public class ManagerLeaveActionServlet extends HttpServlet {
@@ -95,4 +100,5 @@ public class ManagerLeaveActionServlet extends HttpServlet {
 			response.sendRedirect("ReviewLeave?error=" + URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8));
 		}
 	}
+
 }
