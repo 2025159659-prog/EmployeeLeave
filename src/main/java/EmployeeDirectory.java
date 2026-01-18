@@ -25,11 +25,13 @@ public class EmployeeDirectory extends HttpServlet {
 
         List<Map<String, Object>> users = new ArrayList<>();
 
-        // ✅ FIX: ambil SEMUA role (ADMIN, MANAGER, EMPLOYEE)
+        // ✅ FIX BETUL:
+        // - JANGAN filter status
+        // - Papar SEMUA role
+        // - Status ACTIVE / INACTIVE ditentukan oleh button
         String sql = """
             SELECT empid, fullname, email, role, phoneno, hiredate, status
             FROM leave.users
-            WHERE status = 'ACTIVE'
             ORDER BY 
                 CASE role
                     WHEN 'ADMIN' THEN 1
@@ -57,7 +59,9 @@ public class EmployeeDirectory extends HttpServlet {
             }
 
         } catch (Exception e) {
-            throw new ServletException(e);
+            e.printStackTrace();
+            response.sendRedirect("EmployeeDirectory?error=Database+error");
+            return;
         }
 
         request.setAttribute("users", users);
