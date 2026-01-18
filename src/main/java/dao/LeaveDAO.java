@@ -21,16 +21,12 @@ public class LeaveDAO {
     /* =====================================================
        FETCH LEAVE TYPES (FOR APPLY LEAVE)
        ===================================================== */
-      public List<Map<String, Object>> getAllLeaveTypes() throws Exception {
-    
+          public List<Map<String, Object>> getAllLeaveTypes() throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
     
         String sql = """
-            SELECT 
-                leave_type_id,
-                type_code,
-                description
-            FROM leave_types
+            SELECT leave_type_id, leave_code, description
+            FROM leave.leave_types
             ORDER BY leave_type_id
         """;
     
@@ -41,14 +37,14 @@ public class LeaveDAO {
             while (rs.next()) {
                 Map<String, Object> m = new HashMap<>();
                 m.put("id", rs.getInt("leave_type_id"));
-                m.put("code", rs.getString("type_code"));
+                m.put("code", rs.getString("leave_code"));
                 m.put("desc", rs.getString("description"));
                 list.add(m);
             }
         }
-    
         return list;
     }
+
 
     /**
  * Fetch leave request by ID + EMPID (FOR EDIT LEAVE)
@@ -263,5 +259,6 @@ public LeaveRequest getLeaveById(int leaveId, int empId) throws Exception {
         }
     }
 }
+
 
 
