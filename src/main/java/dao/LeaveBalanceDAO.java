@@ -16,12 +16,9 @@ public class LeaveBalanceDAO {
         this.conn = conn;
     }
 
-    /**
-     * =====================================================
-     * ✅ REQUIRED BY RegisterEmployee.java
-     * Initialize leave balances for NEW employee
-     * =====================================================
-     */
+    /* =====================================================
+       INITIALIZE LEAVE BALANCES FOR NEW EMPLOYEE
+       ===================================================== */
     public void initializeNewEmployeeBalances(
             int empId,
             LocalDate hireDate,
@@ -66,18 +63,14 @@ public class LeaveBalanceDAO {
                         );
 
                 double entitlement = er.proratedEntitlement;
-                double carriedFwd  = 0.0;
-                double used        = 0.0;
-                double pending     = 0.0;
-                double total       = entitlement;
 
                 insertStmt.setInt(1, empId);
                 insertStmt.setInt(2, leaveTypeId);
                 insertStmt.setDouble(3, entitlement);
-                insertStmt.setDouble(4, carriedFwd);
-                insertStmt.setDouble(5, used);
-                insertStmt.setDouble(6, pending);
-                insertStmt.setDouble(7, total);
+                insertStmt.setDouble(4, 0); // carried_fwd
+                insertStmt.setDouble(5, 0); // used
+                insertStmt.setDouble(6, 0); // pending
+                insertStmt.setDouble(7, entitlement); // total
 
                 insertStmt.addBatch();
             }
@@ -85,11 +78,9 @@ public class LeaveBalanceDAO {
         }
     }
 
-    /**
-     * =====================================================
-     * Fetch balances for Admin / Employee view
-     * =====================================================
-     */
+    /* =====================================================
+       GET EMPLOYEE LEAVE BALANCES (FIXED FOR UNPAID)
+       ===================================================== */
     public List<LeaveBalance> getEmployeeBalances(int empId)
             throws SQLException {
 
@@ -117,20 +108,70 @@ public class LeaveBalanceDAO {
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
+
                     LeaveBalance b = new LeaveBalance();
                     b.setEmpId(rs.getInt("empid"));
                     b.setLeaveTypeId(rs.getInt("leave_type_id"));
                     b.setTypeCode(rs.getString("type_code"));
                     b.setDescription(rs.getString("description"));
-                    b.setEntitlement(rs.getDouble("entitlement"));
-                    b.setCarriedForward(rs.getDouble("carried_fwd"));
-                    b.setUsed(rs.getDouble("used"));
-                    b.setPending(rs.getDouble("pending"));
-                    b.setTotalAvailable(rs.getDouble("total"));
+
+                    String typeCode = rs.getString("type_code").toUpperCase();
+
+                    /* ===============================
+                       SPECIAL HANDLING FOR UNPAID
+                       =============================== */
+                    if (typeCode.equals("UNPAID")) {
+
+                        double pending = sumUnpaidDays(empId, "PENDING");
+                        double used    = sumUnpaidDays(empId, "APPROVED");
+
+                        b.setEntitlement(3); // UI reference only
+                        b.setCarriedForward(0);
+                        b.setPending(pending);
+                        b.setUsed(used);
+                        b.setTotalAvailable(3 - pending - used);
+
+                    } else {
+                        // ===== NORMAL LEAVE TYPES =====
+                        b.setEntitlement(rs.getDouble("entitlement"));
+                        b.setCarriedForward(rs.getDouble("carried_fwd"));
+                        b.setUsed(rs.getDouble("used"));
+                        b.setPending(rs.getDouble("pending"));
+                        b.setTotalAvailable(rs.getDouble("total"));
+                    }
+
                     list.add(b);
                 }
             }
         }
         return list;
+    }
+
+    /* =====================================================
+       HELPER: SUM UNPAID DAYS BY STATUS
+       ===================================================== */
+    private double sumUnpaidDays(int empId, String statusCode)
+            throws SQLException {
+
+        String sql = """
+            SELECT COALESCE(SUM(lr.duration_days), 0)
+            FROM leave.leave_requests lr
+            JOIN leave.leave_types lt
+              ON lr.leave_type_id = lt.leave_type_id
+            JOIN leave.leave_statuses ls
+              ON lr.status_id = ls.status_id
+            WHERE lr.empid = ?
+              AND UPPER(lt.type_code) = 'UNPAID'
+              AND ls.status_code = ?
+        """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, empId);
+            ps.setString(2, statusCode);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getDouble(1) : 0.0;
+            }
+        }
     }
 }
