@@ -173,35 +173,54 @@ public class ManagerDAO {
 
                 String finalStatus;
                 String balanceSql = null;
+                boolean isUnpaid = typeCode.contains("UNPAID");
+
 
                 switch (action) {
-                    case "APPROVE" -> {
-                        finalStatus = "APPROVED";
-                        balanceSql = """
-                            UPDATE leave.leave_balances
-                            SET pending = pending - ?, used = used + ?
-                            WHERE empid = ? AND leave_type_id = ?
-                        """;
+                    
+                        case "APPROVE" -> {
+                            finalStatus = "APPROVED";
+                    
+                            if (!isUnpaid) {
+                                balanceSql = """
+                                    UPDATE leave.leave_balances
+                                    SET pending = pending - ?, used = used + ?
+                                    WHERE empid = ? AND leave_type_id = ?
+                                """;
+                            }
+                        }
+                    
+                        case "REJECT" -> {
+                            finalStatus = "REJECTED";
+                    
+                            if (!isUnpaid) {
+                                balanceSql = """
+                                    UPDATE leave.leave_balances
+                                    SET pending = pending - ?, total = total + ?
+                                    WHERE empid = ? AND leave_type_id = ?
+                                """;
+                            }
+                        }
+                    
+                        case "APPROVE_CANCEL" -> {
+                            finalStatus = "CANCELLED";
+                    
+                            if (!isUnpaid) {
+                                balanceSql = """
+                                    UPDATE leave.leave_balances
+                                    SET used = used - ?, total = total + ?
+                                    WHERE empid = ? AND leave_type_id = ?
+                                """;
+                            }
+                        }
+                    
+                        case "REJECT_CANCEL" -> {
+                            finalStatus = "APPROVED";
+                        }
+                    
+                        default -> throw new IllegalArgumentException("Invalid action: " + action);
                     }
-                    case "REJECT" -> {
-                        finalStatus = "REJECTED";
-                        balanceSql = """
-                            UPDATE leave.leave_balances
-                            SET pending = pending - ?, total = total + ?
-                            WHERE empid = ? AND leave_type_id = ?
-                        """;
-                    }
-                    case "APPROVE_CANCEL" -> {
-                        finalStatus = "CANCELLED";
-                        balanceSql = """
-                            UPDATE leave.leave_balances
-                            SET used = used - ?, total = total + ?
-                            WHERE empid = ? AND leave_type_id = ?
-                        """;
-                    }
-                    case "REJECT_CANCEL" -> finalStatus = "APPROVED";
-                    default -> throw new IllegalArgumentException("Invalid action");
-                }
+
 
                 String updateLeave = """
                     UPDATE leave.leave_requests
