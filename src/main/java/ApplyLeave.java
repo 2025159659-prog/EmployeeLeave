@@ -17,6 +17,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @WebServlet("/ApplyLeave")
 @MultipartConfig(
@@ -42,30 +43,70 @@ public class ApplyLeave extends HttpServlet {
 
     /* =======================
        CENTRAL DATA LOADER
-       (INI FIX UTAMA)
+       + FULL DEBUG
        ======================= */
     private void loadApplyLeaveData(HttpServletRequest request, HttpSession session) throws Exception {
+
         int empId = Integer.parseInt(String.valueOf(session.getAttribute("empid")));
 
         try (Connection con = DatabaseConnection.getConnection()) {
 
-            // Refresh gender (JSP rely on session)
+            /* =======================
+               DB DEBUG
+               ======================= */
+            System.out.println("\n===== APPLY LEAVE DEBUG START =====");
+            System.out.println("DB URL     : " + con.getMetaData().getURL());
+            System.out.println("DB USER    : " + con.getMetaData().getUserName());
+            System.out.println("DB SCHEMA  : " + con.getSchema());
+
+            /* =======================
+               GENDER REFRESH
+               ======================= */
             String gSql = "SELECT GENDER FROM USERS WHERE EMPID = ?";
             try (PreparedStatement ps = con.prepareStatement(gSql)) {
                 ps.setInt(1, empId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         session.setAttribute("gender", rs.getString("GENDER"));
+                        System.out.println("Gender loaded : " + rs.getString("GENDER"));
                     }
                 }
             }
 
-            // Load balances (boleh kosong, JSP handle)
+            /* =======================
+               BALANCES
+               ======================= */
             LeaveBalanceDAO lbDAO = new LeaveBalanceDAO(con);
             List<LeaveBalance> balances = lbDAO.getEmployeeBalances(empId);
-
+            System.out.println("Balances loaded : " + balances.size());
             request.setAttribute("balances", balances);
-            request.setAttribute("leaveTypes", leaveDAO.getAllLeaveTypes());
+
+            /* =======================
+               LEAVE TYPES (CRITICAL)
+               ======================= */
+            List<Map<String, Object>> types = leaveDAO.getAllLeaveTypes();
+
+            System.out.println("Leave types class : " + types.getClass().getName());
+            System.out.println("Leave types size  : " + types.size());
+
+            for (Map<String, Object> t : types) {
+                System.out.println("LeaveType -> " + t);
+            }
+
+            /* =======================
+               DIRECT SQL COUNT (BYPASS DAO)
+               ======================= */
+            try (PreparedStatement ps = con.prepareStatement(
+                    "SELECT COUNT(*) FROM leave.leave_types");
+                 ResultSet rs = ps.executeQuery()) {
+
+                if (rs.next()) {
+                    System.out.println("COUNT leave.leave_types = " + rs.getInt(1));
+                }
+            }
+
+            request.setAttribute("leaveTypes", types);
+            System.out.println("===== APPLY LEAVE DEBUG END =====\n");
         }
     }
 
@@ -168,7 +209,6 @@ public class ApplyLeave extends HttpServlet {
             response.sendRedirect("ApplyLeave?msg=" + url("success"));
 
         } catch (Exception e) {
-            // 🔥 INI FIX BESAR – JANGAN REDIRECT
             e.printStackTrace();
             try {
                 loadApplyLeaveData(request, session);
