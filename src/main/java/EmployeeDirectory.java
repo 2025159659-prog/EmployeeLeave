@@ -6,6 +6,12 @@ import java.io.IOException;
 import java.sql.*;
 import java.util.*;
 
+import util.DatabaseConnection;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
+
 @WebServlet("/EmployeeDirectory")
 public class EmployeeDirectory extends HttpServlet {
 
@@ -48,4 +54,5 @@ public class EmployeeDirectory extends HttpServlet {
 		request.setAttribute("users", users);
 		request.getRequestDispatcher("employeeDirectory.jsp").forward(request, response);
 	}
+
 }
