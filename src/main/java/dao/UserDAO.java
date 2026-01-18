@@ -1,4 +1,3 @@
-
 package dao;
 
 import java.sql.Connection;
@@ -13,150 +12,205 @@ import util.DatabaseConnection;
 
 public class UserDAO {
 
-	/**
-	 * Registers a new employee. Role is automatically set to 'EMPLOYEE'. ManagerID
-	 * is automatically assigned by looking up the system's active Manager.
-	 */
-	public boolean registerUser(User user) throws Exception {
-		// Updated SQL to include MANAGERID
-		String sql = "INSERT INTO USERS " + "(FULLNAME, EMAIL, PASSWORD, GENDER, HIREDATE, PHONENO, "
-				+ "STREET, CITY, POSTAL_CODE, STATE, IC_NUMBER, ROLE, STATUS, PROFILE_PICTURE, MANAGERID) "
-				+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'EMPLOYEE', 'ACTIVE', NULL, ?)";
+    /**
+     * Register new employee user
+     */
+    public boolean registerUser(User user) throws Exception {
 
-		try (Connection con = DatabaseConnection.getConnection()) {
-			// 1. Check duplicate email first
-			if (isEmailExists(user.getEmail(), con)) {
-				throw new Exception("Email address is already registered.");
-			}
+        String sql = """
+            INSERT INTO leave.users
+            (fullname, email, password, gender, hiredate, phoneno,
+             street, city, postal_code, state, ic_number,
+             role, status, profile_picture, managerid)
+            VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'EMPLOYEE', 'ACTIVE', NULL, ?)
+        """;
 
-			// 2. Retrieve the ID of the system manager
-			Integer managerId = getSystemManagerId(con);
+        try (Connection con = DatabaseConnection.getConnection()) {
 
-			try (PreparedStatement ps = con.prepareStatement(sql)) {
-				ps.setString(1, user.getFullName());
-				ps.setString(2, user.getEmail());
-				ps.setString(3, user.getPassword());
-				ps.setString(4, user.getGender());
-				ps.setDate(5, new java.sql.Date(user.getHireDate().getTime()));
-				ps.setString(6, user.getPhone());
-				ps.setString(7, user.getStreet());
-				ps.setString(8, user.getCity());
-				ps.setString(9, user.getPostalCode());
-				ps.setString(10, user.getState());
-				ps.setString(11, user.getIcNumber());
+            if (isEmailExists(user.getEmail(), con)) {
+                throw new Exception("Email already registered");
+            }
 
-				// 3. Bind Manager ID (can be null if no manager found, but column allows it)
-				if (managerId != null) {
-					ps.setInt(12, managerId);
-				} else {
-					ps.setNull(12, java.sql.Types.INTEGER);
-				}
+            Integer managerEmpId = getSystemManagerEmpId(con);
 
-				return ps.executeUpdate() > 0;
-			}
-		}
-	}
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
 
-	/**
-	 * Helper method to find the EMPID of the user with ROLE 'MANAGER'. Since there
-	 * is only one manager, we fetch the first active one found.
-	 */
-	private Integer getSystemManagerId(Connection con) throws SQLException {
-		String sql = "SELECT EMPID FROM USERS WHERE ROLE = 'MANAGER' AND STATUS = 'ACTIVE' FETCH FIRST 1 ROWS ONLY";
-		try (PreparedStatement ps = con.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
-			if (rs.next()) {
-				return rs.getInt("EMPID");
-			}
-		}
-		return null;
-	}
+                ps.setString(1, user.getFullName());
+                ps.setString(2, user.getEmail());
+                ps.setString(3, user.getPassword());
+                ps.setString(4, user.getGender());
+                ps.setDate(5, new java.sql.Date(user.getHireDate().getTime()));
+                ps.setString(6, user.getPhone());
+                ps.setString(7, user.getStreet());
+                ps.setString(8, user.getCity());
+                ps.setString(9, user.getPostalCode());
+                ps.setString(10, user.getState());
+                ps.setString(11, user.getIcNumber());
 
-	private boolean isEmailExists(String email, Connection con) throws SQLException {
-		String sql = "SELECT COUNT(*) FROM USERS WHERE EMAIL = ?";
-		try (PreparedStatement ps = con.prepareStatement(sql)) {
-			ps.setString(1, email.trim());
-			try (ResultSet rs = ps.executeQuery()) {
-				if (rs.next())
-					return rs.getInt(1) > 0;
-			}
-		}
-		return false;
-	}
+                if (managerEmpId != null) {
+                    ps.setInt(12, managerEmpId);
+                } else {
+                    ps.setNull(12, java.sql.Types.INTEGER);
+                }
 
-	public User getUserById(int empid) throws Exception {
-		String sql = "SELECT * FROM USERS WHERE EMPID = ?";
-		try (Connection con = DatabaseConnection.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
-			ps.setInt(1, empid);
-			try (ResultSet rs = ps.executeQuery()) {
-				if (rs.next()) {
-					User user = new User();
-					user.setEmpId(rs.getInt("EMPID"));
-					user.setFullName(rs.getString("FULLNAME"));
-					user.setEmail(rs.getString("EMAIL"));
-					user.setRole(rs.getString("ROLE"));
-					user.setPhone(rs.getString("PHONENO"));
-					user.setStreet(rs.getString("STREET"));
-					user.setCity(rs.getString("CITY"));
-					user.setPostalCode(rs.getString("POSTAL_CODE"));
-					user.setState(rs.getString("STATE"));
-					user.setHireDate(rs.getDate("HIREDATE"));
-					user.setIcNumber(rs.getString("IC_NUMBER"));
-					user.setGender(rs.getString("GENDER"));
-					user.setProfilePic(rs.getString("PROFILE_PICTURE"));
-					user.setStatus(rs.getString("STATUS"));
-					return user;
-				}
-			}
-		}
-		return null;
-	}
+                return ps.executeUpdate() > 0;
+            }
+        }
+    }
 
-	public boolean updateProfile(User user) throws Exception {
-		boolean hasPic = user.getProfilePic() != null && !user.getProfilePic().isEmpty();
-		String sql = hasPic
-				? "UPDATE USERS SET PHONENO=?, STREET=?, CITY=?, POSTAL_CODE=?, STATE=?, PROFILE_PICTURE=? WHERE EMPID=?"
-				: "UPDATE USERS SET PHONENO=?, STREET=?, CITY=?, POSTAL_CODE=?, STATE=? WHERE EMPID=?";
+    /**
+     * Get manager EMPID
+     */
+    private Integer getSystemManagerEmpId(Connection con) throws SQLException {
 
-		try (Connection con = DatabaseConnection.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
-			ps.setString(1, user.getPhone());
-			ps.setString(2, user.getStreet());
-			ps.setString(3, user.getCity());
-			ps.setString(4, user.getPostalCode());
-			ps.setString(5, user.getState());
-			if (hasPic) {
-				ps.setString(6, user.getProfilePic());
-				ps.setInt(7, user.getEmpId());
-			} else {
-				ps.setInt(6, user.getEmpId());
-			}
-			return ps.executeUpdate() > 0;
-		}
-	}
+        String sql = """
+            SELECT e.empid
+            FROM leave.users u
+            JOIN leave.employees e ON u.userid = e.userid
+            WHERE u.role = 'MANAGER'
+              AND u.status = 'ACTIVE'
+            LIMIT 1
+        """;
 
-	public List<User> getAllUsers() throws Exception {
-		List<User> userList = new ArrayList<>();
-		String sql = "SELECT EMPID, FULLNAME, EMAIL, ROLE, PHONENO, HIREDATE, STATUS, GENDER, PROFILE_PICTURE "
-				+ "FROM USERS ORDER BY STATUS ASC, FULLNAME ASC";
+        try (PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
 
-		try (Connection con = DatabaseConnection.getConnection();
-				PreparedStatement ps = con.prepareStatement(sql);
-				ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt("empid");
+            }
+        }
+        return null;
+    }
 
-			while (rs.next()) {
-				User user = new User();
-				user.setEmpId(rs.getInt("EMPID"));
-				user.setFullName(rs.getString("FULLNAME"));
-				user.setEmail(rs.getString("EMAIL"));
-				user.setRole(rs.getString("ROLE"));
-				user.setPhone(rs.getString("PHONENO"));
-				user.setHireDate(rs.getDate("HIREDATE"));
-				user.setGender(rs.getString("GENDER"));
-				user.setProfilePic(rs.getString("PROFILE_PICTURE"));
-				String status = rs.getString("STATUS");
-				user.setStatus(status != null ? status : "ACTIVE");
-				userList.add(user);
-			}
-		}
-		return userList;
-	}
+    private boolean isEmailExists(String email, Connection con) throws SQLException {
+
+        String sql = "SELECT 1 FROM leave.users WHERE email = ? LIMIT 1";
+
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, email.trim());
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    /**
+     * Get user by EMPID
+     */
+    public User getUserById(int empid) throws Exception {
+
+        String sql = """
+            SELECT u.*, e.empid
+            FROM leave.users u
+            JOIN leave.employees e ON u.userid = e.userid
+            WHERE e.empid = ?
+        """;
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, empid);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    User user = new User();
+                    user.setEmpId(rs.getInt("empid"));
+                    user.setFullName(rs.getString("fullname"));
+                    user.setEmail(rs.getString("email"));
+                    user.setRole(rs.getString("role"));
+                    user.setPhone(rs.getString("phoneno"));
+                    user.setStreet(rs.getString("street"));
+                    user.setCity(rs.getString("city"));
+                    user.setPostalCode(rs.getString("postal_code"));
+                    user.setState(rs.getString("state"));
+                    user.setHireDate(rs.getDate("hiredate"));
+                    user.setIcNumber(rs.getString("ic_number"));
+                    user.setGender(rs.getString("gender"));
+                    user.setProfilePic(rs.getString("profile_picture"));
+                    user.setStatus(rs.getString("status"));
+                    return user;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Update profile
+     */
+    public boolean updateProfile(User user) throws Exception {
+
+        boolean hasPic = user.getProfilePic() != null && !user.getProfilePic().isEmpty();
+
+        String sql = hasPic
+            ? """
+              UPDATE leave.users u
+              SET phoneno=?, street=?, city=?, postal_code=?, state=?, profile_picture=?
+              FROM leave.employees e
+              WHERE u.userid = e.userid AND e.empid=?
+              """
+            : """
+              UPDATE leave.users u
+              SET phoneno=?, street=?, city=?, postal_code=?, state=?
+              FROM leave.employees e
+              WHERE u.userid = e.userid AND e.empid=?
+              """;
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, user.getPhone());
+            ps.setString(2, user.getStreet());
+            ps.setString(3, user.getCity());
+            ps.setString(4, user.getPostalCode());
+            ps.setString(5, user.getState());
+
+            if (hasPic) {
+                ps.setString(6, user.getProfilePic());
+                ps.setInt(7, user.getEmpId());
+            } else {
+                ps.setInt(6, user.getEmpId());
+            }
+
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /**
+     * Get all users
+     */
+    public List<User> getAllUsers() throws Exception {
+
+        List<User> list = new ArrayList<>();
+
+        String sql = """
+            SELECT e.empid, u.fullname, u.email, u.role,
+                   u.phoneno, u.hiredate, u.status,
+                   u.gender, u.profile_picture
+            FROM leave.users u
+            JOIN leave.employees e ON u.userid = e.userid
+            ORDER BY u.status, u.fullname
+        """;
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                User u = new User();
+                u.setEmpId(rs.getInt("empid"));
+                u.setFullName(rs.getString("fullname"));
+                u.setEmail(rs.getString("email"));
+                u.setRole(rs.getString("role"));
+                u.setPhone(rs.getString("phoneno"));
+                u.setHireDate(rs.getDate("hiredate"));
+                u.setGender(rs.getString("gender"));
+                u.setProfilePic(rs.getString("profile_picture"));
+                u.setStatus(rs.getString("status"));
+                list.add(u);
+            }
+        }
+        return list;
+    }
 }
