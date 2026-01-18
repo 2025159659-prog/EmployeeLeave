@@ -1,237 +1,256 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-	pageEncoding="UTF-8"%>
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ page import="java.util.*, bean.User, bean.LeaveBalance"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
 <%@ include file="icon.jsp"%>
+
+<%
+    // =========================
+    // ADMIN SECURITY GUARD
+    // =========================
+    if (session.getAttribute("empid") == null || session.getAttribute("role") == null ||
+        !"ADMIN".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
+        response.sendRedirect("login.jsp?error=Please+login+as+admin.");
+        return;
+    }
+
+    String ctx = request.getContextPath();
+    Calendar cal = Calendar.getInstance();
+
+    List<User> employees = (List<User>) request.getAttribute("employees");
+    List<Map<String,Object>> leaveTypes = (List<Map<String,Object>>) request.getAttribute("leaveTypes");
+    Map<Integer, Map<Integer, LeaveBalance>> balanceIndex =
+        (Map<Integer, Map<Integer, LeaveBalance>>) request.getAttribute("balanceIndex");
+    String error = (String) request.getAttribute("error");
+%>
+
+<%!
+  String fmt(double d) {
+    if(d == (long) d) return String.format("%d", (long)d);
+    else return String.format("%.1f", d);
+  }
+
+  String esc(String s){
+    if(s == null) return "";
+    return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+            .replace("\"","&quot;").replace("'","&#39;");
+  }
+%>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Employee Login</title>
+<title>Leave Balances</title>
 <script src="https://cdn.tailwindcss.com"></script>
+
 <style>
-* {
-	box-sizing: border-box;
+:root {
+  --bg:#f1f5f9; --card:#fff; --border:#e2e8f0;
+  --text:#1e293b; --muted:#64748b;
+  --radius:18px; --shadow:0 4px 6px -1px rgba(0,0,0,.06);
 }
 
-body {
-	margin: 0;
-	padding: 0;
-	font-family: Arial, sans-serif;
-	background: #f1f5f9;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	min-height: 100vh;
+html,body{margin:0;height:100%;background:var(--bg)}
+.pageWrap{padding:24px 36px;height:100%;display:flex;flex-direction:column}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  margin-top:20px;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
 }
 
-.card {
-	background: #ffffff;
-	width: 380px;
-	border-radius: 16px;
-	box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-	overflow: hidden;
+.cardHead{
+  padding:14px 22px;
+  border-bottom:1px solid #f1f5f9;
+  font-weight:900;
+  display:flex;
+  justify-content:space-between;
 }
 
-.card-header {
-	background: #2563eb;
-	color: #ffffff;
-	padding: 24px;
-	text-align: center;
+.scroll-container{
+  flex:1;
+  overflow:auto;
 }
 
-.logo-box {
-	width: 56px;
-	height: 56px;
-	border-radius: 14px;
-	border: 2px solid rgba(255, 255, 255, 0.5);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	margin: 0 auto 10px;
-	font-weight: bold;
-	font-size: 24px;
+table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  table-layout:fixed; /* ⭐ FIX UTAMA */
 }
 
-.card-header h1 {
-	margin: 0;
-	font-size: 22px;
+thead th{
+  position:sticky;
+  top:0;
+  background:#f8fafc;
+  padding:12px 14px;
+  font-size:12px;
+  font-weight:900;
+  color:var(--muted);
+  text-transform:uppercase;
 }
 
-.card-header p {
-	margin: 4px 0 0;
-	font-size: 13px;
-	opacity: 0.9;
+th:first-child, td:first-child{
+  position:sticky;
+  left:0;
+  background:#fff;
+  z-index:5;
+  border-right:1px solid #f1f5f9;
 }
 
-.card-body {
-	padding: 24px 24px 28px;
+td{
+  padding:14px;
+  vertical-align:top;
+  border-bottom:1px solid #f1f5f9;
+  min-width:190px; /* ⭐ PENTING */
 }
 
-.form-group {
-	margin-bottom: 14px;
+.empBox{
+  display:flex;
+  gap:10px;
 }
 
-label {
-	display: block;
-	margin-bottom: 4px;
-	font-size: 13px;
-	color: #374151;
-	font-weight: 600;
+.emp-name{
+  font-size:13px;
+  font-weight:900;
+  text-transform:uppercase;
 }
 
-input[type="email"], input[type="password"], input[type="text"] {
-	width: 100% !important; /* Paksa width 100% */
-	padding: 10px 12px;
-	border-radius: 8px;
-	border: 1px solid #cbd5e1;
-	font-size: 14px;
-	transition: all 0.2s;
-	display: block;
+.role-badge{
+  font-size:10px;
+  font-weight:900;
+  background:#eff6ff;
+  color:#2563eb;
+  padding:2px 6px;
+  border-radius:4px;
+  display:inline-block;
 }
 
-/* Tambah focus state untuk type="text" sekali */
-input[type="email"]:focus, input[type="password"]:focus, input[type="text"]:focus
-	{
-	outline: none;
-	border-color: #2563eb;
-	box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+.status-tag{
+  font-size:9px;
+  font-weight:900;
+  margin-top:3px;
+  display:block;
 }
 
-.password-wrapper {
-	position: relative;
-	width: 100%; /* Pastikan wrapper pun full width */
+.balCard{
+  background:#f1f5f9;
+  border:1.5px solid #3b82f6;
+  border-radius:16px;
+  padding:12px;
+  min-width:160px;
+  max-width:180px;
 }
 
-.password-wrapper input {
-	padding-right: 45px !important;
+.avail-lbl{
+  font-size:14px;
+  font-weight:900;
 }
 
-.toggle-btn {
-	position: absolute;
-	right: 12px;
-	top: 50%;
-	transform: translateY(-50%);
-	/* Bagi dia duduk tengah secara vertical */
-	background: none;
-	border: none;
-	cursor: pointer;
-	color: #94a3b8;
-	display: flex;
-	align-items: center;
-	padding: 0;
-	outline: none;
+.avail-summary{
+  font-size:20px;
+  font-weight:900;
+  margin:4px 0 8px;
+  display:flex;
+  align-items:baseline;
+  gap:3px;
 }
 
-.btn-primary {
-	width: 100%;
-	padding: 10px 12px;
-	border-radius: 8px;
-	border: none;
-	background: #2563eb;
-	color: white;
-	font-size: 15px;
-	font-weight: bold;
-	cursor: pointer;
-	margin-top: 6px;
+.avail-total-base{
+  font-size:12px;
+  color:var(--muted);
 }
 
-.btn-primary:hover {
-	background: #1d4ed8;
-}
-
-.alert-error {
-	background: #fee2e2;
-	color: #b91c1c;
-	border: 1px solid #fecaca;
-	padding: 8px 10px;
-	border-radius: 8px;
-	font-size: 13px;
-	margin-bottom: 10px;
-}
-
-.demo-box {
-	margin-top: 14px;
-	padding: 8px 10px;
-	background: #f8fafc;
-	border-radius: 8px;
-	border: 1px solid #e2e8f0;
-	font-size: 11px;
-	color: #64748b;
-}
-
-.password-wrapper {
-	position: relative;
-	display: flex;
-	align-items: center;
+.miniRow{
+  display:flex;
+  justify-content:space-between;
+  font-size:11px;
+  margin-top:4px;
+  border-top:1px solid #e2e8f0;
+  padding-top:4px;
 }
 </style>
 </head>
-<body>
 
-	<div class="card">
-		<div class="card-header">
-			<div class="flex justify-center mb-2">
-				<img
-					src="https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcRNhLlRcJ19hFyLWQOGP3EWiaxRZiHWupjWp6xtRzs5cdMeCUzu"
-					alt="Logo Klinik"
-					class="w-20 h-20 object-contain bg-white rounded-2xl p-2 shadow-sm">
-			</div>
-			<h1>Employee Leave System</h1>
-			<p>Login using your registered account</p>
-		</div>
+<body class="flex">
+<jsp:include page="sidebar.jsp"/>
 
-		<div class="card-body">
-			<!-- Error from servlet -->
-			<c:if test="${not empty param.error}">
-				<div class="alert-error">
-					<c:out value="${param.error}" />
-				</div>
-			</c:if>
+<main class="flex-1 ml-20 lg:ml-64">
+<jsp:include page="topbar.jsp"/>
 
-			<!-- Optional message -->
-			<c:if test="${not empty param.msg}">
-				<div class="demo-box">
-					<c:out value="${param.msg}" />
-				</div>
-			</c:if>
+<div class="pageWrap">
 
-			<form action="LoginServlet" method="post">
-				<div class="form-group">
-					<label for="email">Email Address</label> <input type="email"
-						id="email" name="email" placeholder="you@example.com" required />
-				</div>
+<h2 class="text-2xl font-black">Leave Balances</h2>
+<span class="text-xs font-black uppercase text-blue-600">Record employee leave balance</span>
 
+<div class="card">
+<div class="cardHead">
+<span>Staff Entitlements Matrix</span>
+<span class="text-xs text-slate-400">Total Staff: <%= employees.size() %></span>
+</div>
 
-				<div class="form-group">
-					<label for="password">Password</label>
-					<div class="password-wrapper">
-						<input type="password" id="password" name="password"
-							placeholder="Enter your password" required />
+<div class="scroll-container">
+<table>
+<thead>
+<tr>
+<th>Staff Member</th>
+<% for(Map<String,Object> t:leaveTypes){ %>
+<th class="text-center"><%= esc(t.get("code").toString()) %></th>
+<% } %>
+</tr>
+</thead>
 
-						<button type="button" class="toggle-btn"
-							onclick="togglePassword('password')">
-							<%=EyeIcon("w-5 h-5")%>
-						</button>
-					</div>
-				</div>
+<tbody>
+<% for(User e:employees){
+Map<Integer,LeaveBalance> empBals = balanceIndex.get(e.getEmpId());
+%>
+<tr>
+<td>
+<div class="empBox">
+<div class="emp-name"><%= esc(e.getFullName()) %></div>
+<div>
+<div class="role-badge"><%= esc(e.getRole()) %></div>
+<span class="status-tag text-emerald-600"><%= e.getStatus() %></span>
+</div>
+</div>
+</td>
 
-				<button type="submit" class="btn-primary">Sign In</button>
+<% for(Map<String,Object> t:leaveTypes){
+int typeId=(Integer)t.get("id");
+LeaveBalance b= empBals!=null?empBals.get(typeId):null;
+%>
 
+<td class="text-center">
+<% if(b==null){ %>
+<span class="font-bold text-slate-400">NOT ASSIGNED</span>
+<% } else { %>
+<div class="balCard">
+<span class="avail-lbl">AVAILABLE</span>
+<div class="avail-summary">
+<span><%= fmt(b.getTotalAvailable()) %></span>
+<span class="avail-total-base">/<%= fmt(b.getEntitlement()+b.getCarriedForward()) %> DAYS</span>
+</div>
+<div class="miniRow"><span>Entitlement</span><b><%= fmt(b.getEntitlement()) %></b></div>
+<div class="miniRow"><span>Used</span><b><%= fmt(b.getUsed()) %></b></div>
+<div class="miniRow"><span>Pending</span><b><%= fmt(b.getPending()) %></b></div>
+</div>
+<% } %>
+</td>
 
-			</form>
-		</div>
-	</div>
+<% } %>
+</tr>
+<% } %>
+</tbody>
+</table>
+</div>
+</div>
 
-	<script>
-		function togglePassword(inputId) {
-			const input = document.getElementById(inputId);
-			if (input.type === 'password') {
-				input.type = 'text';
-			} else {
-				input.type = 'password';
-			}
-		}
-	</script>
+</div>
+</main>
 </body>
 </html>
