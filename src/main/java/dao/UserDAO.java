@@ -67,7 +67,7 @@ public class UserDAO {
         String sql = """
             SELECT e.empid
             FROM leave.users u
-            JOIN leave.employees e ON u.userid = e.userid
+            JOIN leave.users e ON u.userid = e.userid
             WHERE u.role = 'MANAGER'
               AND u.status = 'ACTIVE'
             LIMIT 1
@@ -103,7 +103,7 @@ public class UserDAO {
         String sql = """
             SELECT u.*, e.empid
             FROM leave.users u
-            JOIN leave.employees e ON u.userid = e.userid
+            JOIN leave.users e ON u.userid = e.userid
             WHERE e.empid = ?
         """;
 
@@ -214,3 +214,4 @@ public class UserDAO {
         return list;
     }
 }
+
