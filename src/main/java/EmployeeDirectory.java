@@ -19,18 +19,18 @@ public class EmployeeDirectory extends HttpServlet {
 
         HttpSession session = request.getSession(false);
         if (session == null || !"ADMIN".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
-            response.sendRedirect("login.jsp?error=Admin only.");
+            response.sendRedirect("login.jsp?error=Admin+only");
             return;
         }
 
         List<Map<String, Object>> users = new ArrayList<>();
 
         String sql = """
-                    SELECT empid, fullname, role, status
-                    FROM leave.users
-                    WHERE email = ? AND password = ?
-                """;
-
+            SELECT empid, fullname, email, role, phoneno, hiredate, status
+            FROM leave.users
+            WHERE role = 'EMPLOYEE'
+            ORDER BY fullname
+        """;
 
         try (Connection con = DatabaseConnection.getConnection();
              PreparedStatement ps = con.prepareStatement(sql);
@@ -38,13 +38,13 @@ public class EmployeeDirectory extends HttpServlet {
 
             while (rs.next()) {
                 Map<String, Object> u = new HashMap<>();
-                u.put("empid", rs.getInt("EMPID"));
-                u.put("fullname", rs.getString("FULLNAME"));
-                u.put("email", rs.getString("EMAIL"));
-                u.put("role", rs.getString("ROLE"));
-                u.put("phone", rs.getString("PHONENO"));
-                u.put("hiredate", rs.getDate("HIREDATE"));
-                u.put("status", rs.getString("STATUS"));
+                u.put("empid", rs.getInt("empid"));
+                u.put("fullname", rs.getString("fullname"));
+                u.put("email", rs.getString("email"));
+                u.put("role", rs.getString("role"));
+                u.put("phone", rs.getString("phoneno"));
+                u.put("hiredate", rs.getDate("hiredate"));
+                u.put("status", rs.getString("status"));
                 users.add(u);
             }
 
@@ -56,4 +56,3 @@ public class EmployeeDirectory extends HttpServlet {
         request.getRequestDispatcher("employeeDirectory.jsp").forward(request, response);
     }
 }
-
