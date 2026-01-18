@@ -226,22 +226,79 @@ public class LeaveDAO {
        ===================================================== */
     public boolean deleteLeave(int leaveId, int empId) throws Exception {
 
-        String sql = """
-            DELETE FROM leave.leave_requests
-            WHERE leave_id=? AND empid=?
-              AND status_id = (
-                SELECT status_id FROM leave.leave_statuses WHERE status_code='PENDING'
-              )
-        """;
-
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            ps.setInt(1, leaveId);
-            ps.setInt(2, empId);
-            return ps.executeUpdate() > 0;
+            Connection con = DatabaseConnection.getConnection();
+        
+            try {
+                con.setAutoCommit(false);
+        
+                int leaveTypeId = 0;
+                double days = 0;
+        
+                // 1️⃣ GET LEAVE INFO (ONLY PENDING)
+                String fetchSql = """
+                    SELECT leave_type_id, duration_days
+                    FROM leave.leave_requests
+                    WHERE leave_id=? AND empid=?
+                      AND status_id = (
+                          SELECT status_id
+                          FROM leave.leave_statuses
+                          WHERE status_code='PENDING'
+                      )
+                """;
+        
+                try (PreparedStatement ps = con.prepareStatement(fetchSql)) {
+                    ps.setInt(1, leaveId);
+                    ps.setInt(2, empId);
+        
+                    ResultSet rs = ps.executeQuery();
+                    if (!rs.next()) {
+                        con.rollback();
+                        return false; // Not pending or not exist
+                    }
+        
+                    leaveTypeId = rs.getInt("leave_type_id");
+                    days = rs.getDouble("duration_days");
+                }
+        
+                // 2️⃣ DELETE LEAVE REQUEST
+                String deleteSql = """
+                    DELETE FROM leave.leave_requests
+                    WHERE leave_id=? AND empid=?
+                """;
+        
+                try (PreparedStatement ps = con.prepareStatement(deleteSql)) {
+                    ps.setInt(1, leaveId);
+                    ps.setInt(2, empId);
+                    ps.executeUpdate();
+                }
+        
+                // 3️⃣ ROLLBACK BALANCE
+                String balanceSql = """
+                    UPDATE leave.leave_balances
+                    SET pending = pending - ?,
+                        total = total + ?
+                    WHERE empid=? AND leave_type_id=?
+                """;
+        
+                try (PreparedStatement ps = con.prepareStatement(balanceSql)) {
+                    ps.setDouble(1, days);
+                    ps.setDouble(2, days);
+                    ps.setInt(3, empId);
+                    ps.setInt(4, leaveTypeId);
+                    ps.executeUpdate();
+                }
+        
+                con.commit();
+                return true;
+        
+            } catch (Exception e) {
+                con.rollback();
+                throw e;
+            } finally {
+                con.close();
+            }
         }
-    }
+
 
     /* =====================================================
        REQUEST CANCELLATION
@@ -390,5 +447,6 @@ public class LeaveDAO {
         }
     }
 }
+
 
 
