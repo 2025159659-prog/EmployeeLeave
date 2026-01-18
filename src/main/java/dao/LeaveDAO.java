@@ -15,6 +15,7 @@ public class LeaveDAO {
        FETCH LEAVE TYPES (APPLY LEAVE)
        ===================================================== */
     public List<Map<String, Object>> getAllLeaveTypes() throws Exception {
+
         List<Map<String, Object>> list = new ArrayList<>();
 
         String sql = """
@@ -39,7 +40,7 @@ public class LeaveDAO {
     }
 
     /* =====================================================
-       FETCH SINGLE LEAVE (EDIT / VIEW)
+       FETCH SINGLE LEAVE (EDIT)
        ===================================================== */
     public LeaveRequest getLeaveById(int leaveId, int empId) throws Exception {
 
@@ -93,8 +94,8 @@ public class LeaveDAO {
         try (Connection con = DatabaseConnection.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
 
-            ps.setDate(1, java.sql.Date.valueOf(start));
-            ps.setDate(2, java.sql.Date.valueOf(end));
+            ps.setDate(1, Date.valueOf(start));
+            ps.setDate(2, Date.valueOf(end));
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -118,7 +119,7 @@ public class LeaveDAO {
     }
 
     /* =====================================================
-       SUBMIT LEAVE
+       SUBMIT LEAVE REQUEST
        ===================================================== */
     public boolean submitRequest(LeaveRequest req, Part filePart) throws Exception {
 
@@ -135,19 +136,19 @@ public class LeaveDAO {
             }
 
             int leaveId;
-            String parentSql = """
+            String insertSql = """
                 INSERT INTO leave.leave_requests
                 (empid, leave_type_id, status_id, start_date, end_date,
                  duration, duration_days, reason, half_session, applied_on)
                 VALUES (?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
             """;
 
-            try (PreparedStatement ps = con.prepareStatement(parentSql, Statement.RETURN_GENERATED_KEYS)) {
+            try (PreparedStatement ps = con.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
                 ps.setInt(1, req.getEmpId());
                 ps.setInt(2, req.getLeaveTypeId());
                 ps.setInt(3, statusId);
-                ps.setDate(4, java.sql.Date.valueOf(req.getStartDate()));
-                ps.setDate(5, java.sql.Date.valueOf(req.getEndDate()));
+                ps.setDate(4, Date.valueOf(req.getStartDate()));
+                ps.setDate(5, Date.valueOf(req.getEndDate()));
                 ps.setString(6, req.getDuration());
                 ps.setDouble(7, req.getDurationDays());
                 ps.setString(8, req.getReason());
@@ -190,24 +191,94 @@ public class LeaveDAO {
     }
 
     /* =====================================================
-       EMPLOYEE LEAVE HISTORY  ✅ FIXED
+       EDIT LEAVE (PENDING ONLY)
        ===================================================== */
-    public List<Map<String, Object>> getLeaveHistory(
-            int empId,
-            String status,
-            String year
-    ) throws Exception {
+    public boolean updateLeave(LeaveRequest req, int empId) throws Exception {
+
+        String sql = """
+            UPDATE leave.leave_requests
+            SET start_date=?, end_date=?, duration=?, duration_days=?,
+                reason=?, half_session=?
+            WHERE leave_id=? AND empid=?
+              AND status_id = (
+                SELECT status_id FROM leave.leave_statuses WHERE status_code='PENDING'
+              )
+        """;
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setDate(1, Date.valueOf(req.getStartDate()));
+            ps.setDate(2, Date.valueOf(req.getEndDate()));
+            ps.setString(3, req.getDuration());
+            ps.setDouble(4, req.getDurationDays());
+            ps.setString(5, req.getReason());
+            ps.setString(6, req.getHalfSession());
+            ps.setInt(7, req.getLeaveId());
+            ps.setInt(8, empId);
+
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /* =====================================================
+       DELETE LEAVE (PENDING ONLY)
+       ===================================================== */
+    public boolean deleteLeave(int leaveId, int empId) throws Exception {
+
+        String sql = """
+            DELETE FROM leave.leave_requests
+            WHERE leave_id=? AND empid=?
+              AND status_id = (
+                SELECT status_id FROM leave.leave_statuses WHERE status_code='PENDING'
+              )
+        """;
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, leaveId);
+            ps.setInt(2, empId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /* =====================================================
+       REQUEST CANCELLATION
+       ===================================================== */
+    public boolean requestCancellation(int leaveId, int empId) throws Exception {
+
+        String sql = """
+            UPDATE leave.leave_requests
+            SET status_id = (
+                SELECT status_id FROM leave.leave_statuses
+                WHERE status_code='CANCELLATION_REQUESTED'
+            )
+            WHERE leave_id=? AND empid=?
+              AND status_id = (
+                SELECT status_id FROM leave.leave_statuses
+                WHERE status_code='APPROVED'
+              )
+        """;
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, leaveId);
+            ps.setInt(2, empId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /* =====================================================
+       EMPLOYEE LEAVE HISTORY
+       ===================================================== */
+    public List<Map<String, Object>> getLeaveHistory(int empId, String status, String year) throws Exception {
 
         List<Map<String, Object>> list = new ArrayList<>();
-
         StringBuilder sql = new StringBuilder("""
-            SELECT lr.leave_id,
-                   lt.type_code,
-                   lr.start_date,
-                   lr.end_date,
-                   lr.duration_days,
-                   ls.status_code,
-                   lr.applied_on
+            SELECT lr.leave_id, lt.type_code, ls.status_code,
+                   lr.start_date, lr.end_date, lr.duration_days, lr.applied_on
             FROM leave.leave_requests lr
             JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
             JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
@@ -217,12 +288,11 @@ public class LeaveDAO {
         if (status != null && !status.isEmpty() && !"ALL".equalsIgnoreCase(status)) {
             sql.append(" AND UPPER(ls.status_code) = ? ");
         }
-
-        if (year != null && !year.isEmpty() && !"ALL".equalsIgnoreCase(year)) {
+        if (year != null && !year.isEmpty()) {
             sql.append(" AND EXTRACT(YEAR FROM lr.start_date) = ? ");
         }
 
-        sql.append(" ORDER BY lr.applied_on DESC ");
+        sql.append(" ORDER BY lr.applied_on DESC");
 
         try (Connection con = DatabaseConnection.getConnection();
              PreparedStatement ps = con.prepareStatement(sql.toString())) {
@@ -233,30 +303,27 @@ public class LeaveDAO {
             if (status != null && !status.isEmpty() && !"ALL".equalsIgnoreCase(status)) {
                 ps.setString(idx++, status.toUpperCase());
             }
-            if (year != null && !year.isEmpty() && !"ALL".equalsIgnoreCase(year)) {
+            if (year != null && !year.isEmpty()) {
                 ps.setInt(idx++, Integer.parseInt(year));
             }
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    Map<String, Object> row = new HashMap<>();
-                    row.put("leaveId", rs.getInt("leave_id"));
-                    row.put("typeCode", rs.getString("type_code"));
-                    row.put("status", rs.getString("status_code"));
-                    row.put("days", rs.getDouble("duration_days"));
-                    row.put("startDate", rs.getDate("start_date"));
-                    row.put("endDate", rs.getDate("end_date"));
-                    row.put("appliedOn", rs.getTimestamp("applied_on"));
-                    list.add(row);
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("leaveId", rs.getInt("leave_id"));
+                    m.put("type", rs.getString("type_code"));
+                    m.put("status", rs.getString("status_code"));
+                    m.put("startDate", rs.getDate("start_date"));
+                    m.put("endDate", rs.getDate("end_date"));
+                    m.put("days", rs.getDouble("duration_days"));
+                    m.put("appliedOn", rs.getTimestamp("applied_on"));
+                    list.add(m);
                 }
             }
         }
         return list;
     }
 
-    /* =====================================================
-       YEARS FOR FILTER
-       ===================================================== */
     public List<String> getHistoryYears(int empId) throws Exception {
 
         List<String> years = new ArrayList<>();
@@ -264,7 +331,7 @@ public class LeaveDAO {
         String sql = """
             SELECT DISTINCT EXTRACT(YEAR FROM start_date) AS yr
             FROM leave.leave_requests
-            WHERE empid = ?
+            WHERE empid=?
             ORDER BY yr DESC
         """;
 
@@ -282,7 +349,7 @@ public class LeaveDAO {
     }
 
     /* =====================================================
-       CHILD TABLE (EMERGENCY)
+       CHILD TABLE
        ===================================================== */
     private void insertInheritedData(Connection con, int leaveId, LeaveRequest req) throws Exception {
 
@@ -294,7 +361,7 @@ public class LeaveDAO {
             if (rs.next()) typeCode = rs.getString(1);
         }
 
-        if ("EMERGENCY".equalsIgnoreCase(typeCode)) {
+        if ("EMERGENCY".equals(typeCode)) {
             try (PreparedStatement ps = con.prepareStatement(
                     "INSERT INTO leave.lr_emergency VALUES (?,?,?)")) {
                 ps.setInt(1, leaveId);
@@ -306,14 +373,14 @@ public class LeaveDAO {
     }
 
     /* =====================================================
-       UPDATE BALANCE (PENDING)
+       BALANCE UPDATE (PENDING)
        ===================================================== */
     private void updateBalance(Connection con, int empId, int typeId, double days) throws Exception {
 
         try (PreparedStatement ps = con.prepareStatement("""
             UPDATE leave.leave_balances
             SET pending = pending + ?, total = total - ?
-            WHERE empid = ? AND leave_type_id = ?
+            WHERE empid=? AND leave_type_id=?
         """)) {
             ps.setDouble(1, days);
             ps.setDouble(2, days);
