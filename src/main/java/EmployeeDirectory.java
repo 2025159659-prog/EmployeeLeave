@@ -25,7 +25,12 @@ public class EmployeeDirectory extends HttpServlet {
 
         List<Map<String, Object>> users = new ArrayList<>();
 
-        String sql = "SELECT EMPID, FULLNAME, EMAIL, ROLE, PHONENO, HIREDATE, STATUS FROM USERS";
+        String sql = """
+                    SELECT empid, fullname, role, status
+                    FROM leave.users
+                    WHERE email = ? AND password = ?
+                """;
+
 
         try (Connection con = DatabaseConnection.getConnection();
              PreparedStatement ps = con.prepareStatement(sql);
@@ -51,3 +56,4 @@ public class EmployeeDirectory extends HttpServlet {
         request.getRequestDispatcher("employeeDirectory.jsp").forward(request, response);
     }
 }
+
