@@ -16,12 +16,12 @@ public class LeaveDAO {
 	/**
 	 * Fetch all leave types for dropdown selection.
 	 */
-	public List<Map<String, Object>> getAllLeaveTypes() throws Exception {
-
-    List<Map<String, Object>> list = new ArrayList<>();
-
+			public List<Map<String, Object>> getAllLeaveTypes() throws Exception {
+		
+		    List<Map<String, Object>> list = new ArrayList<>();
+		
 		    String sql = """
-		        SELECT leave_type_id, type_code, description
+		        SELECT leave_type_id, type_code
 		        FROM leave.leave_types
 		        ORDER BY leave_type_id
 		    """;
@@ -32,14 +32,14 @@ public class LeaveDAO {
 		
 		        while (rs.next()) {
 		            Map<String, Object> m = new HashMap<>();
-		            m.put("leaveTypeId", rs.getInt("leave_type_id"));
-		            m.put("typeCode", rs.getString("type_code"));
-		            m.put("description", rs.getString("description"));
+		            m.put("id", rs.getInt("leave_type_id"));   // ✅ MATCH JSP
+		            m.put("code", rs.getString("type_code")); // ✅ MATCH JSP
 		            list.add(m);
 		        }
 		    }
 		    return list;
 		}
+
 
 
 	/**
@@ -527,3 +527,4 @@ public class LeaveDAO {
 	}
 
 }
+
