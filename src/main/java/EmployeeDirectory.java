@@ -25,11 +25,19 @@ public class EmployeeDirectory extends HttpServlet {
 
         List<Map<String, Object>> users = new ArrayList<>();
 
+        // ✅ FIX: ambil SEMUA role (ADMIN, MANAGER, EMPLOYEE)
         String sql = """
             SELECT empid, fullname, email, role, phoneno, hiredate, status
             FROM leave.users
-            WHERE role = 'EMPLOYEE'
-            ORDER BY fullname
+            WHERE status = 'ACTIVE'
+            ORDER BY 
+                CASE role
+                    WHEN 'ADMIN' THEN 1
+                    WHEN 'MANAGER' THEN 2
+                    WHEN 'EMPLOYEE' THEN 3
+                    ELSE 4
+                END,
+                fullname
         """;
 
         try (Connection con = DatabaseConnection.getConnection();
