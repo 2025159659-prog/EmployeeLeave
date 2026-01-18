@@ -41,13 +41,7 @@ public class ManagerDAO {
                    m.week_pregnancy       AS mat_week,
                    p.spouse_name          AS pat_spouse,
                    p.medical_facility     AS pat_fac,
-                   p.delivery_date        AS pat_del,
-                   (
-                     SELECT a.file_name
-                     FROM leave.leave_request_attachments a
-                     WHERE a.leave_id = lr.leave_id
-                     FETCH FIRST 1 ROW ONLY
-                   ) AS attachment_name
+                   p.delivery_date        AS pat_del
             FROM leave.leave_requests lr
             JOIN leave.users u               ON lr.empid = u.empid
             JOIN leave.leave_types lt        ON lr.leave_type_id = lt.leave_type_id
@@ -61,16 +55,14 @@ public class ManagerDAO {
             ORDER BY lr.applied_on DESC
         """;
 
-        try (
-            Connection con = DatabaseConnection.getConnection();
-            PreparedStatement ps = con.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery()
-        ) {
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
             while (rs.next()) {
                 list.add(mapResultSet(rs));
             }
         }
-
         return list;
     }
 
@@ -104,33 +96,28 @@ public class ManagerDAO {
 
         r.setReason(rs.getString("reason"));
         r.setManagerComment(rs.getString("manager_comment"));
-        r.setAttachment(rs.getString("attachment_name"));
 
         String type = rs.getString("type_code");
         if (type == null) type = "";
-        type = type.trim().toUpperCase();
+        type = type.toUpperCase();
 
         if (type.contains("SICK")) {
             r.setMedicalFacility(rs.getString("sick_fac"));
             r.setRefSerialNo(rs.getString("sick_ref"));
-
         } else if (type.contains("EMERGENCY")) {
             r.setEmergencyCategory(rs.getString("emer_cat"));
             r.setEmergencyContact(rs.getString("emer_con"));
-
         } else if (type.contains("HOSPITAL")) {
             r.setMedicalFacility(rs.getString("hosp_name"));
             if (rs.getDate("hosp_admit") != null)
                 r.setEventDate(sdfDate.format(rs.getDate("hosp_admit")));
             if (rs.getDate("hosp_dis") != null)
                 r.setDischargeDate(sdfDate.format(rs.getDate("hosp_dis")));
-
         } else if (type.contains("MATERNITY")) {
             r.setMedicalFacility(rs.getString("mat_clinic"));
             if (rs.getDate("mat_due") != null)
                 r.setEventDate(sdfDate.format(rs.getDate("mat_due")));
             r.setWeekPregnancy(rs.getInt("mat_week"));
-
         } else if (type.contains("PATERNITY")) {
             r.setSpouseName(rs.getString("pat_spouse"));
             r.setMedicalFacility(rs.getString("pat_fac"));
@@ -142,7 +129,7 @@ public class ManagerDAO {
     }
 
     /* =========================================================
-       PROCESS MANAGER ACTION
+       PROCESS MANAGER ACTION (FIXED FLOW)
        ========================================================= */
     public boolean processAction(int leaveId, String action, String comment) throws Exception {
 
@@ -154,115 +141,100 @@ public class ManagerDAO {
                 int empId;
                 int leaveTypeId;
                 double days;
+                String currentStatus;
+                String typeCode;
 
+                /* 🔹 FETCH CURRENT STATE */
                 String fetchSql = """
-                    SELECT empid, leave_type_id, duration_days
-                    FROM leave.leave_requests
-                    WHERE leave_id = ?
+                    SELECT lr.empid, lr.leave_type_id, lr.duration_days,
+                           ls.status_code, lt.type_code
+                    FROM leave.leave_requests lr
+                    JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
+                    JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
+                    WHERE lr.leave_id = ?
                 """;
 
                 try (PreparedStatement ps = con.prepareStatement(fetchSql)) {
                     ps.setInt(1, leaveId);
                     try (ResultSet rs = ps.executeQuery()) {
                         if (!rs.next()) return false;
+
                         empId = rs.getInt("empid");
                         leaveTypeId = rs.getInt("leave_type_id");
                         days = rs.getDouble("duration_days");
+                        currentStatus = rs.getString("status_code");
+                        typeCode = rs.getString("type_code");
                     }
                 }
-                
+
+                boolean isUnpaid = typeCode != null && typeCode.toUpperCase().contains("UNPAID");
 
                 String finalStatus;
                 String balanceSql = null;
-                
-                String typeCode = "";
 
-                String typeSql = """
-                    SELECT lt.type_code
-                    FROM leave.leave_requests lr
-                    JOIN leave.leave_types lt
-                      ON lr.leave_type_id = lt.leave_type_id
-                    WHERE lr.leave_id = ?
-                """;
-                
-                try (PreparedStatement ps = con.prepareStatement(typeSql)) {
-                    ps.setInt(1, leaveId);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) {
-                            typeCode = rs.getString("type_code");
-                        }
-                    }
-                }
-                
-                if (typeCode == null) typeCode = "";
-                typeCode = typeCode.trim().toUpperCase();
-                
-                boolean isUnpaid = typeCode.contains("UNPAID");
-
-
-
+                /* 🔹 VALIDATE FLOW */
                 switch (action) {
-                    
-                        case "APPROVE" -> {
-                            finalStatus = "APPROVED";
-                    
-                            if (!isUnpaid) {
-                                balanceSql = """
-                                    UPDATE leave.leave_balances
-                                    SET pending = pending - ?, used = used + ?
-                                    WHERE empid = ? AND leave_type_id = ?
-                                """;
-                            }
+
+                    case "APPROVE" -> {
+                        if (!"PENDING".equals(currentStatus)) return false;
+                        finalStatus = "APPROVED";
+                        if (!isUnpaid) {
+                            balanceSql = """
+                                UPDATE leave.leave_balances
+                                SET pending = pending - ?, used = used + ?
+                                WHERE empid = ? AND leave_type_id = ?
+                            """;
                         }
-                    
-                        case "REJECT" -> {
-                            finalStatus = "REJECTED";
-                    
-                            if (!isUnpaid) {
-                                balanceSql = """
-                                    UPDATE leave.leave_balances
-                                    SET pending = pending - ?, total = total + ?
-                                    WHERE empid = ? AND leave_type_id = ?
-                                """;
-                            }
-                        }
-                    
-                        case "APPROVE_CANCEL" -> {
-                            finalStatus = "CANCELLED";
-                    
-                            if (!isUnpaid) {
-                                balanceSql = """
-                                    UPDATE leave.leave_balances
-                                    SET used = used - ?, total = total + ?
-                                    WHERE empid = ? AND leave_type_id = ?
-                                """;
-                            }
-                        }
-                    
-                        case "REJECT_CANCEL" -> {
-                            finalStatus = "APPROVED";
-                        }
-                    
-                        default -> throw new IllegalArgumentException("Invalid action: " + action);
                     }
 
+                    case "REJECT" -> {
+                        if (!"PENDING".equals(currentStatus)) return false;
+                        finalStatus = "REJECTED";
+                        if (!isUnpaid) {
+                            balanceSql = """
+                                UPDATE leave.leave_balances
+                                SET pending = pending - ?, total = total + ?
+                                WHERE empid = ? AND leave_type_id = ?
+                            """;
+                        }
+                    }
 
-                String updateLeave = """
+                    case "APPROVE_CANCEL" -> {
+                        if (!"CANCELLATION_REQUESTED".equals(currentStatus)) return false;
+                        finalStatus = "CANCELLED";
+                        if (!isUnpaid) {
+                            balanceSql = """
+                                UPDATE leave.leave_balances
+                                SET used = used - ?, total = total + ?
+                                WHERE empid = ? AND leave_type_id = ?
+                            """;
+                        }
+                    }
+
+                    case "REJECT_CANCEL" -> {
+                        if (!"CANCELLATION_REQUESTED".equals(currentStatus)) return false;
+                        finalStatus = "APPROVED";
+                    }
+
+                    default -> throw new IllegalArgumentException("Invalid action: " + action);
+                }
+
+                /* 🔹 UPDATE LEAVE STATUS */
+                try (PreparedStatement ps = con.prepareStatement("""
                     UPDATE leave.leave_requests
                     SET status_id = (
                         SELECT status_id FROM leave.leave_statuses WHERE status_code = ?
                     ),
                     manager_comment = ?
                     WHERE leave_id = ?
-                """;
-
-                try (PreparedStatement ps = con.prepareStatement(updateLeave)) {
+                """)) {
                     ps.setString(1, finalStatus);
                     ps.setString(2, comment);
                     ps.setInt(3, leaveId);
                     ps.executeUpdate();
                 }
 
+                /* 🔹 UPDATE BALANCE IF NEEDED */
                 if (balanceSql != null) {
                     try (PreparedStatement ps = con.prepareStatement(balanceSql)) {
                         ps.setDouble(1, days);
