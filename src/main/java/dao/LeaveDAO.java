@@ -318,29 +318,68 @@ public class LeaveDAO {
     /* =====================================================
        REQUEST CANCELLATION
        ===================================================== */
-    public boolean requestCancellation(int leaveId, int empId) throws Exception {
+               public boolean requestCancellation(int leaveId, int empId) throws Exception {
+            
+                Connection con = DatabaseConnection.getConnection();
+            
+                try {
+                    con.setAutoCommit(false);
+            
+                    // 1️⃣ VERIFY leave is APPROVED & belong to employee
+                    String checkSql = """
+                        SELECT 1
+                        FROM leave.leave_requests
+                        WHERE leave_id = ?
+                          AND empid = ?
+                          AND status_id = (
+                              SELECT status_id
+                              FROM leave.leave_statuses
+                              WHERE status_code = 'APPROVED'
+                          )
+                    """;
+            
+                    try (PreparedStatement ps = con.prepareStatement(checkSql)) {
+                        ps.setInt(1, leaveId);
+                        ps.setInt(2, empId);
+            
+                        ResultSet rs = ps.executeQuery();
+                        if (!rs.next()) {
+                            con.rollback();
+                            return false; // not approved / not owner
+                        }
+                    }
+            
+                    // 2️⃣ UPDATE status → CANCELLATION_REQUESTED
+                    String updateSql = """
+                        UPDATE leave.leave_requests
+                        SET status_id = (
+                            SELECT status_id
+                            FROM leave.leave_statuses
+                            WHERE status_code = 'CANCELLATION_REQUESTED'
+                        )
+                        WHERE leave_id = ? AND empid = ?
+                    """;
+            
+                    try (PreparedStatement ps = con.prepareStatement(updateSql)) {
+                        ps.setInt(1, leaveId);
+                        ps.setInt(2, empId);
+                        ps.executeUpdate();
+                    }
+            
+                    // ❗ NO BALANCE UPDATE HERE
+                    // Balance MUST be handled by manager only
+            
+                    con.commit();
+                    return true;
+            
+                } catch (Exception e) {
+                    con.rollback();
+                    throw e;
+                } finally {
+                    con.close();
+                }
+            }
 
-        String sql = """
-            UPDATE leave.leave_requests
-            SET status_id = (
-                SELECT status_id FROM leave.leave_statuses
-                WHERE status_code='CANCELLATION_REQUESTED'
-            )
-            WHERE leave_id=? AND empid=?
-              AND status_id = (
-                SELECT status_id FROM leave.leave_statuses
-                WHERE status_code='APPROVED'
-              )
-        """;
-
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            ps.setInt(1, leaveId);
-            ps.setInt(2, empId);
-            return ps.executeUpdate() > 0;
-        }
-    }
 
     /* =====================================================
        EMPLOYEE LEAVE HISTORY
@@ -462,6 +501,7 @@ public class LeaveDAO {
         }
     }
 }
+
 
 
 
