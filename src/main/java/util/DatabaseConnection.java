@@ -2,30 +2,24 @@ package util;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.net.URI;
 
 public class DatabaseConnection {
 
-    public static Connection getConnection() throws Exception {
+    private static final String DB_URL =
+        System.getenv("JDBC_DATABASE_URL");
 
-        String dbUrl = System.getenv("DATABASE_URL");
-        if (dbUrl == null) {
-            throw new RuntimeException("DATABASE_URL not set");
+    static {
+        try {
+            Class.forName("org.postgresql.Driver");
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("PostgreSQL Driver not found", e);
         }
+    }
 
-        URI uri = new URI(dbUrl);
-        String[] userInfo = uri.getUserInfo().split(":");
-
-        String username = userInfo[0];
-        String password = userInfo[1];
-
-        String jdbcUrl = "jdbc:postgresql://" +
-                uri.getHost() + ":" +
-                uri.getPort() +
-                uri.getPath() +
-                "?sslmode=require";
-
-        Class.forName("org.postgresql.Driver");
-        return DriverManager.getConnection(jdbcUrl, username, password);
+    public static Connection getConnection() throws Exception {
+        if (DB_URL == null || DB_URL.isEmpty()) {
+            throw new RuntimeException("JDBC_DATABASE_URL not set");
+        }
+        return DriverManager.getConnection(DB_URL);
     }
 }
