@@ -1,12 +1,10 @@
 package util;
 
+import java.net.URI;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.SQLException;
 
 public class DatabaseConnection {
-
-    private static final String DATABASE_URL = System.getenv("DATABASE_URL");
 
     static {
         try {
@@ -17,17 +15,34 @@ public class DatabaseConnection {
         }
     }
 
-    public static Connection getConnection() throws SQLException {
-        if (DATABASE_URL == null || DATABASE_URL.isBlank()) {
-            throw new RuntimeException("DATABASE_URL environment variable NOT SET");
+    public static Connection getConnection() throws Exception {
+
+        String databaseUrl = System.getenv("DATABASE_URL");
+
+        if (databaseUrl == null || databaseUrl.isBlank()) {
+            throw new RuntimeException("DATABASE_URL not set");
         }
 
-        System.out.println(">>> CONNECTING TO DATABASE <<<");
-        System.out.println(">>> DATABASE_URL = " + DATABASE_URL);
+        System.out.println(">>> RAW DATABASE_URL = " + databaseUrl);
 
-        Connection con = DriverManager.getConnection(DATABASE_URL);
+        URI uri = new URI(databaseUrl);
+
+        String username = uri.getUserInfo().split(":")[0];
+        String password = uri.getUserInfo().split(":")[1];
+
+        String jdbcUrl = "jdbc:postgresql://" +
+                uri.getHost() + ":" +
+                uri.getPort() +
+                uri.getPath() +
+                "?sslmode=require";
+
+        System.out.println(">>> JDBC URL = " + jdbcUrl);
+        System.out.println(">>> DB USER = " + username);
+
+        Connection con = DriverManager.getConnection(jdbcUrl, username, password);
 
         System.out.println(">>> DATABASE CONNECTION SUCCESS <<<");
+
         return con;
     }
 }
