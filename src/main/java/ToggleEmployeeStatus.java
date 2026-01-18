@@ -5,7 +5,8 @@ import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 
 import util.DatabaseConnection;
 
@@ -19,25 +20,51 @@ public class ToggleEmployeeStatus extends HttpServlet {
             throws ServletException, IOException {
 
         HttpSession session = request.getSession(false);
+
         if (session == null || !"ADMIN".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
             response.sendRedirect("login.jsp?error=Unauthorized");
             return;
         }
 
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(
-                     "UPDATE USERS SET STATUS=? WHERE EMPID=? AND ROLE!='ADMIN'")) {
+        int adminEmpId = Integer.parseInt(String.valueOf(session.getAttribute("empid")));
+        int targetEmpId = Integer.parseInt(request.getParameter("empid"));
+        String targetStatus = request.getParameter("targetStatus");
 
-            ps.setString(1, request.getParameter("targetStatus"));
-            ps.setInt(2, Integer.parseInt(request.getParameter("empid")));
-            ps.executeUpdate();
+        // ❌ Safety: admin tak boleh deactivate diri sendiri
+        if (adminEmpId == targetEmpId) {
+            response.sendRedirect("EmployeeDirectory?error=" +
+                    url("You cannot change your own status"));
+            return;
+        }
+
+        String sql = """
+            UPDATE leave.users
+            SET status = ?
+            WHERE empid = ?
+              AND role <> 'ADMIN'
+        """;
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, targetStatus);
+            ps.setInt(2, targetEmpId);
+
+            int updated = ps.executeUpdate();
+
+            if (updated == 0) {
+                response.sendRedirect("EmployeeDirectory?error=" +
+                        url("Unable to update employee status"));
+                return;
+            }
 
             response.sendRedirect("EmployeeDirectory?msg=" +
-                    url("Status updated"));
+                    url("Status updated successfully"));
 
         } catch (Exception e) {
             e.printStackTrace();
-            response.sendRedirect("EmployeeDirectory?error=" + url("Database error"));
+            response.sendRedirect("EmployeeDirectory?error=" +
+                    url("Database error"));
         }
     }
 
