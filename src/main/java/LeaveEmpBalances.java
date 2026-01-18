@@ -57,10 +57,16 @@ public class LeaveEmpBalances extends HttpServlet {
             
             request.getRequestDispatcher("leaveEmpBalances.jsp").forward(request, response);
 
+            System.out.println("EMPLOYEES SIZE = " + employeesOnly.size());
+            System.out.println("LEAVE TYPES SIZE = " + leaveTypes.size());
+            System.out.println("BALANCE INDEX SIZE = " + balanceIndex.size());
+
+
         } catch (Exception e) {
             e.printStackTrace();
             request.setAttribute("error", "System Error: " + e.getMessage());
             request.getRequestDispatcher("leaveEmpBalances.jsp").forward(request, response);
         }
     }
+
 }
