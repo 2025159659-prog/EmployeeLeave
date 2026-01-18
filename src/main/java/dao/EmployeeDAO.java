@@ -5,13 +5,17 @@ import bean.LeaveBalance;
 import util.DatabaseConnection;
 import util.LeaveBalanceEngine;
 
-import java.sql.*;
-import java.time.LocalDate;
-import java.util.*;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Date;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 
 
 public class EmployeeDAO {
@@ -34,6 +38,7 @@ public class EmployeeDAO {
 
             ps.setDate(1, Date.valueOf(start));
             ps.setDate(2, Date.valueOf(end));
+
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -143,4 +148,5 @@ public class EmployeeDAO {
         return balancesList;
     }
 }
+
 
