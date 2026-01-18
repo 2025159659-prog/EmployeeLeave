@@ -54,7 +54,7 @@ public class ReviewLeave extends HttpServlet {
 
 		} catch (Exception e) {
 			e.printStackTrace();
-			response.sendRedirect("Dashboard?error="
+			response.sendRedirect("ReviewLeave?error="
 					+ URLEncoder.encode("Error loading requests: " + e.getMessage(), StandardCharsets.UTF_8));
 		}
 	}
@@ -125,4 +125,5 @@ public class ReviewLeave extends HttpServlet {
 			return "processed";
 		}
 	}
+
 }
