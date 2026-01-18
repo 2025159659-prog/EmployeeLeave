@@ -17,21 +17,30 @@ public class LeaveDAO {
 	 * Fetch all leave types for dropdown selection.
 	 */
 	public List<Map<String, Object>> getAllLeaveTypes() throws Exception {
-		List<Map<String, Object>> list = new ArrayList<>();
-		String sql = "SELECT LEAVE_TYPE_ID, TYPE_CODE, DESCRIPTION FROM LEAVE_TYPES ORDER BY TYPE_CODE";
-		try (Connection con = DatabaseConnection.getConnection();
-				PreparedStatement ps = con.prepareStatement(sql);
-				ResultSet rs = ps.executeQuery()) {
-			while (rs.next()) {
-				Map<String, Object> m = new HashMap<>();
-				m.put("id", rs.getInt("LEAVE_TYPE_ID"));
-				m.put("code", rs.getString("TYPE_CODE"));
-				m.put("desc", rs.getString("DESCRIPTION"));
-				list.add(m);
-			}
+
+    List<Map<String, Object>> list = new ArrayList<>();
+
+		    String sql = """
+		        SELECT leave_type_id, type_code, description
+		        FROM leave.leave_types
+		        ORDER BY leave_type_id
+		    """;
+		
+		    try (Connection con = DatabaseConnection.getConnection();
+		         PreparedStatement ps = con.prepareStatement(sql);
+		         ResultSet rs = ps.executeQuery()) {
+		
+		        while (rs.next()) {
+		            Map<String, Object> m = new HashMap<>();
+		            m.put("leaveTypeId", rs.getInt("leave_type_id"));
+		            m.put("typeCode", rs.getString("type_code"));
+		            m.put("description", rs.getString("description"));
+		            list.add(m);
+		        }
+		    }
+		    return list;
 		}
-		return list;
-	}
+
 
 	/**
 	 * Fetch a specific leave request by ID and EmpID, including inheritance data.
@@ -516,4 +525,5 @@ public class LeaveDAO {
 		}
 		return index;
 	}
+
 }
