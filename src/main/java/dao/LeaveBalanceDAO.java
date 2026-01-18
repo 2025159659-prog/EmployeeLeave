@@ -9,110 +9,108 @@ import java.util.List;
 
 public class LeaveBalanceDAO {
 
-	private Connection conn;
+    private Connection conn;
 
-	public LeaveBalanceDAO(Connection conn) {
-		this.conn = conn;
-	}
+    public LeaveBalanceDAO(Connection conn) {
+        this.conn = conn;
+    }
 
-	/**
-	 * Initializes specific leave types for a new employee based on Gender. Male
-	 * employees will NOT receive Maternity records. Female employees will NOT
-	 * receive Paternity records. Total records created: Exactly 6.
-	 */
-	public void initializeNewEmployeeBalances(int empId, LocalDate hireDate, String gender) throws SQLException {
-		// Normalize gender input
-		String g = (gender == null) ? "" : gender.trim().toUpperCase();
-		boolean isMale = g.equals("M") || g.equals("MALE");
-		boolean isFemale = g.equals("F") || g.equals("FEMALE");
+    /**
+     * Initialize leave balances for new employee
+     */
+    public void initializeNewEmployeeBalances(int empId, LocalDate hireDate, String gender) throws SQLException {
 
-		// 1. Get all available leave types from the lookup table
-		String typeSql = "SELECT LEAVE_TYPE_ID, TYPE_CODE FROM LEAVE_TYPES";
+        String g = (gender == null) ? "" : gender.trim().toUpperCase();
+        boolean isMale = g.equals("M") || g.equals("MALE");
+        boolean isFemale = g.equals("F") || g.equals("FEMALE");
 
-		// 2. Prepared statement matching Oracle Schema
-		String insertSql = "INSERT INTO LEAVE_BALANCES (EMPID, LEAVE_TYPE_ID, ENTITLEMENT, CARRIED_FWD, USED, PENDING, TOTAL) "
-				+ "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        // ✅ FIXED: schema-qualified
+        String typeSql = """
+            SELECT LEAVE_TYPE_ID, TYPE_CODE
+            FROM leave.leave_types
+        """;
 
-		try (PreparedStatement typeStmt = conn.prepareStatement(typeSql);
-				ResultSet rs = typeStmt.executeQuery();
-				PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
+        // ✅ FIXED: schema-qualified
+        String insertSql = """
+            INSERT INTO leave.leave_balances
+            (empid, leave_type_id, entitlement, carried_fwd, used, pending, total)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """;
 
-			while (rs.next()) {
-				int leaveTypeId = rs.getInt("LEAVE_TYPE_ID");
-				String typeCode = rs.getString("TYPE_CODE").toUpperCase();
+        try (
+            PreparedStatement typeStmt = conn.prepareStatement(typeSql);
+            ResultSet rs = typeStmt.executeQuery();
+            PreparedStatement insertStmt = conn.prepareStatement(insertSql)
+        ) {
 
-				// =========================================================
-				// STRICT GENDER FILTERING LOGIC
-				// =========================================================
+            while (rs.next()) {
+                int leaveTypeId = rs.getInt("LEAVE_TYPE_ID");
+                String typeCode = rs.getString("TYPE_CODE").toUpperCase();
 
-				// If the leave type is Maternity but the employee is Male -> SKIP
-				if (typeCode.contains("MATERNITY") && isMale) {
-					continue;
-				}
+                // Gender filtering
+                if (typeCode.contains("MATERNITY") && isMale) continue;
+                if (typeCode.contains("PATERNITY") && isFemale) continue;
 
-				// If the leave type is Paternity but the employee is Female -> SKIP
-				if (typeCode.contains("PATERNITY") && isFemale) {
-					continue;
-				}
+                LeaveBalanceEngine.EntitlementResult er =
+                        LeaveBalanceEngine.computeEntitlement(typeCode, hireDate, g);
 
-				// =========================================================
+                double entitlement = er.proratedEntitlement;
+                double carriedFwd = 0.0;
+                double used = 0.0;
+                double pending = 0.0;
+                double total = (entitlement + carriedFwd) - used - pending;
 
-				// Calculate prorated entitlement using the Statutory Engine (EA 1955)
-				LeaveBalanceEngine.EntitlementResult result = LeaveBalanceEngine.computeEntitlement(typeCode, hireDate,
-						g);
+                insertStmt.setInt(1, empId);
+                insertStmt.setInt(2, leaveTypeId);
+                insertStmt.setDouble(3, entitlement);
+                insertStmt.setDouble(4, carriedFwd);
+                insertStmt.setDouble(5, used);
+                insertStmt.setDouble(6, pending);
+                insertStmt.setDouble(7, total);
 
-				double entitlement = result.proratedEntitlement;
-				double carriedFwd = 0.0;
-				double used = 0.0;
-				double pending = 0.0;
-				// Total Available Calculation
-				double total = (entitlement + carriedFwd) - used - pending;
+                insertStmt.addBatch();
+            }
 
-				// Bind parameters for Oracle
-				insertStmt.setInt(1, empId);
-				insertStmt.setInt(2, leaveTypeId);
-				insertStmt.setDouble(3, entitlement);
-				insertStmt.setDouble(4, carriedFwd);
-				insertStmt.setDouble(5, used);
-				insertStmt.setDouble(6, pending);
-				insertStmt.setDouble(7, total);
+            insertStmt.executeBatch();
+        }
+    }
 
-				insertStmt.addBatch();
-			}
+    /**
+     * Fetch balances for dashboard
+     */
+    public List<LeaveBalance> getEmployeeBalances(int empId) throws SQLException {
 
-			// Execute the filtered batch (6 rows)
-			insertStmt.executeBatch();
-		}
-	}
+        List<LeaveBalance> list = new ArrayList<>();
 
-	/**
-	 * Retrieves current balances for an employee. Dashboard uses this to render
-	 * leave cards.
-	 */
-	public List<LeaveBalance> getEmployeeBalances(int empId) throws SQLException {
-		List<LeaveBalance> list = new ArrayList<>();
-		String sql = "SELECT lb.*, lt.TYPE_CODE, lt.DESCRIPTION " + "FROM LEAVE_BALANCES lb "
-				+ "JOIN LEAVE_TYPES lt ON lb.LEAVE_TYPE_ID = lt.LEAVE_TYPE_ID " + "WHERE lb.EMPID = ? "
-				+ "ORDER BY lt.LEAVE_TYPE_ID ASC";
+        // ✅ FIXED: schema-qualified
+        String sql = """
+            SELECT lb.*, lt.type_code, lt.description
+            FROM leave.leave_balances lb
+            JOIN leave.leave_types lt
+              ON lb.leave_type_id = lt.leave_type_id
+            WHERE lb.empid = ?
+            ORDER BY lt.leave_type_id
+        """;
 
-		try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-			pstmt.setInt(1, empId);
-			try (ResultSet rs = pstmt.executeQuery()) {
-				while (rs.next()) {
-					LeaveBalance b = new LeaveBalance();
-					b.setEmpId(rs.getInt("EMPID"));
-					b.setLeaveTypeId(rs.getInt("LEAVE_TYPE_ID"));
-					b.setTypeCode(rs.getString("TYPE_CODE"));
-					b.setDescription(rs.getString("DESCRIPTION"));
-					b.setEntitlement(rs.getDouble("ENTITLEMENT"));
-					b.setCarriedForward(rs.getDouble("CARRIED_FWD"));
-					b.setUsed(rs.getDouble("USED"));
-					b.setPending(rs.getDouble("PENDING"));
-					b.setTotalAvailable(rs.getDouble("TOTAL"));
-					list.add(b);
-				}
-			}
-		}
-		return list;
-	}
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, empId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    LeaveBalance b = new LeaveBalance();
+                    b.setEmpId(rs.getInt("EMPID"));
+                    b.setLeaveTypeId(rs.getInt("LEAVE_TYPE_ID"));
+                    b.setTypeCode(rs.getString("TYPE_CODE"));
+                    b.setDescription(rs.getString("DESCRIPTION"));
+                    b.setEntitlement(rs.getDouble("ENTITLEMENT"));
+                    b.setCarriedForward(rs.getDouble("CARRIED_FWD"));
+                    b.setUsed(rs.getDouble("USED"));
+                    b.setPending(rs.getDouble("PENDING"));
+                    b.setTotalAvailable(rs.getDouble("TOTAL"));
+                    list.add(b);
+                }
+            }
+        }
+        return list;
+    }
 }
