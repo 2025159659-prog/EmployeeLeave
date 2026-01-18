@@ -60,16 +60,16 @@ public class UserDAO {
     }
 
     /**
-     * Get manager EMPID
+     * Get manager EMPID (SINGLE TABLE DESIGN)
      */
     private Integer getSystemManagerEmpId(Connection con) throws SQLException {
 
         String sql = """
-            SELECT e.empid
-            FROM leave.users u
-            JOIN leave.users e ON u.userid = e.userid
-            WHERE u.role = 'MANAGER'
-              AND u.status = 'ACTIVE'
+            SELECT empid
+            FROM leave.users
+            WHERE role = 'MANAGER'
+              AND status = 'ACTIVE'
+            ORDER BY empid
             LIMIT 1
         """;
 
@@ -101,10 +101,9 @@ public class UserDAO {
     public User getUserById(int empid) throws Exception {
 
         String sql = """
-            SELECT u.*, e.empid
-            FROM leave.users u
-            JOIN leave.users e ON u.userid = e.userid
-            WHERE e.empid = ?
+            SELECT *
+            FROM leave.users
+            WHERE empid = ?
         """;
 
         try (Connection con = DatabaseConnection.getConnection();
@@ -137,7 +136,7 @@ public class UserDAO {
     }
 
     /**
-     * Update profile
+     * Update profile (NO employees table)
      */
     public boolean updateProfile(User user) throws Exception {
 
@@ -145,16 +144,14 @@ public class UserDAO {
 
         String sql = hasPic
             ? """
-              UPDATE leave.users u
+              UPDATE leave.users
               SET phoneno=?, street=?, city=?, postal_code=?, state=?, profile_picture=?
-              FROM leave.employees e
-              WHERE u.userid = e.userid AND e.empid=?
+              WHERE empid=?
               """
             : """
-              UPDATE leave.users u
+              UPDATE leave.users
               SET phoneno=?, street=?, city=?, postal_code=?, state=?
-              FROM leave.employees e
-              WHERE u.userid = e.userid AND e.empid=?
+              WHERE empid=?
               """;
 
         try (Connection con = DatabaseConnection.getConnection();
@@ -185,12 +182,11 @@ public class UserDAO {
         List<User> list = new ArrayList<>();
 
         String sql = """
-            SELECT e.empid, u.fullname, u.email, u.role,
-                   u.phoneno, u.hiredate, u.status,
-                   u.gender, u.profile_picture
-            FROM leave.users u
-            JOIN leave.employees e ON u.userid = e.userid
-            ORDER BY u.status, u.fullname
+            SELECT empid, fullname, email, role,
+                   phoneno, hiredate, status,
+                   gender, profile_picture
+            FROM leave.users
+            ORDER BY status, fullname
         """;
 
         try (Connection con = DatabaseConnection.getConnection();
@@ -214,4 +210,3 @@ public class UserDAO {
         return list;
     }
 }
-
