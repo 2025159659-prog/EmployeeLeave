@@ -170,10 +170,35 @@ public class ManagerDAO {
                         days = rs.getDouble("duration_days");
                     }
                 }
+                
 
                 String finalStatus;
                 String balanceSql = null;
+                
+                String typeCode = "";
+
+                String typeSql = """
+                    SELECT lt.type_code
+                    FROM leave.leave_requests lr
+                    JOIN leave.leave_types lt
+                      ON lr.leave_type_id = lt.leave_type_id
+                    WHERE lr.leave_id = ?
+                """;
+                
+                try (PreparedStatement ps = con.prepareStatement(typeSql)) {
+                    ps.setInt(1, leaveId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            typeCode = rs.getString("type_code");
+                        }
+                    }
+                }
+                
+                if (typeCode == null) typeCode = "";
+                typeCode = typeCode.trim().toUpperCase();
+                
                 boolean isUnpaid = typeCode.contains("UNPAID");
+
 
 
                 switch (action) {
