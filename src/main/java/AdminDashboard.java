@@ -2,11 +2,7 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -18,98 +14,149 @@ import util.DatabaseConnection;
 
 @WebServlet("/AdminDashboard")
 public class AdminDashboard extends HttpServlet {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	protected void doGet(HttpServletRequest request, HttpServletResponse response)
-			throws ServletException, IOException {
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
 
-		HttpSession session = request.getSession(false);
-		if (session == null || !"ADMIN".equalsIgnoreCase((String) session.getAttribute("role"))) {
-			response.sendRedirect("login.jsp");
-			return;
-		}
+        HttpSession session = request.getSession(false);
+        if (session == null || !"ADMIN".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
+            response.sendRedirect("login.jsp");
+            return;
+        }
 
-		String selectedYear = request.getParameter("year");
-		if (selectedYear == null || selectedYear.isEmpty()) {
-			selectedYear = String.valueOf(java.time.LocalDate.now().getYear());
-		}
+        String selectedYear = request.getParameter("year");
+        if (selectedYear == null || selectedYear.isEmpty()) {
+            selectedYear = String.valueOf(java.time.LocalDate.now().getYear());
+        }
 
-		Map<String, Integer> leaveStats = new LinkedHashMap<>();
-		Map<String, Integer> monthlyTrends = new LinkedHashMap<>();
-		List<String> years = new ArrayList<>();
-		int totalEmployees = 0, activeToday = 0, totalHolidays = 0;
+        Map<String, Integer> leaveStats = new LinkedHashMap<>();
+        Map<String, Integer> monthlyTrends = new LinkedHashMap<>();
+        List<String> years = new ArrayList<>();
 
-		try (Connection con = DatabaseConnection.getConnection()) {
+        int totalEmployees = 0;
+        int activeToday = 0;
+        int totalHolidays = 0;
 
-			String sqlYears = "SELECT DISTINCT TO_CHAR(START_DATE, 'YYYY') as YR FROM LEAVE_REQUESTS ORDER BY YR DESC";
-			try (PreparedStatement ps = con.prepareStatement(sqlYears); ResultSet rs = ps.executeQuery()) {
-				while (rs.next())
-					years.add(rs.getString("YR"));
-			}
-			if (!years.contains(String.valueOf(java.time.LocalDate.now().getYear()))) {
-				years.add(String.valueOf(java.time.LocalDate.now().getYear()));
-				Collections.sort(years, Collections.reverseOrder());
-			}
+        try (Connection con = DatabaseConnection.getConnection()) {
 
-			String sql1 = "SELECT COUNT(*) FROM USERS WHERE STATUS = 'ACTIVE' AND UPPER(ROLE) = 'EMPLOYEE'";
-			try (PreparedStatement ps = con.prepareStatement(sql1); ResultSet rs = ps.executeQuery()) {
-				if (rs.next())
-					totalEmployees = rs.getInt(1);
-			}
+            /* ===============================
+               AVAILABLE YEARS
+            =============================== */
+            String sqlYears = """
+                SELECT DISTINCT EXTRACT(YEAR FROM start_date)::text AS yr
+                FROM leave.leave_requests
+                ORDER BY yr DESC
+            """;
+            try (PreparedStatement ps = con.prepareStatement(sqlYears);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    years.add(rs.getString("yr"));
+                }
+            }
 
-			String sql2 = "SELECT COUNT(*) FROM LEAVE_REQUESTS r "
-					+ "JOIN LEAVE_STATUSES s ON r.STATUS_ID = s.STATUS_ID " + "WHERE s.STATUS_CODE = 'APPROVED' "
-					+ "AND TRUNC(SYSDATE) BETWEEN TRUNC(r.START_DATE) AND TRUNC(r.END_DATE)";
-			try (PreparedStatement ps = con.prepareStatement(sql2); ResultSet rs = ps.executeQuery()) {
-				if (rs.next())
-					activeToday = rs.getInt(1);
-			}
+            if (!years.contains(selectedYear)) {
+                years.add(selectedYear);
+                Collections.sort(years, Collections.reverseOrder());
+            }
 
-			String sql3 = "SELECT COUNT(*) FROM HOLIDAYS WHERE TO_CHAR(HOLIDAY_DATE, 'YYYY') = ?";
-			try (PreparedStatement ps = con.prepareStatement(sql3)) {
-				ps.setString(1, selectedYear);
-				try (ResultSet rs = ps.executeQuery()) {
-					if (rs.next())
-						totalHolidays = rs.getInt(1);
-				}
-			}
+            /* ===============================
+               TOTAL EMPLOYEES
+            =============================== */
+            String sql1 = """
+                SELECT COUNT(*)
+                FROM leave.users
+                WHERE status = 'ACTIVE'
+                AND UPPER(role) = 'EMPLOYEE'
+            """;
+            try (PreparedStatement ps = con.prepareStatement(sql1);
+                 ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) totalEmployees = rs.getInt(1);
+            }
 
-			String sql4 = "SELECT t.TYPE_CODE, COUNT(r.LEAVE_ID) as total " + "FROM LEAVE_REQUESTS r "
-					+ "JOIN LEAVE_TYPES t ON r.LEAVE_TYPE_ID = t.LEAVE_TYPE_ID "
-					+ "WHERE TO_CHAR(r.START_DATE, 'YYYY') = ? " + "GROUP BY t.TYPE_CODE";
-			try (PreparedStatement ps = con.prepareStatement(sql4)) {
-				ps.setString(1, selectedYear);
-				try (ResultSet rs = ps.executeQuery()) {
-					while (rs.next())
-						leaveStats.put(rs.getString("TYPE_CODE"), rs.getInt("total"));
-				}
-			}
+            /* ===============================
+               ACTIVE TODAY
+            =============================== */
+            String sql2 = """
+                SELECT COUNT(*)
+                FROM leave.leave_requests r
+                JOIN leave.leave_statuses s ON r.status_id = s.status_id
+                WHERE s.status_code = 'APPROVED'
+                AND CURRENT_DATE BETWEEN r.start_date AND r.end_date
+            """;
+            try (PreparedStatement ps = con.prepareStatement(sql2);
+                 ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) activeToday = rs.getInt(1);
+            }
 
-			String sql5 = "SELECT mname, mcount FROM ("
-					+ "  SELECT TO_CHAR(START_DATE, 'Mon') as mname, TO_CHAR(START_DATE, 'MM') as mnum, COUNT(*) as mcount "
-					+ "  FROM LEAVE_REQUESTS " + "  WHERE TO_CHAR(START_DATE, 'YYYY') = ? "
-					+ "  GROUP BY TO_CHAR(START_DATE, 'Mon'), TO_CHAR(START_DATE, 'MM') " + "  ORDER BY mnum" + ")";
-			try (PreparedStatement ps = con.prepareStatement(sql5)) {
-				ps.setString(1, selectedYear);
-				try (ResultSet rs = ps.executeQuery()) {
-					while (rs.next())
-						monthlyTrends.put(rs.getString("mname"), rs.getInt("mcount"));
-				}
-			}
+            /* ===============================
+               TOTAL HOLIDAYS
+            =============================== */
+            String sql3 = """
+                SELECT COUNT(*)
+                FROM leave.holidays
+                WHERE EXTRACT(YEAR FROM holiday_date)::text = ?
+            """;
+            try (PreparedStatement ps = con.prepareStatement(sql3)) {
+                ps.setString(1, selectedYear);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) totalHolidays = rs.getInt(1);
+                }
+            }
 
-			request.setAttribute("totalEmployees", totalEmployees);
-			request.setAttribute("activeToday", activeToday);
-			request.setAttribute("totalHolidays", totalHolidays);
-			request.setAttribute("leaveStats", leaveStats);
-			request.setAttribute("monthlyTrends", monthlyTrends);
-			request.setAttribute("years", years);
+            /* ===============================
+               LEAVE BY TYPE
+            =============================== */
+            String sql4 = """
+                SELECT t.type_code, COUNT(r.leave_id) AS total
+                FROM leave.leave_requests r
+                JOIN leave.leave_types t ON r.leave_type_id = t.leave_type_id
+                WHERE EXTRACT(YEAR FROM r.start_date)::text = ?
+                GROUP BY t.type_code
+            """;
+            try (PreparedStatement ps = con.prepareStatement(sql4)) {
+                ps.setString(1, selectedYear);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        leaveStats.put(rs.getString("type_code"), rs.getInt("total"));
+                    }
+                }
+            }
 
-			request.getRequestDispatcher("adminDashboard.jsp").forward(request, response);
+            /* ===============================
+               MONTHLY TREND
+            =============================== */
+            String sql5 = """
+                SELECT TO_CHAR(start_date, 'Mon') AS mname,
+                       EXTRACT(MONTH FROM start_date) AS mnum,
+                       COUNT(*) AS mcount
+                FROM leave.leave_requests
+                WHERE EXTRACT(YEAR FROM start_date)::text = ?
+                GROUP BY mname, mnum
+                ORDER BY mnum
+            """;
+            try (PreparedStatement ps = con.prepareStatement(sql5)) {
+                ps.setString(1, selectedYear);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        monthlyTrends.put(rs.getString("mname"), rs.getInt("mcount"));
+                    }
+                }
+            }
 
-		} catch (Exception e) {
-			e.printStackTrace();
-			response.sendRedirect("login.jsp?error=DatabaseError");
-		}
-	}
+            request.setAttribute("totalEmployees", totalEmployees);
+            request.setAttribute("activeToday", activeToday);
+            request.setAttribute("totalHolidays", totalHolidays);
+            request.setAttribute("leaveStats", leaveStats);
+            request.setAttribute("monthlyTrends", monthlyTrends);
+            request.setAttribute("years", years);
+
+            request.getRequestDispatcher("adminDashboard.jsp").forward(request, response);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.sendRedirect("login.jsp?error=DatabaseError");
+        }
+    }
 }
