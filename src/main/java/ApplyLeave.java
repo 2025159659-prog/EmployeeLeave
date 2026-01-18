@@ -62,7 +62,7 @@ public class ApplyLeave extends HttpServlet {
             /* =======================
                GENDER REFRESH
                ======================= */
-            SELECT gender FROM leave.users WHERE empid = ?
+            SELECT gender FROM leave.users WHERE empid = ?;
             try (PreparedStatement ps = con.prepareStatement(gSql)) {
                 ps.setInt(1, empId);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -220,4 +220,5 @@ public class ApplyLeave extends HttpServlet {
         }
     }
 }
+
 
