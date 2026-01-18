@@ -1,3 +1,5 @@
+package util;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.net.URI;
@@ -8,12 +10,12 @@ public class DatabaseConnection {
 
         String dbUrl = System.getenv("DATABASE_URL");
         if (dbUrl == null) {
-            throw new RuntimeException("DATABASE_URL is not set");
+            throw new RuntimeException("DATABASE_URL not set");
         }
 
         URI uri = new URI(dbUrl);
-
         String[] userInfo = uri.getUserInfo().split(":");
+
         String username = userInfo[0];
         String password = userInfo[1];
 
