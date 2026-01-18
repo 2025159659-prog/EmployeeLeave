@@ -2,6 +2,7 @@ package dao;
 
 import bean.LeaveBalance;
 import util.LeaveBalanceEngine;
+
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -9,14 +10,14 @@ import java.util.List;
 
 public class LeaveBalanceDAO {
 
-    private Connection conn;
+    private final Connection conn;
 
     public LeaveBalanceDAO(Connection conn) {
         this.conn = conn;
     }
 
     /**
-     * Initialize leave balances for new employee
+     * Initialize leave balances for a new employee
      */
     public void initializeNewEmployeeBalances(int empId, LocalDate hireDate, String gender) throws SQLException {
 
@@ -24,13 +25,14 @@ public class LeaveBalanceDAO {
         boolean isMale = g.equals("M") || g.equals("MALE");
         boolean isFemale = g.equals("F") || g.equals("FEMALE");
 
-        // ✅ FIXED: schema-qualified
+        // ✅ PostgreSQL: schema-qualified
         String typeSql = """
-            SELECT LEAVE_TYPE_ID, TYPE_CODE
+            SELECT leave_type_id, type_code
             FROM leave.leave_types
+            ORDER BY leave_type_id
         """;
 
-        // ✅ FIXED: schema-qualified
+        // ✅ PostgreSQL: schema-qualified
         String insertSql = """
             INSERT INTO leave.leave_balances
             (empid, leave_type_id, entitlement, carried_fwd, used, pending, total)
@@ -44,10 +46,10 @@ public class LeaveBalanceDAO {
         ) {
 
             while (rs.next()) {
-                int leaveTypeId = rs.getInt("LEAVE_TYPE_ID");
-                String typeCode = rs.getString("TYPE_CODE").toUpperCase();
+                int leaveTypeId = rs.getInt("leave_type_id");
+                String typeCode = rs.getString("type_code").toUpperCase();
 
-                // Gender filtering
+                // 🚫 Gender filtering
                 if (typeCode.contains("MATERNITY") && isMale) continue;
                 if (typeCode.contains("PATERNITY") && isFemale) continue;
 
@@ -58,7 +60,7 @@ public class LeaveBalanceDAO {
                 double carriedFwd = 0.0;
                 double used = 0.0;
                 double pending = 0.0;
-                double total = (entitlement + carriedFwd) - used - pending;
+                double total = entitlement - used - pending;
 
                 insertStmt.setInt(1, empId);
                 insertStmt.setInt(2, leaveTypeId);
@@ -76,15 +78,23 @@ public class LeaveBalanceDAO {
     }
 
     /**
-     * Fetch balances for dashboard
+     * Fetch leave balances for dashboard / admin matrix
      */
     public List<LeaveBalance> getEmployeeBalances(int empId) throws SQLException {
 
         List<LeaveBalance> list = new ArrayList<>();
 
-        // ✅ FIXED: schema-qualified
+        // ✅ PostgreSQL: schema-qualified
         String sql = """
-            SELECT lb.*, lt.type_code, lt.description
+            SELECT lb.empid,
+                   lb.leave_type_id,
+                   lb.entitlement,
+                   lb.carried_fwd,
+                   lb.used,
+                   lb.pending,
+                   lb.total,
+                   lt.type_code,
+                   lt.description
             FROM leave.leave_balances lb
             JOIN leave.leave_types lt
               ON lb.leave_type_id = lt.leave_type_id
@@ -98,15 +108,15 @@ public class LeaveBalanceDAO {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     LeaveBalance b = new LeaveBalance();
-                    b.setEmpId(rs.getInt("EMPID"));
-                    b.setLeaveTypeId(rs.getInt("LEAVE_TYPE_ID"));
-                    b.setTypeCode(rs.getString("TYPE_CODE"));
-                    b.setDescription(rs.getString("DESCRIPTION"));
-                    b.setEntitlement(rs.getDouble("ENTITLEMENT"));
-                    b.setCarriedForward(rs.getDouble("CARRIED_FWD"));
-                    b.setUsed(rs.getDouble("USED"));
-                    b.setPending(rs.getDouble("PENDING"));
-                    b.setTotalAvailable(rs.getDouble("TOTAL"));
+                    b.setEmpId(rs.getInt("empid"));
+                    b.setLeaveTypeId(rs.getInt("leave_type_id"));
+                    b.setTypeCode(rs.getString("type_code"));
+                    b.setDescription(rs.getString("description"));
+                    b.setEntitlement(rs.getDouble("entitlement"));
+                    b.setCarriedForward(rs.getDouble("carried_fwd"));
+                    b.setUsed(rs.getDouble("used"));
+                    b.setPending(rs.getDouble("pending"));
+                    b.setTotalAvailable(rs.getDouble("total"));
                     list.add(b);
                 }
             }
