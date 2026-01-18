@@ -7,8 +7,7 @@
     // =========================
     // ADMIN SECURITY GUARD
     // =========================
-    if (session.getAttribute("empid") == null ||
-        session.getAttribute("role") == null ||
+    if (session.getAttribute("empid") == null || session.getAttribute("role") == null ||
         !"ADMIN".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
         response.sendRedirect("login.jsp?error=Please+login+as+admin.");
         return;
@@ -18,39 +17,31 @@
     SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
     Calendar cal = Calendar.getInstance();
 
-    List<User> employees =
-        (List<User>) request.getAttribute("employees");
-
-    List<Map<String,Object>> leaveTypes =
-        (List<Map<String,Object>>) request.getAttribute("leaveTypes");
-
+    List<User> employees = (List<User>) request.getAttribute("employees");
+    List<Map<String,Object>> leaveTypes = (List<Map<String,Object>>) request.getAttribute("leaveTypes");
     Map<Integer, Map<Integer, LeaveBalance>> balanceIndex =
         (Map<Integer, Map<Integer, LeaveBalance>>) request.getAttribute("balanceIndex");
-
     String error = (String) request.getAttribute("error");
 %>
 
 <%!
-    String fmt(double d) {
-        if (d == (long) d) return String.valueOf((long) d);
-        return String.format("%.1f", d);
-    }
+  String fmt(double d) {
+    if(d == (long) d) return String.format("%d", (long)d);
+    else return String.format("%.1f", d);
+  }
 
-    String esc(String s){
-        if(s == null) return "";
-        return s.replace("&","&amp;")
-                .replace("<","&lt;")
-                .replace(">","&gt;")
-                .replace("\"","&quot;")
-                .replace("'","&#39;");
-    }
+  String esc(String s){
+    if(s == null) return "";
+    return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+            .replace("\"","&quot;").replace("'","&#39;");
+  }
 %>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Leave Balances | Admin</title>
+<title>Leave Balances</title>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
@@ -60,121 +51,94 @@
 <main class="flex-1 ml-20 lg:ml-64">
 <jsp:include page="topbar.jsp" />
 
-<div class="p-6">
+<div class="pageWrap">
 
-<h2 class="text-2xl font-black uppercase">Leave Balances</h2>
-<p class="text-blue-600 text-xs font-bold uppercase mb-4">
-Record employee leave balance and usage
-</p>
+<h2 class="title">Leave Balances</h2>
+<span class="sub-label">Record employee leave balance and usage status</span>
 
 <% if (error != null) { %>
-<div class="bg-red-50 text-red-600 p-3 rounded mb-4 text-xs font-bold">
+<div class="bg-red-50 text-red-600 p-4 rounded-2xl mt-4 text-xs font-bold uppercase">
     <%= error %>
 </div>
 <% } %>
 
-<div class="bg-white border rounded-xl overflow-auto">
+<div class="card">
+<div class="cardHead">
+<span>Staff Entitlements Matrix</span>
+</div>
 
-<table class="min-w-full border-collapse">
-
-<thead class="bg-slate-100 text-xs uppercase font-black">
+<div class="scroll-container">
+<table>
+<thead>
 <tr>
-    <th class="p-3 sticky left-0 bg-slate-100">Staff</th>
-
-    <% if (leaveTypes != null) {
-        for (Map<String,Object> t : leaveTypes) { %>
-        <th class="p-3 text-center">
-            <%= esc(String.valueOf(t.get("typeCode"))) %>
-        </th>
-    <% }} %>
+<th>Staff Member</th>
+<% for (Map<String,Object> t : leaveTypes) { %>
+    <th class="text-center"><%= esc(String.valueOf(t.get("type_code"))) %></th>
+<% } %>
 </tr>
 </thead>
 
 <tbody>
-
-<% if (employees == null || employees.isEmpty()) { %>
-<tr>
-<td colspan="20" class="p-10 text-center text-slate-300 font-black uppercase">
-No staff records found
-</td>
-</tr>
-<% } else {
-
-for (User e : employees) {
-
-    int empId = e.getEmpId();
-    String fullName = e.getFullName();
-    String role = e.getRole();
-    String status = e.getStatus() != null ? e.getStatus().toUpperCase() : "ACTIVE";
-
-    Map<Integer, LeaveBalance> empBals =
-        balanceIndex != null ? balanceIndex.get(empId) : null;
+<% for (User e : employees) {
+   int empId = e.getEmpId();
+   String fullName = e.getFullName();
+   String status = e.getStatus();
+   String profilePic = e.getProfilePic();
+   Map<Integer, LeaveBalance> empBals = balanceIndex.get(empId);
 %>
 
-<tr class="border-t">
+<tr class="<%= "INACTIVE".equalsIgnoreCase(status) ? "row-inactive" : "" %>">
 
-<td class="p-3 sticky left-0 bg-white">
-    <div class="font-black uppercase text-sm"><%= esc(fullName) %></div>
-    <div class="text-xs font-bold text-blue-600"><%= esc(role) %></div>
-    <div class="text-[10px] font-bold text-slate-400"><%= status %></div>
+<td>
+<div class="empBox">
+<div class="w-10 h-10 rounded-xl bg-slate-100 overflow-hidden">
+<% if(profilePic != null && !profilePic.isEmpty()) { %>
+<img src="<%= ctx + "/" + profilePic %>" class="w-full h-full object-cover">
+<% } else { %>
+<div class="text-slate-400 font-black text-xs"><%= fullName.substring(0,1) %></div>
+<% } %>
+</div>
+
+<div>
+<div class="emp-name"><%= esc(fullName) %></div>
+<div class="role-badge">EMPLOYEE</div>
+<span class="status-tag text-emerald-600"><%= status %></span>
+</div>
+</div>
 </td>
 
-<% if (leaveTypes != null) {
-    for (Map<String,Object> t : leaveTypes) {
-
-        int typeId = (Integer) t.get("leaveTypeId");
-        LeaveBalance b = empBals != null ? empBals.get(typeId) : null;
-
-        if (b == null) { %>
-
-<td class="p-3 text-center text-xs font-black text-slate-400">
-NOT ASSIGNED
-</td>
-
-<% } else {
-
-double available = b.getTotalAvailable();
-double used = b.getUsed();
-double pending = b.getPending();
-double entitlement = b.getEntitlement();
-double total = entitlement + b.getCarriedForward();
+<% for (Map<String,Object> t : leaveTypes) {
+   int typeId = (Integer) t.get("leave_type_id");
+   LeaveBalance bal = (empBals != null ? empBals.get(typeId) : null);
 %>
 
-<td class="p-3">
-<div class="bg-slate-100 border rounded-lg p-3 text-xs">
-
-<div class="font-black text-lg <%= available <= 0 ? "text-red-500" : "" %>">
-<%= fmt(available) %> / <%= fmt(total) %>
+<td class="text-center">
+<% if (bal == null) { %>
+<span class="text-slate-400 font-bold">NOT ASSIGNED</span>
+<% } else { %>
+<div class="balCard">
+<span class="avail-lbl">AVAILABLE</span>
+<div class="avail-summary">
+<span><%= fmt(bal.getTotalAvailable()) %></span>
+<span class="avail-total-base">/<%= fmt(bal.getEntitlement() + bal.getCarriedForward()) %></span>
 </div>
 
-<div class="flex justify-between mt-2">
-<span>Entitlement</span><b><%= fmt(entitlement) %></b>
+<div class="miniRow"><span>Entitlement</span><b><%= fmt(bal.getEntitlement()) %></b></div>
+<div class="miniRow"><span>Used</span><b><%= fmt(bal.getUsed()) %></b></div>
+<div class="miniRow"><span>Pending</span><b><%= fmt(bal.getPending()) %></b></div>
 </div>
-
-<div class="flex justify-between">
-<span>Used</span><b><%= fmt(used) %></b>
-</div>
-
-<div class="flex justify-between">
-<span>Pending</span>
-<b class="<%= pending > 0 ? "text-orange-500" : "" %>">
-<%= fmt(pending) %>
-</b>
-</div>
-
-</div>
+<% } %>
 </td>
 
-<% } } } %>
-
+<% } %>
 </tr>
 
-<% } } %>
-
+<% } %>
 </tbody>
 </table>
-
 </div>
+</div>
+
 </div>
 </main>
 </body>
