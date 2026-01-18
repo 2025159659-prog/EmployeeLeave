@@ -12,29 +12,32 @@ import java.util.*;
 public class EmployeeDAO {
 
 	// 1. Fetch Holidays
-	public List<Holiday> getHolidays(LocalDate start, LocalDate end) throws SQLException, ClassNotFoundException {
-		List<Holiday> list = new ArrayList<>();
-		String sql = "SELECT HOLIDAY_ID, HOLIDAY_NAME, HOLIDAY_TYPE, HOLIDAY_DATE " + "FROM HOLIDAYS "
-				+ "WHERE TRUNC(HOLIDAY_DATE) >= ? AND TRUNC(HOLIDAY_DATE) <= ? " + "ORDER BY HOLIDAY_DATE ASC";
-
-		try (Connection con = DatabaseConnection.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
-
-			ps.setDate(1, java.sql.Date.valueOf(start));
-			ps.setDate(2, java.sql.Date.valueOf(end));
-
-			try (ResultSet rs = ps.executeQuery()) {
-				while (rs.next()) {
-					Holiday h = new Holiday();
-					h.setId(rs.getInt("HOLIDAY_ID"));
-					h.setName(rs.getString("HOLIDAY_NAME"));
-					h.setType(rs.getString("HOLIDAY_TYPE"));
-					h.setDate(rs.getDate("HOLIDAY_DATE").toLocalDate());
-					list.add(h);
-				}
-			}
+		public List<Holiday> getHolidays(LocalDate start, LocalDate end) throws Exception {
+		    List<Holiday> list = new ArrayList<>();
+		    String sql = "SELECT HOLIDAY_ID, HOLIDAY_NAME, HOLIDAY_TYPE, HOLIDAY_DATE "
+		            + "FROM HOLIDAYS "
+		            + "WHERE TRUNC(HOLIDAY_DATE) >= ? AND TRUNC(HOLIDAY_DATE) <= ? "
+		            + "ORDER BY HOLIDAY_DATE ASC";
+		
+		    try (Connection con = DatabaseConnection.getConnection();
+		         PreparedStatement ps = con.prepareStatement(sql)) {
+		
+		        ps.setDate(1, java.sql.Date.valueOf(start));
+		        ps.setDate(2, java.sql.Date.valueOf(end));
+		
+		        try (ResultSet rs = ps.executeQuery()) {
+		            while (rs.next()) {
+		                Holiday h = new Holiday();
+		                h.setId(rs.getInt("HOLIDAY_ID"));
+		                h.setName(rs.getString("HOLIDAY_NAME"));
+		                h.setType(rs.getString("HOLIDAY_TYPE"));
+		                h.setDate(rs.getDate("HOLIDAY_DATE").toLocalDate());
+		                list.add(h);
+		            }
+		        }
+		    }
+		    return list;
 		}
-		return list;
-	}
 
 	// 2. Fetch Leave Balances
 	public List<LeaveBalance> getLeaveBalances(int empId, int year) throws Exception {
@@ -110,4 +113,5 @@ public class EmployeeDAO {
 		}
 		return balancesList;
 	}
+
 }
