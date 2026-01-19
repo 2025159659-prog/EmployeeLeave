@@ -421,22 +421,23 @@ public class LeaveDAO {
     }
 
             private void deleteOldMetadata(Connection con, int leaveId) throws Exception {
-            String[] tables = {
-                "lr_emergency",
-                "lr_hospitalization",
-                "lr_maternity",
-                "lr_paternity",
-                "lr_sick"
-            };
-        
-            for (String t : tables) {
-                try (PreparedStatement ps = con.prepareStatement(
-                        "DELETE FROM " + t + " WHERE leave_id = ?")) {
-                    ps.setInt(1, leaveId);
-                    ps.executeUpdate();
+            
+                String[] sqls = {
+                    "DELETE FROM leave.lr_emergency WHERE leave_id = ?",
+                    "DELETE FROM leave.lr_hospitalization WHERE leave_id = ?",
+                    "DELETE FROM leave.lr_sick WHERE leave_id = ?",
+                    "DELETE FROM leave.lr_paternity WHERE leave_id = ?",
+                    "DELETE FROM leave.lr_maternity WHERE leave_id = ?"
+                };
+            
+                for (String sql : sqls) {
+                    try (PreparedStatement ps = con.prepareStatement(sql)) {
+                        ps.setInt(1, leaveId);
+                        ps.executeUpdate();
+                    }
                 }
             }
-        }
+
 
 
         private void insertInheritedData(Connection con, int leaveId, LeaveRequest req) throws Exception {
@@ -556,6 +557,7 @@ public class LeaveDAO {
     }
 
 }
+
 
 
 
