@@ -42,65 +42,54 @@ public class LeaveDAO {
     /* =====================================================
        FETCH SINGLE LEAVE (EDIT / DETAIL)
        ===================================================== */
-            public LeaveRequest getLeaveById(int leaveId, int empId) throws Exception {
-        
-                        StringBuilder sql = new StringBuilder("""
-                SELECT 
-                    lr.leave_id,
-                    lt.type_code,
-                    ls.status_code,
-                    lr.start_date,
-                    lr.end_date,
-                    lr.duration_days,
-                    lr.applied_on,
-                    lr.reason,
-                    lr.manager_comment,
-            
-                    e.emergency_category,
-                    e.emergency_contact,
-            
-                    EXISTS (
-                        SELECT 1 
-                        FROM leave.leave_request_attachments a
-                        WHERE a.leave_id = lr.leave_id
-                    ) AS has_file
-            
-                FROM leave.leave_requests lr
-                JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
-                JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
-                LEFT JOIN leave.lr_emergency e ON lr.leave_id = e.leave_id
-            
-                WHERE lr.empid = ?
-            """);
+    public LeaveRequest getLeaveById(int leaveId, int empId) throws Exception {
 
-        
-            try (Connection con = DatabaseConnection.getConnection();
-                 PreparedStatement ps = con.prepareStatement(sql)) {
-        
-                ps.setInt(1, leaveId);
-                ps.setInt(2, empId);
-        
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        LeaveRequest lr = new LeaveRequest();
-                        lr.setLeaveId(rs.getInt("leave_id"));
-                        lr.setEmpId(rs.getInt("empid"));
-                        lr.setLeaveTypeId(rs.getInt("leave_type_id"));
-                        lr.setStartDate(rs.getDate("start_date").toLocalDate());
-                        lr.setEndDate(rs.getDate("end_date").toLocalDate());
-                        lr.setDuration(rs.getString("duration"));
-                        lr.setDurationDays(rs.getDouble("duration_days"));
-                        lr.setReason(rs.getString("reason"));
-                        lr.setHalfSession(rs.getString("half_session"));
-                        lr.setStatusCode(rs.getString("status_code"));
-                        lr.setManagerComment(rs.getString("manager_comment"));
-                        return lr;
-                    }
+        String sql = """
+            SELECT 
+                lr.leave_id,
+                lr.empid,
+                lr.leave_type_id,
+                lr.start_date,
+                lr.end_date,
+                lr.duration,
+                lr.duration_days,
+                lr.reason,
+                lr.half_session,
+                lr.manager_comment,
+                lt.type_code,
+                ls.status_code
+            FROM leave.leave_requests lr
+            JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
+            JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
+            WHERE lr.leave_id = ? AND lr.empid = ?
+        """;
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, leaveId);
+            ps.setInt(2, empId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    LeaveRequest lr = new LeaveRequest();
+                    lr.setLeaveId(rs.getInt("leave_id"));
+                    lr.setEmpId(rs.getInt("empid"));
+                    lr.setLeaveTypeId(rs.getInt("leave_type_id"));
+                    lr.setStartDate(rs.getDate("start_date").toLocalDate());
+                    lr.setEndDate(rs.getDate("end_date").toLocalDate());
+                    lr.setDuration(rs.getString("duration"));
+                    lr.setDurationDays(rs.getDouble("duration_days"));
+                    lr.setReason(rs.getString("reason"));
+                    lr.setHalfSession(rs.getString("half_session"));
+                    lr.setStatusCode(rs.getString("status_code"));
+                    lr.setManagerComment(rs.getString("manager_comment"));
+                    return lr;
                 }
             }
-            return null;
         }
-
+        return null;
+    }
 
     /* =====================================================
        WORKING DAYS CALCULATION
@@ -173,7 +162,6 @@ public class LeaveDAO {
                  ?, ?, ?, ?, ?, ?, ?, ?, ?, 
                  (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kuala_Lumpur')
                 )
-
             """;
 
             try (PreparedStatement ps = con.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
@@ -223,100 +211,12 @@ public class LeaveDAO {
     }
 
     /* =====================================================
-       DELETE LEAVE (PENDING ONLY)
-       ===================================================== */
-    public boolean deleteLeave(int leaveId, int empId) throws Exception {
-
-        Connection con = DatabaseConnection.getConnection();
-        try {
-            con.setAutoCommit(false);
-
-            int leaveTypeId;
-            double days;
-
-            String fetchSql = """
-                SELECT leave_type_id, duration_days
-                FROM leave.leave_requests
-                WHERE leave_id=? AND empid=?
-                  AND status_id = (
-                      SELECT status_id FROM leave.leave_statuses
-                      WHERE status_code='PENDING'
-                  )
-            """;
-
-            try (PreparedStatement ps = con.prepareStatement(fetchSql)) {
-                ps.setInt(1, leaveId);
-                ps.setInt(2, empId);
-                ResultSet rs = ps.executeQuery();
-                if (!rs.next()) return false;
-
-                leaveTypeId = rs.getInt("leave_type_id");
-                days = rs.getDouble("duration_days");
-            }
-
-            try (PreparedStatement ps = con.prepareStatement(
-                    "DELETE FROM leave.leave_requests WHERE leave_id=? AND empid=?")) {
-                ps.setInt(1, leaveId);
-                ps.setInt(2, empId);
-                ps.executeUpdate();
-            }
-
-            try (PreparedStatement ps = con.prepareStatement("""
-                UPDATE leave.leave_balances
-                SET pending = pending - ?, total = total + ?
-                WHERE empid=? AND leave_type_id=?
-            """)) {
-                ps.setDouble(1, days);
-                ps.setDouble(2, days);
-                ps.setInt(3, empId);
-                ps.setInt(4, leaveTypeId);
-                ps.executeUpdate();
-            }
-
-            con.commit();
-            return true;
-
-        } catch (Exception e) {
-            con.rollback();
-            throw e;
-        } finally {
-            con.close();
-        }
-    }
-
-    /* =====================================================
-       REQUEST CANCELLATION
-       ===================================================== */
-    public boolean requestCancellation(int leaveId, int empId) throws Exception {
-
-        String sql = """
-            UPDATE leave.leave_requests
-            SET status_id = (
-                SELECT status_id FROM leave.leave_statuses
-                WHERE status_code='CANCELLATION_REQUESTED'
-            )
-            WHERE leave_id=? AND empid=?
-              AND status_id = (
-                SELECT status_id FROM leave.leave_statuses
-                WHERE status_code='APPROVED'
-              )
-        """;
-
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            ps.setInt(1, leaveId);
-            ps.setInt(2, empId);
-            return ps.executeUpdate() > 0;
-        }
-    }
-
-    /* =====================================================
-       EMPLOYEE LEAVE HISTORY (FIXED)
+       EMPLOYEE LEAVE HISTORY (WITH METADATA)
        ===================================================== */
     public List<Map<String, Object>> getLeaveHistory(int empId, String status, String year) throws Exception {
 
         List<Map<String, Object>> list = new ArrayList<>();
+
         StringBuilder sql = new StringBuilder("""
             SELECT 
                 lr.leave_id,
@@ -328,6 +228,8 @@ public class LeaveDAO {
                 lr.applied_on,
                 lr.reason,
                 lr.manager_comment,
+                e.emergency_category,
+                e.emergency_contact,
                 EXISTS (
                     SELECT 1 
                     FROM leave.leave_request_attachments a
@@ -336,6 +238,7 @@ public class LeaveDAO {
             FROM leave.leave_requests lr
             JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
             JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
+            LEFT JOIN leave.lr_emergency e ON lr.leave_id = e.leave_id
             WHERE lr.empid = ?
         """);
 
@@ -361,71 +264,32 @@ public class LeaveDAO {
                 ps.setInt(idx++, Integer.parseInt(year));
             }
 
-                 while (rs.next()) {
-                Map<String, Object> m = new HashMap<>();
-            
-                m.put("leaveId", rs.getInt("leave_id"));
-                m.put("type", rs.getString("type_code"));
-                m.put("status", rs.getString("status_code"));
-                m.put("startDate", rs.getDate("start_date"));
-                m.put("endDate", rs.getDate("end_date"));
-                m.put("days", rs.getDouble("duration_days"));
-            
-                Timestamp ts = rs.getTimestamp("applied_on");
-                if (ts != null) {
-                    Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Kuala_Lumpur"));
-                    cal.setTimeInMillis(ts.getTime());
-                    m.put("appliedOn", new Timestamp(cal.getTimeInMillis()));
-                } else {
-                    m.put("appliedOn", null);
-                }
-            
-                m.put("reason", rs.getString("reason"));
-                m.put("managerRemark", rs.getString("manager_comment"));
-                m.put("hasFile", rs.getBoolean("has_file"));
-            
-                // 🔽 METADATA (INI YANG SEBELUM NI TAK PERNAH DIAMBIL)
-                String type = rs.getString("type_code");
-                if (type == null) type = "";
-                type = type.toUpperCase();
-            
-                if (type.contains("EMERGENCY")) {
-                    m.put("emergencyCategory", rs.getString("emergency_category"));
-                    m.put("emergencyContact", rs.getString("emergency_contact"));
-                }
-            
-                list.add(m);
-            }
-
-        }
-        return list;
-    }
-
-    /* =====================================================
-       HISTORY YEARS
-       ===================================================== */
-    public List<String> getHistoryYears(int empId) throws Exception {
-
-        List<String> years = new ArrayList<>();
-
-        String sql = """
-            SELECT DISTINCT EXTRACT(YEAR FROM start_date) AS yr
-            FROM leave.leave_requests
-            WHERE empid=?
-            ORDER BY yr DESC
-        """;
-
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            ps.setInt(1, empId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    years.add(rs.getString("yr"));
+                    Map<String, Object> m = new HashMap<>();
+
+                    m.put("leaveId", rs.getInt("leave_id"));
+                    m.put("type", rs.getString("type_code"));
+                    m.put("status", rs.getString("status_code"));
+                    m.put("startDate", rs.getDate("start_date"));
+                    m.put("endDate", rs.getDate("end_date"));
+                    m.put("days", rs.getDouble("duration_days"));
+                    m.put("appliedOn", rs.getTimestamp("applied_on"));
+                    m.put("reason", rs.getString("reason"));
+                    m.put("managerRemark", rs.getString("manager_comment"));
+                    m.put("hasFile", rs.getBoolean("has_file"));
+
+                    String type = rs.getString("type_code");
+                    if (type != null && type.toUpperCase().contains("EMERGENCY")) {
+                        m.put("emergencyCategory", rs.getString("emergency_category"));
+                        m.put("emergencyContact", rs.getString("emergency_contact"));
+                    }
+
+                    list.add(m);
                 }
             }
         }
-        return years;
+        return list;
     }
 
     /* =====================================================
@@ -469,85 +333,4 @@ public class LeaveDAO {
             ps.executeUpdate();
         }
     }
-
-            /* =====================================================
-           UPDATE LEAVE (EDIT PENDING REQUEST)
-           ===================================================== */
-        public boolean updateLeave(bean.LeaveRequest req, int empId) throws Exception {
-        
-            Connection con = DatabaseConnection.getConnection();
-            try {
-                con.setAutoCommit(false);
-        
-                // 🔹 Pastikan leave masih PENDING
-                String checkSql = """
-                    SELECT status_id
-                    FROM leave.leave_requests
-                    WHERE leave_id = ? AND empid = ?
-                """;
-        
-                int statusId;
-                try (PreparedStatement ps = con.prepareStatement(checkSql)) {
-                    ps.setInt(1, req.getLeaveId());
-                    ps.setInt(2, empId);
-                    ResultSet rs = ps.executeQuery();
-                    if (!rs.next()) return false;
-                    statusId = rs.getInt("status_id");
-                }
-        
-                String pendingCheck = """
-                    SELECT status_id
-                    FROM leave.leave_statuses
-                    WHERE status_code = 'PENDING'
-                """;
-        
-                try (PreparedStatement ps = con.prepareStatement(pendingCheck);
-                     ResultSet rs = ps.executeQuery()) {
-        
-                    rs.next();
-                    if (statusId != rs.getInt(1)) return false;
-                }
-        
-                // 🔹 Update leave request
-                String updateSql = """
-                    UPDATE leave.leave_requests
-                    SET start_date = ?, end_date = ?, duration = ?, duration_days = ?,
-                        reason = ?, half_session = ?
-                    WHERE leave_id = ? AND empid = ?
-                """;
-        
-                try (PreparedStatement ps = con.prepareStatement(updateSql)) {
-                    ps.setDate(1, java.sql.Date.valueOf(req.getStartDate()));
-                    ps.setDate(2, java.sql.Date.valueOf(req.getEndDate()));
-                    ps.setString(3, req.getDuration());
-                    ps.setDouble(4, req.getDurationDays());
-                    ps.setString(5, req.getReason());
-                    ps.setString(6, req.getHalfSession());
-                    ps.setInt(7, req.getLeaveId());
-                    ps.setInt(8, empId);
-                    ps.executeUpdate();
-                }
-        
-                con.commit();
-                return true;
-        
-            } catch (Exception e) {
-                con.rollback();
-                throw e;
-            } finally {
-                con.close();
-            }
-        }
-
 }
-
-
-
-
-
-
-
-
-
-
-
