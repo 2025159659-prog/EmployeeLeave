@@ -333,4 +333,185 @@ public class LeaveDAO {
             ps.executeUpdate();
         }
     }
+        /* =====================================================
+       HISTORY YEARS (USED BY LeaveHistory SERVLET)
+       ===================================================== */
+    public List<String> getHistoryYears(int empId) throws Exception {
+
+        List<String> years = new ArrayList<>();
+
+        String sql = """
+            SELECT DISTINCT EXTRACT(YEAR FROM start_date) AS yr
+            FROM leave.leave_requests
+            WHERE empid = ?
+            ORDER BY yr DESC
+        """;
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, empId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    years.add(rs.getString("yr"));
+                }
+            }
+        }
+        return years;
+    }
+
+    /* =====================================================
+       DELETE LEAVE (USED BY DeleteLeave SERVLET)
+       ===================================================== */
+    public boolean deleteLeave(int leaveId, int empId) throws Exception {
+
+        Connection con = DatabaseConnection.getConnection();
+        try {
+            con.setAutoCommit(false);
+
+            int leaveTypeId;
+            double days;
+
+            String fetchSql = """
+                SELECT leave_type_id, duration_days
+                FROM leave.leave_requests
+                WHERE leave_id=? AND empid=?
+                  AND status_id = (
+                      SELECT status_id
+                      FROM leave.leave_statuses
+                      WHERE status_code='PENDING'
+                  )
+            """;
+
+            try (PreparedStatement ps = con.prepareStatement(fetchSql)) {
+                ps.setInt(1, leaveId);
+                ps.setInt(2, empId);
+                ResultSet rs = ps.executeQuery();
+                if (!rs.next()) return false;
+
+                leaveTypeId = rs.getInt("leave_type_id");
+                days = rs.getDouble("duration_days");
+            }
+
+            try (PreparedStatement ps = con.prepareStatement(
+                    "DELETE FROM leave.leave_requests WHERE leave_id=? AND empid=?")) {
+                ps.setInt(1, leaveId);
+                ps.setInt(2, empId);
+                ps.executeUpdate();
+            }
+
+            try (PreparedStatement ps = con.prepareStatement("""
+                UPDATE leave.leave_balances
+                SET pending = pending - ?, total = total + ?
+                WHERE empid=? AND leave_type_id=?
+            """)) {
+                ps.setDouble(1, days);
+                ps.setDouble(2, days);
+                ps.setInt(3, empId);
+                ps.setInt(4, leaveTypeId);
+                ps.executeUpdate();
+            }
+
+            con.commit();
+            return true;
+
+        } catch (Exception e) {
+            con.rollback();
+            throw e;
+        } finally {
+            con.close();
+        }
+    }
+
+    /* =====================================================
+       REQUEST CANCELLATION (USED BY CancelLeave SERVLET)
+       ===================================================== */
+    public boolean requestCancellation(int leaveId, int empId) throws Exception {
+
+        String sql = """
+            UPDATE leave.leave_requests
+            SET status_id = (
+                SELECT status_id
+                FROM leave.leave_statuses
+                WHERE status_code='CANCELLATION_REQUESTED'
+            )
+            WHERE leave_id=? AND empid=?
+              AND status_id = (
+                SELECT status_id
+                FROM leave.leave_statuses
+                WHERE status_code='APPROVED'
+              )
+        """;
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, leaveId);
+            ps.setInt(2, empId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /* =====================================================
+       UPDATE LEAVE (USED BY EditLeave SERVLET)
+       ===================================================== */
+    public boolean updateLeave(LeaveRequest req, int empId) throws Exception {
+
+        Connection con = DatabaseConnection.getConnection();
+        try {
+            con.setAutoCommit(false);
+
+            int statusId;
+
+            try (PreparedStatement ps = con.prepareStatement("""
+                SELECT status_id
+                FROM leave.leave_requests
+                WHERE leave_id=? AND empid=?
+            """)) {
+                ps.setInt(1, req.getLeaveId());
+                ps.setInt(2, empId);
+                ResultSet rs = ps.executeQuery();
+                if (!rs.next()) return false;
+                statusId = rs.getInt("status_id");
+            }
+
+            try (PreparedStatement ps = con.prepareStatement("""
+                SELECT status_id
+                FROM leave.leave_statuses
+                WHERE status_code='PENDING'
+            """)) {
+                ResultSet rs = ps.executeQuery();
+                rs.next();
+                if (statusId != rs.getInt(1)) return false;
+            }
+
+            try (PreparedStatement ps = con.prepareStatement("""
+                UPDATE leave.leave_requests
+                SET start_date=?, end_date=?, duration=?, duration_days=?,
+                    reason=?, half_session=?
+                WHERE leave_id=? AND empid=?
+            """)) {
+                ps.setDate(1, java.sql.Date.valueOf(req.getStartDate()));
+                ps.setDate(2, java.sql.Date.valueOf(req.getEndDate()));
+                ps.setString(3, req.getDuration());
+                ps.setDouble(4, req.getDurationDays());
+                ps.setString(5, req.getReason());
+                ps.setString(6, req.getHalfSession());
+                ps.setInt(7, req.getLeaveId());
+                ps.setInt(8, empId);
+                ps.executeUpdate();
+            }
+
+            con.commit();
+            return true;
+
+        } catch (Exception e) {
+            con.rollback();
+            throw e;
+        } finally {
+            con.close();
+        }
+    }
+
 }
+
