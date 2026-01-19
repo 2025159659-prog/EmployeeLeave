@@ -265,7 +265,7 @@
                                                 data-applied="<%= r.getAppliedOn() %>" 
                                                 data-reason="<%= (r.getReason() != null) ? r.getReason() : "" %>" 
                                                 data-status="<%= status %>"
-                                                data-attachment="<%= r.getAttachment() != null ? r.getAttachment() : "" %>"
+                                                data-hasfile="<%= r.isHasFile() %>"
                                                 data-med="<%= r.getMedicalFacility() %>" 
                                                 data-ref="<%= r.getRefSerialNo() %>"
                                                 data-pre="<%= r.getWeekPregnancy() %>" 
@@ -463,14 +463,16 @@
         // Attachment logic
         const abox = document.getElementById('attachBox');
         const noAttach = document.getElementById('noAttachLabel');
-        if(d.attachment && d.attachment !== "" && d.attachment !== "null") {
+        if (d.hasfile === "true") {
             abox.classList.remove('hidden');
             noAttach.classList.add('hidden');
-            document.getElementById('modalAttachLink').href = CTX + "/ViewAttachment?id=" + d.id;
-        } else { 
-            abox.classList.add('hidden'); 
+            document.getElementById('modalAttachLink').href =
+                CTX + "/ViewAttachment?id=" + d.id;
+        } else {
+            abox.classList.add('hidden');
             noAttach.classList.remove('hidden');
         }
+
 
         // Metadata logic
         const dBox = document.getElementById('dynamicBox');
@@ -515,4 +517,5 @@
 </script>
 
 </body>
+
 </html>
