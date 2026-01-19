@@ -1,14 +1,15 @@
 import bean.Attachment;
 import dao.AttachmentDAO;
 import util.DatabaseConnection;
+
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 
-import java.io.*;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.IOException;
 import java.sql.Connection;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 
 @WebServlet("/ViewAttachment")
 public class ViewAttachment extends HttpServlet {
@@ -25,121 +26,85 @@ public class ViewAttachment extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        /* =====================================================
-           1. SECURITY CHECK
-           ===================================================== */
+        // 1. Security Check
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("empid") == null) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED,
-                    "Please login to view attachments.");
+            response.sendError(
+                HttpServletResponse.SC_UNAUTHORIZED,
+                "Please login to view attachments."
+            );
             return;
         }
 
-        /* =====================================================
-           2. VALIDATE PARAMETER
-           ===================================================== */
-        String idStr = request.getParameter("id");
-        if (idStr == null || idStr.isBlank()) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST,
-                    "Missing Leave ID");
-            return;
-        }
-
-        int leaveId;
-        try {
-            leaveId = Integer.parseInt(idStr);
-        } catch (NumberFormatException e) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST,
-                    "Invalid Leave ID");
-            return;
-        }
-
-        /* =====================================================
-           3. FETCH ATTACHMENT
-           ===================================================== */
+        // 2. Resource Management
         try (Connection conn = DatabaseConnection.getConnection()) {
 
-            Attachment attachment =
-                    attachmentDAO.getLatestAttachmentByLeaveId(leaveId, conn);
-
-            if (attachment == null) {
-                response.sendError(HttpServletResponse.SC_NOT_FOUND,
-                        "Attachment not found.");
+            String idStr = request.getParameter("id");
+            if (idStr == null || idStr.isBlank()) {
+                response.sendError(
+                    HttpServletResponse.SC_BAD_REQUEST,
+                    "Missing Leave ID"
+                );
                 return;
             }
 
-            /* =====================================================
-               4. DETERMINE SAFE CONTENT TYPE
-               ===================================================== */
-            String contentType = attachment.getContentType();
+            int leaveId = Integer.parseInt(idStr);
 
-            // 🔒 Whitelist common safe types
-            if (contentType == null ||
-                (!contentType.equalsIgnoreCase("application/pdf")
-                 && !contentType.startsWith("image/")
-                 && !contentType.equalsIgnoreCase("text/plain"))) {
+            // 3. Fetch Model from DAO
+            Attachment attachment =
+                attachmentDAO.getLatestAttachmentByLeaveId(leaveId, conn);
 
-                // fallback SAFE type (avoid octet-stream)
-                contentType = "application/pdf";
+            if (attachment == null) {
+                response.sendError(
+                    HttpServletResponse.SC_NOT_FOUND,
+                    "Attachment not found."
+                );
+                return;
             }
 
-            /* =====================================================
-               5. SAFE FILENAME HANDLING
-               ===================================================== */
+            // 4. Configure Response Headers
+            String contentType = attachment.getContentType();
+            if (contentType == null || contentType.isBlank()) {
+                contentType = "application/octet-stream";
+            }
+
             String fileName = attachment.getFileName();
             if (fileName == null || fileName.isBlank()) {
-                fileName = "document.pdf";
+                fileName = "attachment";
             }
 
-            // sanitize filename
-            fileName = fileName.replaceAll("[\\r\\n\"]", "_");
-
-            // RFC 5987 encoding for Chrome
-            String encodedFileName =
-                    URLEncoder.encode(fileName, StandardCharsets.UTF_8)
-                              .replace("+", "%20");
-
-            /* =====================================================
-               6. SECURITY HEADERS (CRITICAL)
-               ===================================================== */
-            response.reset();
             response.setContentType(contentType);
-
-            // INLINE view (not download)
+            response.setHeader("X-Content-Type-Options", "nosniff");
             response.setHeader(
-                    "Content-Disposition",
-                    "inline; filename=\"" + fileName + "\"; filename*=UTF-8''" + encodedFileName
+                "Content-Disposition",
+                "inline; filename=\"" + fileName.replace("\"", "") + "\""
             );
 
-            // 🔴 MOST IMPORTANT FOR GOOGLE WARNING
-            response.setHeader("X-Content-Type-Options", "nosniff");
-
-            // Extra hardening (safe defaults)
-            response.setHeader("X-Frame-Options", "SAMEORIGIN");
-            response.setHeader("Referrer-Policy", "no-referrer");
-            response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-            response.setHeader("Pragma", "no-cache");
-
-            /* =====================================================
-               7. STREAM FILE
-               ===================================================== */
-            try (InputStream in = attachment.getDataStream();
-                 OutputStream out = response.getOutputStream()) {
-
+            // 5. Stream the Data
+            try (
+                InputStream in = attachment.getDataStream();
+                OutputStream out = response.getOutputStream()
+            ) {
                 byte[] buffer = new byte[8192];
                 int bytesRead;
+
                 while ((bytesRead = in.read(buffer)) != -1) {
                     out.write(buffer, 0, bytesRead);
                 }
                 out.flush();
             }
 
+        } catch (NumberFormatException e) {
+            response.sendError(
+                HttpServletResponse.SC_BAD_REQUEST,
+                "Invalid ID format."
+            );
         } catch (Exception e) {
             e.printStackTrace();
             if (!response.isCommitted()) {
                 response.sendError(
-                        HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                        "Error retrieving attachment."
+                    HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Error retrieving file."
                 );
             }
         }
