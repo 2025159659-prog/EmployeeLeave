@@ -53,8 +53,16 @@ public class ManagerDAO {
                 m.week_pregnancy       AS mat_week,
                 p.spouse_name          AS pat_spouse,
                 p.medical_facility     AS pat_fac,
-                p.delivery_date        AS pat_del
-            FROM leave.leave_requests lr
+                p.delivery_date        AS pat_del,
+                
+                EXISTS (
+                    SELECT 1
+                    FROM leave.leave_request_attachments a
+                    WHERE a.leave_id = lr.leave_id
+                ) AS has_file
+                
+                FROM leave.leave_requests lr
+
             
 
             JOIN leave.users u               ON lr.empid = u.empid
@@ -110,6 +118,7 @@ public class ManagerDAO {
 
         r.setReason(rs.getString("reason"));
         r.setManagerComment(rs.getString("manager_comment"));
+        r.setHasFile(rs.getBoolean("has_file"));
 
         String type = rs.getString("type_code");
         if (type == null) type = "";
