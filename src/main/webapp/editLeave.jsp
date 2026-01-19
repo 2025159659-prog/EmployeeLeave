@@ -56,7 +56,8 @@ to {
 </head>
 <body>
 
-	<form id="editForm">
+	<form id="editForm" method="post" action="EditLeave">
+
 		<input type="hidden" id="editLeaveId" name="leaveId">
 
 		<div class="edit-grid">
@@ -104,12 +105,7 @@ to {
 				Changes</button>
 		</div>
 	</form>
-		function clean(val) {
-		    if (val === null) return "";
-		    if (val === undefined) return "";
-		    if (typeof val === "string" && val.toLowerCase() === "null") return "";
-		    return val;
-		}
+		
 
 	<script>
     // Global variable to store metadata returned by the EditLeave Servlet
@@ -229,9 +225,16 @@ to {
 		    div.innerHTML = html;
 		    document.getElementById('editDynamicFields').appendChild(div);
 		}
+			function clean(val) {
+					    if (val === null) return "";
+					    if (val === undefined) return "";
+					    if (typeof val === "string" && val.toLowerCase() === "null") return "";
+					    return val;
+					}
 
   </script>
 </body>
 
 </html>
+
 
