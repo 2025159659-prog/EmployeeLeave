@@ -338,7 +338,14 @@ public class LeaveDAO {
                     m.put("startDate", rs.getDate("start_date"));
                     m.put("endDate", rs.getDate("end_date"));
                     m.put("days", rs.getDouble("duration_days"));
-                    m.put("appliedOn", rs.getTimestamp("applied_on"));
+                    Timestamp ts = rs.getTimestamp("applied_on");
+                        if (ts != null) {
+                            Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Kuala_Lumpur"));
+                            cal.setTimeInMillis(ts.getTime());
+                            m.put("appliedOn", new Timestamp(cal.getTimeInMillis()));
+                        } else {
+                            m.put("appliedOn", null);
+                        }
                     m.put("reason", rs.getString("reason"));
                     m.put("managerRemark", rs.getString("manager_comment"));
                     m.put("hasFile", rs.getBoolean("has_file"));
@@ -488,6 +495,7 @@ public class LeaveDAO {
         }
 
 }
+
 
 
 
