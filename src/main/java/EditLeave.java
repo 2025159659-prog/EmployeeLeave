@@ -150,21 +150,10 @@ public class EditLeave extends HttpServlet {
 		                        : null
 		        );
 		
-		        else if (type.contains("EMERGENCY")) {
-
-			    String cat = request.getParameter("emergencyCategory");
-			    if (cat != null && !cat.isBlank() && !"null".equalsIgnoreCase(cat)) {
-			        existing.setEmergencyCategory(cat);
-			    }
-			
-			    String cnt = request.getParameter("emergencyContact");
-			    if (cnt != null && !cnt.isBlank() && !"null".equalsIgnoreCase(cnt)) {
-			        existing.setEmergencyContact(cnt);
-			    }
-			}
+		        
 
 		String type = existing.getTypeCode();
-type = type == null ? "" : type.toUpperCase();
+		type = type == null ? "" : type.toUpperCase();
 
 					/* ======================
 					   METADATA BY TYPE
@@ -269,6 +258,7 @@ type = type == null ? "" : type.toUpperCase();
 	}
 
 }
+
 
 
 
