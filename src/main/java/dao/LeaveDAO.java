@@ -46,18 +46,7 @@ public class LeaveDAO {
 
         String sql = """
             SELECT
-              lr.leave_id,
-              lr.empid,
-              lr.leave_type_id,
-              lr.start_date,
-              lr.end_date,
-              lr.duration,
-              lr.duration_days,
-              lr.reason           AS employee_reason,
-              lr.half_session,
-              lr.manager_comment   AS manager_comment,
-              lt.type_code,
-              ls.status_code
+             SELECT lr.*, lt.type_code, ls.status_code
             FROM leave.leave_requests lr
             JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
             JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
@@ -517,6 +506,7 @@ public class LeaveDAO {
         }
 
 }
+
 
 
 
