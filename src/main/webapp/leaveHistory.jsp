@@ -58,9 +58,16 @@ List<Map<String, Object>> leaves = (totalRecords > 0) ? allLeaves.subList(startI
 
 // Formatting setup - STRICT DD/MM/YYYY
 SimpleDateFormat sdfDb = new SimpleDateFormat("yyyy-MM-dd");
-SimpleDateFormat sdfDisplay = new SimpleDateFormat("dd/MM/YYYY");
+SimpleDateFormat sdfDisplay = new SimpleDateFormat("dd/MM/yyyy");
 SimpleDateFormat sdfTimeDb = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-SimpleDateFormat sdfTimeDisplay = new SimpleDateFormat("dd/MM/YYYY HH:mm");
+SimpleDateFormat sdfTimeDisplay = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+
+TimeZone MY = TimeZone.getTimeZone("Asia/Kuala_Lumpur");
+sdfDb.setTimeZone(MY);
+sdfDisplay.setTimeZone(MY);
+sdfTimeDb.setTimeZone(MY);
+sdfTimeDisplay.setTimeZone(MY);
+
 
 Calendar calToday = Calendar.getInstance();
 calToday.set(Calendar.HOUR_OF_DAY, 0);
@@ -1301,4 +1308,5 @@ document.addEventListener('input', function(e) {
 </script>
 </body>
 </html>
+
 
