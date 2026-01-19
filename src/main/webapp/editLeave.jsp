@@ -104,6 +104,12 @@ to {
 				Changes</button>
 		</div>
 	</form>
+		function clean(val) {
+		    if (val === null) return "";
+		    if (val === undefined) return "";
+		    if (typeof val === "string" && val.toLowerCase() === "null") return "";
+		    return val;
+		}
 
 	<script>
     // Global variable to store metadata returned by the EditLeave Servlet
@@ -121,11 +127,13 @@ to {
         
         // Store metadata for the dynamic field generators to use
         currentMetadata = {
-	    med: (data.med && data.med !== "null") ? data.med : "",
-	    ref: (data.ref && data.ref !== "null") ? data.ref : "",
-	    cat: (data.cat && data.cat !== "null") ? data.cat : "",
-	    cnt: (data.cnt && data.cnt !== "null") ? data.cnt : "",
-	    spo: (data.spo && data.spo !== "null") ? data.spo : ""
+		    med: clean(data.med),
+		    ref: clean(data.ref),
+		    cat: clean(data.cat),
+		    cnt: clean(data.cnt),
+		    spo: clean(data.spo)
+		};
+
 	};
 
 
@@ -199,25 +207,31 @@ to {
       }
     }
 
-    function addEditInput(name, label, val) {
-        const div = document.createElement('div');
-        div.className = "edit-field";
-        div.innerHTML = `<label>${label}</label><input type="text" name="${name}" value="${val || ''}" required>`;
-        document.getElementById('editDynamicFields').appendChild(div);
-    }
+		function addEditInput(name, label, val) {
+		    val = clean(val); // 🔥 INI BARIS PALING PENTING
+		    const div = document.createElement('div');
+		    div.className = "edit-field";
+		    div.innerHTML = `<label>${label}</label>
+		        <input type="text" name="${name}" value="${val}" required>`;
+		    document.getElementById('editDynamicFields').appendChild(div);
+		}
 
-    function addEditSelect(name, label, opts, val) {
-        const div = document.createElement('div');
-        div.className = "edit-field";
-        let html = `<label>${label}</label><select name="${name}" required><option value="">--Select--</option>`;
-        opts.forEach(o => {
-            html += `<option value="${o.v}" ${val === o.v ? 'selected' : ''}>${o.l}</option>`;
-        });
-        html += `</select>`;
-        div.innerHTML = html;
-        document.getElementById('editDynamicFields').appendChild(div);
-    }
+
+		function addEditSelect(name, label, opts, val) {
+		    val = clean(val);
+		    const div = document.createElement('div');
+		    div.className = "edit-field";
+		    let html = `<label>${label}</label><select name="${name}" required>`;
+		    opts.forEach(o => {
+		        html += `<option value="${o.v}" ${val === o.v ? 'selected' : ''}>${o.l}</option>`;
+		    });
+		    html += `</select>`;
+		    div.innerHTML = html;
+		    document.getElementById('editDynamicFields').appendChild(div);
+		}
+
   </script>
 </body>
 
 </html>
+
