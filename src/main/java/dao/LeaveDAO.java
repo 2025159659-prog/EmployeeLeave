@@ -503,6 +503,26 @@ public class LeaveDAO {
         }
     }
 
+        private void deleteOldMetadata(Connection con, int leaveId) throws Exception {
+    
+        String[] tables = {
+            "leave.lr_emergency",
+            "leave.lr_sick",
+            "leave.lr_hospitalization",
+            "leave.lr_paternity",
+            "leave.lr_maternity"
+        };
+    
+        for (String table : tables) {
+            try (PreparedStatement ps =
+                     con.prepareStatement("DELETE FROM " + table + " WHERE leave_id = ?")) {
+                ps.setInt(1, leaveId);
+                ps.executeUpdate();
+            }
+        }
+    }
+
+
     /* =====================================================
        UPDATE LEAVE (USED BY EditLeave SERVLET)
        ===================================================== */
@@ -575,6 +595,7 @@ public class LeaveDAO {
 
 
 }
+
 
 
 
