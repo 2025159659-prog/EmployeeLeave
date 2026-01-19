@@ -39,6 +39,7 @@ public class LeaveRecord implements Serializable {
 	private String emergencyContact;
 	private String spouseName;
 	private int weekPregnancy; // Added for Maternity Leave tracking
+	private boolean hasFile;
 
 	public LeaveRecord() {
 	}
@@ -235,4 +236,13 @@ public class LeaveRecord implements Serializable {
 	public void setWeekPregnancy(int weekPregnancy) {
 		this.weekPregnancy = weekPregnancy;
 	}
+		
+	public boolean isHasFile() {
+	    return hasFile;
+	}
+
+	public void setHasFile(boolean hasFile) {
+    this.hasFile = hasFile;
+	}
+
 }
