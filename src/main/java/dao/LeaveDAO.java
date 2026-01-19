@@ -42,44 +42,55 @@ public class LeaveDAO {
     /* =====================================================
        FETCH SINGLE LEAVE (EDIT / DETAIL)
        ===================================================== */
-    public LeaveRequest getLeaveById(int leaveId, int empId) throws Exception {
-
-        String sql = """
-            SELECT
-             SELECT lr.*, lt.type_code, ls.status_code
-            FROM leave.leave_requests lr
-            JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
-            JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
-            WHERE lr.leave_id = ? AND lr.empid = ?
-
-        """;
-
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            ps.setInt(1, leaveId);
-            ps.setInt(2, empId);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    LeaveRequest lr = new LeaveRequest();
-                    lr.setLeaveId(rs.getInt("leave_id"));
-                    lr.setEmpId(rs.getInt("empid"));
-                    lr.setLeaveTypeId(rs.getInt("leave_type_id"));
-                    lr.setStartDate(rs.getDate("start_date").toLocalDate());
-                    lr.setEndDate(rs.getDate("end_date").toLocalDate());
-                    lr.setDuration(rs.getString("duration"));
-                    lr.setDurationDays(rs.getDouble("duration_days"));
-                    lr.setReason(rs.getString("reason"));
-                    lr.setHalfSession(rs.getString("half_session"));
-                    lr.setStatusCode(rs.getString("status_code"));
-                    lr.setManagerComment(rs.getString("manager_comment"));
-                    return lr;
+            public LeaveRequest getLeaveById(int leaveId, int empId) throws Exception {
+        
+            String sql = """
+                SELECT
+                    lr.leave_id,
+                    lr.empid,
+                    lr.leave_type_id,
+                    lr.start_date,
+                    lr.end_date,
+                    lr.duration,
+                    lr.duration_days,
+                    lr.reason,
+                    lr.half_session,
+                    lr.manager_comment,
+                    lt.type_code,
+                    ls.status_code
+                FROM leave.leave_requests lr
+                JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
+                JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
+                WHERE lr.leave_id = ? AND lr.empid = ?
+            """;
+        
+            try (Connection con = DatabaseConnection.getConnection();
+                 PreparedStatement ps = con.prepareStatement(sql)) {
+        
+                ps.setInt(1, leaveId);
+                ps.setInt(2, empId);
+        
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        LeaveRequest lr = new LeaveRequest();
+                        lr.setLeaveId(rs.getInt("leave_id"));
+                        lr.setEmpId(rs.getInt("empid"));
+                        lr.setLeaveTypeId(rs.getInt("leave_type_id"));
+                        lr.setStartDate(rs.getDate("start_date").toLocalDate());
+                        lr.setEndDate(rs.getDate("end_date").toLocalDate());
+                        lr.setDuration(rs.getString("duration"));
+                        lr.setDurationDays(rs.getDouble("duration_days"));
+                        lr.setReason(rs.getString("reason"));
+                        lr.setHalfSession(rs.getString("half_session"));
+                        lr.setStatusCode(rs.getString("status_code"));
+                        lr.setManagerComment(rs.getString("manager_comment"));
+                        return lr;
+                    }
                 }
             }
+            return null;
         }
-        return null;
-    }
+
 
     /* =====================================================
        WORKING DAYS CALCULATION
@@ -506,6 +517,7 @@ public class LeaveDAO {
         }
 
 }
+
 
 
 
