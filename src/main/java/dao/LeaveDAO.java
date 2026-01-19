@@ -171,7 +171,7 @@ public class LeaveDAO {
     /* =====================================================
        4. UPDATE LEAVE (INI YANG TERTINGGAL TADI)
        ===================================================== */
-                public boolean updateLeave(LeaveRequest req, int empId) throws Exception {
+                           public boolean updateLeave(LeaveRequest req, int empId) throws Exception {
                 Connection con = DatabaseConnection.getConnection();
                 try {
                     con.setAutoCommit(false);
@@ -179,30 +179,30 @@ public class LeaveDAO {
                     // 1. Pastikan masih PENDING
                     String checkSql = """
                         SELECT lr.leave_id, ls.status_code
-                        FROM leave_requests lr
-                        JOIN leave_statuses ls ON lr.status_id = ls.status_id
-                        WHERE lr.leave_id = ? AND lr.emp_id = ?
+                        FROM leave.leave_requests lr
+                        JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
+                        WHERE lr.leave_id = ? AND lr.empid = ?
                     """;
             
                     try (PreparedStatement ps = con.prepareStatement(checkSql)) {
                         ps.setInt(1, req.getLeaveId());
                         ps.setInt(2, empId);
                         ResultSet rs = ps.executeQuery();
-                        if (!rs.next() || !"PENDING".equals(rs.getString("status_code"))) {
+                        if (!rs.next() || !"PENDING".equalsIgnoreCase(rs.getString("status_code"))) {
                             return false;
                         }
                     }
             
-                    // 2. Update table utama (UMUM SAHAJA)
+                    // 2. Update table utama
                     String updateMain = """
-                        UPDATE leave_requests
+                        UPDATE leave.leave_requests
                         SET start_date = ?,
                             end_date = ?,
                             duration = ?,
                             duration_days = ?,
                             reason = ?,
                             half_session = ?
-                        WHERE leave_id = ? AND emp_id = ?
+                        WHERE leave_id = ? AND empid = ?
                     """;
             
                     try (PreparedStatement ps = con.prepareStatement(updateMain)) {
@@ -217,10 +217,8 @@ public class LeaveDAO {
                         ps.executeUpdate();
                     }
             
-                    // 3. DELETE metadata lama
+                    // 3. Metadata
                     deleteOldMetadata(con, req.getLeaveId());
-            
-                    // 4. INSERT metadata ikut leave type
                     insertInheritedData(con, req.getLeaveId(), req);
             
                     con.commit();
@@ -233,6 +231,7 @@ public class LeaveDAO {
                     con.close();
                 }
             }
+
 
 
 
@@ -534,6 +533,7 @@ public class LeaveDAO {
         }
 
 }
+
 
 
 
