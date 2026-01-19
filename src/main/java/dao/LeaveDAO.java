@@ -459,8 +459,8 @@ public class LeaveDAO {
                 """;
         
                 try (PreparedStatement ps = con.prepareStatement(updateSql)) {
-                    ps.setDate(1, Date.valueOf(req.getStartDate()));
-                    ps.setDate(2, Date.valueOf(req.getEndDate()));
+                    ps.setDate(1, java.sql.Date.valueOf(req.getStartDate()));
+                    ps.setDate(2, java.sql.Date.valueOf(req.getEndDate()));
                     ps.setString(3, req.getDuration());
                     ps.setDouble(4, req.getDurationDays());
                     ps.setString(5, req.getReason());
@@ -482,4 +482,5 @@ public class LeaveDAO {
         }
 
 }
+
 
