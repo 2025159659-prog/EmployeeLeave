@@ -720,7 +720,7 @@ public class LeaveDAO {
                 typeCode = typeCode == null ? "" : typeCode.toUpperCase();
         
                 // 🔹 buang metadata lama
-                deleteOldMetadata(con, req.getLeaveId());
+
         
                 /* =========================
                    METADATA INSERT BY TYPE
@@ -736,13 +736,44 @@ public class LeaveDAO {
                     }
         
                 } else if (typeCode.contains("EMERGENCY")) {
-                    try (PreparedStatement ps = con.prepareStatement(
-                            "INSERT INTO leave.lr_emergency VALUES (?,?,?)")) {
-                        ps.setInt(1, req.getLeaveId());
-                        ps.setString(2, req.getEmergencyCategory());
-                        ps.setString(3, req.getEmergencyContact());
-                        ps.executeUpdate();
+
+                        // ambil data lama dulu
+                        String oldCat = null;
+                        String oldContact = null;
+                    
+                        try (PreparedStatement ps = con.prepareStatement(
+                                "SELECT emergency_category, emergency_contact FROM leave.lr_emergency WHERE leave_id = ?")) {
+                            ps.setInt(1, req.getLeaveId());
+                            ResultSet rs = ps.executeQuery();
+                            if (rs.next()) {
+                                oldCat = rs.getString(1);
+                                oldContact = rs.getString(2);
+                            }
+                        }
+                    
+                        try (PreparedStatement ps = con.prepareStatement(
+                                """
+                                UPDATE leave.lr_emergency
+                                SET emergency_category = ?,
+                                    emergency_contact = ?
+                                WHERE leave_id = ?
+                                """)) {
+                    
+                            ps.setString(1,
+                                req.getEmergencyCategory() != null && !req.getEmergencyCategory().isBlank()
+                                    ? req.getEmergencyCategory()
+                                    : oldCat);
+                    
+                            ps.setString(2,
+                                req.getEmergencyContact() != null && !req.getEmergencyContact().isBlank()
+                                    ? req.getEmergencyContact()
+                                    : oldContact);
+                    
+                            ps.setInt(3, req.getLeaveId());
+                            ps.executeUpdate();
+                        }
                     }
+
         
                 } else if (typeCode.contains("HOSPITAL")) {
                     try (PreparedStatement ps = con.prepareStatement(
@@ -809,5 +840,6 @@ public class LeaveDAO {
 
 
 }
+
 
 
