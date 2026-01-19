@@ -55,7 +55,7 @@ public class LeaveDAO {
               lr.duration_days,
               lr.reason           AS employee_reason,
               lr.half_session,
-              lr.manager_remark   AS manager_remark,
+              lr.manager_comment   AS manager_comment,
               lt.type_code,
               ls.status_code
             FROM leave.leave_requests lr
@@ -84,7 +84,7 @@ public class LeaveDAO {
                     lr.setReason(rs.getString("employee_reason"));
                     lr.setHalfSession(rs.getString("half_session"));
                     lr.setStatusCode(rs.getString("status_code"));
-                    lr.setManagerComment(rs.getString("manager_remark"));
+                    lr.setManagerComment(rs.getString("manager_comment"));
                     return lr;
                 }
             }
@@ -517,6 +517,7 @@ public class LeaveDAO {
         }
 
 }
+
 
 
 
