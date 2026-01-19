@@ -253,61 +253,141 @@ public class LeaveDAO {
     /* =====================================================
        EMPLOYEE LEAVE HISTORY
        ===================================================== */
-    public List<Map<String, Object>> getLeaveHistory(int empId, String status, String year) throws Exception {
-
-        List<Map<String, Object>> list = new ArrayList<>();
-
-        StringBuilder sql = new StringBuilder("""
-            SELECT lr.leave_id, lt.type_code, ls.status_code,
-                   lr.start_date, lr.end_date,
-                   lr.duration_days, lr.applied_on,
-                   lr.reason, lr.manager_comment
-            FROM leave.leave_requests lr
-            JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
-            JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
-            WHERE lr.empid = ?
-        """);
-
-        if (status != null && !"ALL".equalsIgnoreCase(status)) {
-            sql.append(" AND UPPER(ls.status_code) = ? ");
-        }
-        if (year != null && !year.isBlank()) {
-            sql.append(" AND EXTRACT(YEAR FROM lr.start_date) = ? ");
-        }
-
-        sql.append(" ORDER BY lr.applied_on DESC");
-
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql.toString())) {
-
-            int idx = 1;
-            ps.setInt(idx++, empId);
-
-            if (status != null && !"ALL".equalsIgnoreCase(status)) {
-                ps.setString(idx++, status.toUpperCase());
+            public List<Map<String, Object>> getLeaveHistory(int empId, String status, String year) throws Exception {
+        
+            List<Map<String, Object>> list = new ArrayList<>();
+        
+            StringBuilder sql = new StringBuilder("""
+                SELECT 
+                    lr.leave_id,
+                    lt.type_code,
+                    ls.status_code,
+                    lr.start_date,
+                    lr.end_date,
+                    lr.duration_days,
+                    lr.applied_on,
+                    lr.reason,
+                    lr.manager_comment,
+        
+                    -- EMERGENCY
+                    e.emergency_category,
+                    e.emergency_contact,
+        
+                    -- SICK
+                    s.medical_facility AS sick_fac,
+                    s.ref_serial_no    AS sick_ref,
+        
+                    -- MATERNITY
+                    m.consultation_clinic AS mat_clinic,
+                    m.expected_due_date   AS mat_due,
+                    m.week_pregnancy      AS mat_week,
+        
+                    -- PATERNITY
+                    p.spouse_name         AS pat_spouse,
+                    p.medical_facility    AS pat_fac,
+                    p.delivery_date       AS pat_del,
+        
+                    -- HOSPITALIZATION
+                    h.hospital_name       AS hosp_name,
+                    h.admit_date          AS hosp_admit,
+                    h.discharge_date      AS hosp_dis,
+        
+                    EXISTS (
+                        SELECT 1 
+                        FROM leave.leave_request_attachments a
+                        WHERE a.leave_id = lr.leave_id
+                    ) AS has_file
+        
+                FROM leave.leave_requests lr
+                JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
+                JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
+        
+                LEFT JOIN leave.lr_emergency e       ON lr.leave_id = e.leave_id
+                LEFT JOIN leave.lr_sick s            ON lr.leave_id = s.leave_id
+                LEFT JOIN leave.lr_maternity m       ON lr.leave_id = m.leave_id
+                LEFT JOIN leave.lr_paternity p       ON lr.leave_id = p.leave_id
+                LEFT JOIN leave.lr_hospitalization h ON lr.leave_id = h.leave_id
+        
+                WHERE lr.empid = ?
+            """);
+        
+            if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
+                sql.append(" AND UPPER(ls.status_code) = ? ");
             }
+        
             if (year != null && !year.isBlank()) {
-                ps.setInt(idx++, Integer.parseInt(year));
+                sql.append(" AND EXTRACT(YEAR FROM lr.start_date) = ? ");
             }
-
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Map<String, Object> m = new HashMap<>();
-                    m.put("leaveId", rs.getInt("leave_id"));
-                    m.put("type", rs.getString("type_code"));
-                    m.put("status", rs.getString("status_code"));
-                    m.put("startDate", rs.getDate("start_date"));
-                    m.put("endDate", rs.getDate("end_date"));
-                    m.put("days", rs.getDouble("duration_days"));
-                    m.put("appliedOn", rs.getTimestamp("applied_on"));
-                    m.put("reason", rs.getString("reason"));
-                    m.put("managerRemark", rs.getString("manager_comment"));
-                    list.add(m);
+        
+            sql.append(" ORDER BY lr.applied_on DESC");
+        
+            try (Connection con = DatabaseConnection.getConnection();
+                 PreparedStatement ps = con.prepareStatement(sql.toString())) {
+        
+                int idx = 1;
+                ps.setInt(idx++, empId);
+        
+                if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
+                    ps.setString(idx++, status.toUpperCase());
+                }
+        
+                if (year != null && !year.isBlank()) {
+                    ps.setInt(idx++, Integer.parseInt(year));
+                }
+        
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+        
+                        Map<String, Object> m = new HashMap<>();
+        
+                        m.put("leaveId", rs.getInt("leave_id"));
+                        m.put("type", rs.getString("type_code"));
+                        m.put("status", rs.getString("status_code"));
+                        m.put("startDate", rs.getDate("start_date"));
+                        m.put("endDate", rs.getDate("end_date"));
+                        m.put("days", rs.getDouble("duration_days"));
+                        m.put("appliedOn", rs.getTimestamp("applied_on"));
+                        m.put("reason", rs.getString("reason"));
+                        m.put("managerRemark", rs.getString("manager_comment"));
+                        m.put("hasFile", rs.getBoolean("has_file"));
+        
+                        String type = rs.getString("type_code");
+                        type = type == null ? "" : type.toUpperCase();
+        
+                        // ===== METADATA BY TYPE =====
+        
+                        if (type.contains("EMERGENCY")) {
+                            m.put("emergencyCategory", rs.getString("emergency_category"));
+                            m.put("emergencyContact", rs.getString("emergency_contact"));
+        
+                        } else if (type.contains("SICK")) {
+                            m.put("medicalFacility", rs.getString("sick_fac"));
+                            m.put("refSerialNo", rs.getString("sick_ref"));
+        
+                        } else if (type.contains("MATERNITY")) {
+                            m.put("medicalFacility", rs.getString("mat_clinic"));
+                            m.put("eventDate", rs.getDate("mat_due"));
+                            m.put("weekPregnancy", rs.getInt("mat_week"));
+        
+                        } else if (type.contains("PATERNITY")) {
+                            m.put("spouseName", rs.getString("pat_spouse"));
+                            m.put("medicalFacility", rs.getString("pat_fac"));
+                            m.put("eventDate", rs.getDate("pat_del"));
+        
+                        } else if (type.contains("HOSPITAL")) {
+                            m.put("medicalFacility", rs.getString("hosp_name"));
+                            m.put("eventDate", rs.getDate("hosp_admit"));
+                            m.put("dischargeDate", rs.getDate("hosp_dis"));
+                        }
+        
+                        list.add(m);
+                    }
                 }
             }
+        
+            return list;
         }
-        return list;
-    }
+
 
     /* =====================================================
        HISTORY YEARS
@@ -704,3 +784,4 @@ public class LeaveDAO {
 
 
 }
+
