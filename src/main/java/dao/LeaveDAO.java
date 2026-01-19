@@ -44,25 +44,35 @@ public class LeaveDAO {
        ===================================================== */
             public LeaveRequest getLeaveById(int leaveId, int empId) throws Exception {
         
-            String sql = """
-                SELECT
+                        StringBuilder sql = new StringBuilder("""
+                SELECT 
                     lr.leave_id,
-                    lr.empid,
-                    lr.leave_type_id,
+                    lt.type_code,
+                    ls.status_code,
                     lr.start_date,
                     lr.end_date,
-                    lr.duration,
                     lr.duration_days,
+                    lr.applied_on,
                     lr.reason,
-                    lr.half_session,
                     lr.manager_comment,
-                    lt.type_code,
-                    ls.status_code
+            
+                    e.emergency_category,
+                    e.emergency_contact,
+            
+                    EXISTS (
+                        SELECT 1 
+                        FROM leave.leave_request_attachments a
+                        WHERE a.leave_id = lr.leave_id
+                    ) AS has_file
+            
                 FROM leave.leave_requests lr
                 JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
                 JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
-                WHERE lr.leave_id = ? AND lr.empid = ?
-            """;
+                LEFT JOIN leave.lr_emergency e ON lr.leave_id = e.leave_id
+            
+                WHERE lr.empid = ?
+            """);
+
         
             try (Connection con = DatabaseConnection.getConnection();
                  PreparedStatement ps = con.prepareStatement(sql)) {
@@ -351,29 +361,42 @@ public class LeaveDAO {
                 ps.setInt(idx++, Integer.parseInt(year));
             }
 
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Map<String, Object> m = new HashMap<>();
-                    m.put("leaveId", rs.getInt("leave_id"));
-                    m.put("type", rs.getString("type_code"));
-                    m.put("status", rs.getString("status_code"));
-                    m.put("startDate", rs.getDate("start_date"));
-                    m.put("endDate", rs.getDate("end_date"));
-                    m.put("days", rs.getDouble("duration_days"));
-                    Timestamp ts = rs.getTimestamp("applied_on");
-                        if (ts != null) {
-                            Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Kuala_Lumpur"));
-                            cal.setTimeInMillis(ts.getTime());
-                            m.put("appliedOn", new Timestamp(cal.getTimeInMillis()));
-                        } else {
-                            m.put("appliedOn", null);
-                        }
-                    m.put("reason", rs.getString("reason"));
-                    m.put("managerRemark", rs.getString("manager_comment"));
-                    m.put("hasFile", rs.getBoolean("has_file"));
-                    list.add(m);
+                 while (rs.next()) {
+                Map<String, Object> m = new HashMap<>();
+            
+                m.put("leaveId", rs.getInt("leave_id"));
+                m.put("type", rs.getString("type_code"));
+                m.put("status", rs.getString("status_code"));
+                m.put("startDate", rs.getDate("start_date"));
+                m.put("endDate", rs.getDate("end_date"));
+                m.put("days", rs.getDouble("duration_days"));
+            
+                Timestamp ts = rs.getTimestamp("applied_on");
+                if (ts != null) {
+                    Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Kuala_Lumpur"));
+                    cal.setTimeInMillis(ts.getTime());
+                    m.put("appliedOn", new Timestamp(cal.getTimeInMillis()));
+                } else {
+                    m.put("appliedOn", null);
                 }
+            
+                m.put("reason", rs.getString("reason"));
+                m.put("managerRemark", rs.getString("manager_comment"));
+                m.put("hasFile", rs.getBoolean("has_file"));
+            
+                // 🔽 METADATA (INI YANG SEBELUM NI TAK PERNAH DIAMBIL)
+                String type = rs.getString("type_code");
+                if (type == null) type = "";
+                type = type.toUpperCase();
+            
+                if (type.contains("EMERGENCY")) {
+                    m.put("emergencyCategory", rs.getString("emergency_category"));
+                    m.put("emergencyContact", rs.getString("emergency_contact"));
+                }
+            
+                list.add(m);
             }
+
         }
         return list;
     }
@@ -517,6 +540,7 @@ public class LeaveDAO {
         }
 
 }
+
 
 
 
