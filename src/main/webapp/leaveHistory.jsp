@@ -727,7 +727,7 @@ to {
 								data-days="<%=l.get("totalDays")%>"
 								data-applied="<%=appliedDisplay%>"
 								data-reason="<%=l.get("reason")%>"
-								data-comment="<%=(l.get("managerComment") != null) ? l.get("managerComment") : "-"%>"
+								data-comment="<%=(l.get("managerRemark") != null) ? l.get("managerRemark") : "-"%>"
 								data-attachment="<%=(Boolean.TRUE.equals(l.get("hasFile"))) ? "YES" : ""%>"
 								data-typeid="<%=l.get("leaveTypeId")%>"
 								data-med="<%=l.get("medicalFacility")%>"
@@ -1301,3 +1301,4 @@ document.addEventListener('input', function(e) {
 </script>
 </body>
 </html>
+
