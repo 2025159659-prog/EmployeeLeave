@@ -44,50 +44,104 @@ public class LeaveDAO {
        ===================================================== */
     public LeaveRequest getLeaveById(int leaveId, int empId) throws Exception {
 
-        String sql = """
-            SELECT 
-                lr.leave_id,
-                lr.empid,
-                lr.leave_type_id,
-                lr.start_date,
-                lr.end_date,
-                lr.duration,
-                lr.duration_days,
-                lr.reason,
-                lr.half_session,
-                lr.manager_comment,
-                lt.type_code,
-                ls.status_code
-            FROM leave.leave_requests lr
-            JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
-            JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
-            WHERE lr.leave_id = ? AND lr.empid = ?
-        """;
-
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            ps.setInt(1, leaveId);
-            ps.setInt(2, empId);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    LeaveRequest lr = new LeaveRequest();
-                    lr.setLeaveId(rs.getInt("leave_id"));
-                    lr.setEmpId(rs.getInt("empid"));
-                    lr.setLeaveTypeId(rs.getInt("leave_type_id"));
-                    lr.setStartDate(rs.getDate("start_date").toLocalDate());
-                    lr.setEndDate(rs.getDate("end_date").toLocalDate());
-                    lr.setDuration(rs.getString("duration"));
-                    lr.setDurationDays(rs.getDouble("duration_days"));
-                    lr.setReason(rs.getString("reason"));
-                    lr.setHalfSession(rs.getString("half_session"));
-                    lr.setStatusCode(rs.getString("status_code"));
-                    lr.setManagerComment(rs.getString("manager_comment"));
-                    return lr;
+                String sql = """
+                    SELECT lr.*,
+                           lt.type_code,
+                           ls.status_code,
+            
+                           e.emergency_category,
+                           e.emergency_contact,
+            
+                           s.medical_facility AS sick_fac,
+                           s.ref_serial_no    AS sick_ref,
+            
+                           h.hospital_name   AS hosp_name,
+                           h.admit_date      AS hosp_admit,
+                           h.discharge_date  AS hosp_dis,
+            
+                           p.spouse_name      AS pat_spouse,
+                           p.medical_facility AS pat_fac,
+                           p.delivery_date    AS pat_del,
+            
+                           m.consultation_clinic AS mat_clinic,
+                           m.expected_due_date   AS mat_due,
+                           m.week_pregnancy      AS mat_week
+            
+                    FROM leave.leave_requests lr
+                    JOIN leave.leave_types lt    ON lr.leave_type_id = lt.leave_type_id
+                    JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
+            
+                    LEFT JOIN leave.lr_emergency e       ON lr.leave_id = e.leave_id
+                    LEFT JOIN leave.lr_sick s            ON lr.leave_id = s.leave_id
+                    LEFT JOIN leave.lr_hospitalization h ON lr.leave_id = h.leave_id
+                    LEFT JOIN leave.lr_paternity p       ON lr.leave_id = p.leave_id
+                    LEFT JOIN leave.lr_maternity m       ON lr.leave_id = m.leave_id
+            
+                    WHERE lr.leave_id = ? AND lr.empid = ?
+                """;
+            
+                try (Connection con = DatabaseConnection.getConnection();
+                     PreparedStatement ps = con.prepareStatement(sql)) {
+            
+                    ps.setInt(1, leaveId);
+                    ps.setInt(2, empId);
+            
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) return null;
+            
+                        LeaveRequest lr = new LeaveRequest();
+            
+                        // 🔹 Base
+                        lr.setLeaveId(rs.getInt("leave_id"));
+                        lr.setEmpId(rs.getInt("empid"));
+                        lr.setLeaveTypeId(rs.getInt("leave_type_id"));
+                        lr.setStartDate(rs.getDate("start_date").toLocalDate());
+                        lr.setEndDate(rs.getDate("end_date").toLocalDate());
+                        lr.setDuration(rs.getString("duration"));
+                        lr.setDurationDays(rs.getDouble("duration_days"));
+                        lr.setReason(rs.getString("reason"));
+                        lr.setHalfSession(rs.getString("half_session"));
+                        lr.setStatusCode(rs.getString("status_code"));
+                        lr.setManagerComment(rs.getString("manager_comment"));
+            
+                        String type = rs.getString("type_code");
+                        if (type == null) type = "";
+                        type = type.toUpperCase();
+            
+                        // 🔹 METADATA BY TYPE
+                        if (type.contains("SICK")) {
+                            lr.setMedicalFacility(rs.getString("sick_fac"));
+                            lr.setRefSerialNo(rs.getString("sick_ref"));
+            
+                        } else if (type.contains("EMERGENCY")) {
+                            lr.setEmergencyCategory(rs.getString("emergency_category"));
+                            lr.setEmergencyContact(rs.getString("emergency_contact"));
+            
+                        } else if (type.contains("HOSPITAL")) {
+                            lr.setMedicalFacility(rs.getString("hosp_name"));
+                            if (rs.getDate("hosp_admit") != null)
+                                lr.setEventDate(rs.getDate("hosp_admit").toLocalDate());
+                            if (rs.getDate("hosp_dis") != null)
+                                lr.setDischargeDate(rs.getDate("hosp_dis").toLocalDate());
+            
+                        } else if (type.contains("PATERNITY")) {
+                            lr.setSpouseName(rs.getString("pat_spouse"));
+                            lr.setMedicalFacility(rs.getString("pat_fac"));
+                            if (rs.getDate("pat_del") != null)
+                                lr.setEventDate(rs.getDate("pat_del").toLocalDate());
+            
+                        } else if (type.contains("MATERNITY")) {
+                            lr.setMedicalFacility(rs.getString("mat_clinic"));
+                            if (rs.getDate("mat_due") != null)
+                                lr.setEventDate(rs.getDate("mat_due").toLocalDate());
+                            lr.setWeekPregnancy(rs.getInt("mat_week"));
+                        }
+            
+                        return lr;
+                    }
                 }
             }
-        }
+
         return null;
     }
 
@@ -514,4 +568,5 @@ public class LeaveDAO {
     }
 
 }
+
 
