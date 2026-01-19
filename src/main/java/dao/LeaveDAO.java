@@ -139,9 +139,18 @@ public class LeaveDAO {
             int leaveId;
             String insertSql = """
                 INSERT INTO leave.leave_requests
-                (empid, leave_type_id, status_id, start_date, end_date,
-                 duration, duration_days, reason, half_session, applied_on)
-                VALUES (?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+                (
+                 empid, leave_type_id, status_id,
+                 start_date, end_date,
+                 duration, duration_days, reason,
+                 half_session, applied_on
+                )
+                VALUES
+                (
+                 ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+                 (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kuala_Lumpur')
+                )
+
             """;
 
             try (PreparedStatement ps = con.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
@@ -495,6 +504,7 @@ public class LeaveDAO {
         }
 
 }
+
 
 
 
