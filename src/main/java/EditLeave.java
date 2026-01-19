@@ -150,17 +150,19 @@ public class EditLeave extends HttpServlet {
 		                        : null
 		        );
 		
-		        /* ======================
-		           RESET METADATA (SAFETY)
-		           ====================== */
-		        existing.setMedicalFacility(null);
-		        existing.setRefSerialNo(null);
-		        existing.setEmergencyCategory(null);
-		        existing.setEmergencyContact(null);
-		        existing.setSpouseName(null);
-		        existing.setEventDate(null);
-		        existing.setDischargeDate(null);
-		        existing.setWeekPregnancy(0);
+		        else if (type.contains("EMERGENCY")) {
+
+			    String cat = request.getParameter("emergencyCategory");
+			    if (cat != null && !cat.isBlank() && !"null".equalsIgnoreCase(cat)) {
+			        existing.setEmergencyCategory(cat);
+			    }
+			
+			    String cnt = request.getParameter("emergencyContact");
+			    if (cnt != null && !cnt.isBlank() && !"null".equalsIgnoreCase(cnt)) {
+			        existing.setEmergencyContact(cnt);
+			    }
+			}
+
 		
 		        String type = existing.getTypeCode();
 		        type = type == null ? "" : type.toUpperCase();
@@ -237,6 +239,8 @@ public class EditLeave extends HttpServlet {
 		        /* ======================
 		           SAVE
 		           ====================== */
+				System.out.println("FINAL SAVE emergency_contact = " + existing.getEmergencyContact());
+
 		        if (leaveDAO.updateLeave(existing, empId)) {
 		            response.getWriter().print("OK");
 		        } else {
@@ -257,6 +261,7 @@ public class EditLeave extends HttpServlet {
 	}
 
 }
+
 
 
 
