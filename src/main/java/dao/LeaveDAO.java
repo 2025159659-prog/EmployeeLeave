@@ -506,42 +506,45 @@ public class LeaveDAO {
     /* =====================================================
        UPDATE LEAVE (USED BY EditLeave SERVLET)
        ===================================================== */
-    public boolean updateLeave(LeaveRequest req, int empId) throws Exception {
-
+        public boolean updateLeave(LeaveRequest req, int empId) throws Exception {
+    
         Connection con = DatabaseConnection.getConnection();
         try {
             con.setAutoCommit(false);
-
-            int statusId;
-
-            try (PreparedStatement ps = con.prepareStatement("""
-                SELECT status_id
-                FROM leave.leave_requests
-                WHERE leave_id=? AND empid=?
-            """)) {
+    
+            // 🔹 Pastikan leave masih PENDING
+            String checkSql = """
+                SELECT ls.status_code, lt.type_code
+                FROM leave.leave_requests lr
+                JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
+                JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
+                WHERE lr.leave_id = ? AND lr.empid = ?
+            """;
+    
+            String statusCode;
+            String typeCode;
+    
+            try (PreparedStatement ps = con.prepareStatement(checkSql)) {
                 ps.setInt(1, req.getLeaveId());
                 ps.setInt(2, empId);
                 ResultSet rs = ps.executeQuery();
                 if (!rs.next()) return false;
-                statusId = rs.getInt("status_id");
+    
+                statusCode = rs.getString("status_code");
+                typeCode = rs.getString("type_code");
             }
-
-            try (PreparedStatement ps = con.prepareStatement("""
-                SELECT status_id
-                FROM leave.leave_statuses
-                WHERE status_code='PENDING'
-            """)) {
-                ResultSet rs = ps.executeQuery();
-                rs.next();
-                if (statusId != rs.getInt(1)) return false;
-            }
-
-            try (PreparedStatement ps = con.prepareStatement("""
+    
+            if (!"PENDING".equalsIgnoreCase(statusCode)) return false;
+    
+            // 🔹 Update MAIN leave request
+            String updateSql = """
                 UPDATE leave.leave_requests
-                SET start_date=?, end_date=?, duration=?, duration_days=?,
-                    reason=?, half_session=?
-                WHERE leave_id=? AND empid=?
-            """)) {
+                SET start_date = ?, end_date = ?, duration = ?, duration_days = ?,
+                    reason = ?, half_session = ?
+                WHERE leave_id = ? AND empid = ?
+            """;
+    
+            try (PreparedStatement ps = con.prepareStatement(updateSql)) {
                 ps.setDate(1, java.sql.Date.valueOf(req.getStartDate()));
                 ps.setDate(2, java.sql.Date.valueOf(req.getEndDate()));
                 ps.setString(3, req.getDuration());
@@ -552,10 +555,16 @@ public class LeaveDAO {
                 ps.setInt(8, empId);
                 ps.executeUpdate();
             }
-
+    
+            // 🔥 DELETE OLD METADATA (SAFE RESET)
+            deleteOldMetadata(con, req.getLeaveId());
+    
+            // 🔥 INSERT NEW METADATA
+            insertInheritedData(con, req.getLeaveId(), req);
+    
             con.commit();
             return true;
-
+    
         } catch (Exception e) {
             con.rollback();
             throw e;
@@ -564,7 +573,9 @@ public class LeaveDAO {
         }
     }
 
+
 }
+
 
 
 
