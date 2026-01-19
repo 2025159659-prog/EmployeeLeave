@@ -110,38 +110,7 @@ public class LeaveDAO {
     }
 
     /* =====================================================
-       3. WORKING DAYS CALCULATION
-       ===================================================== */
-    public double calculateWorkingDays(LocalDate start, LocalDate end) throws Exception {
-        Set<LocalDate> holidays = new HashSet<>();
-        String sql = "SELECT holiday_date FROM leave.holidays WHERE holiday_date BETWEEN ? AND ?";
-
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setDate(1, java.sql.Date.valueOf(start));
-            ps.setDate(2, java.sql.Date.valueOf(end));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    holidays.add(rs.getDate(1).toLocalDate());
-                }
-            }
-        }
-
-        double count = 0;
-        LocalDate cur = start;
-        while (!cur.isAfter(end)) {
-            if (cur.getDayOfWeek() != DayOfWeek.SATURDAY && 
-                cur.getDayOfWeek() != DayOfWeek.SUNDAY && 
-                !holidays.contains(cur)) {
-                count++;
-            }
-            cur = cur.plusDays(1);
-        }
-        return count;
-    }
-
-    /* =====================================================
-       4. SUBMIT REQUEST
+       3. SUBMIT REQUEST
        ===================================================== */
     public boolean submitRequest(LeaveRequest req, Part filePart) throws Exception {
         Connection con = DatabaseConnection.getConnection();
@@ -200,7 +169,72 @@ public class LeaveDAO {
     }
 
     /* =====================================================
-       5. LEAVE HISTORY
+       4. UPDATE LEAVE (INI YANG TERTINGGAL TADI)
+       ===================================================== */
+    public boolean updateLeave(LeaveRequest req, int empId) throws Exception {
+        Connection con = DatabaseConnection.getConnection();
+        try {
+            con.setAutoCommit(false);
+
+            // 1. Cek status (Hanya PENDING boleh edit)
+            String checkSql = """
+                SELECT lr.status_id, lt.type_code 
+                FROM leave.leave_requests lr
+                JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
+                WHERE lr.leave_id = ? AND lr.empid = ?
+            """;
+            
+            int statusId;
+            String typeCode;
+            try (PreparedStatement ps = con.prepareStatement(checkSql)) {
+                ps.setInt(1, req.getLeaveId());
+                ps.setInt(2, empId);
+                ResultSet rs = ps.executeQuery();
+                if (!rs.next()) return false;
+                statusId = rs.getInt("status_id");
+                typeCode = rs.getString("type_code");
+            }
+
+            try (PreparedStatement ps = con.prepareStatement("SELECT status_id FROM leave.leave_statuses WHERE status_code = 'PENDING'")) {
+                ResultSet rs = ps.executeQuery();
+                rs.next();
+                if (statusId != rs.getInt(1)) return false; 
+            }
+
+            // 2. Update table utama
+            String updateMain = """
+                UPDATE leave.leave_requests 
+                SET start_date = ?, end_date = ?, duration = ?, duration_days = ?, reason = ?, half_session = ?
+                WHERE leave_id = ? AND empid = ?
+            """;
+            try (PreparedStatement ps = con.prepareStatement(updateMain)) {
+                ps.setDate(1, java.sql.Date.valueOf(req.getStartDate()));
+                ps.setDate(2, java.sql.Date.valueOf(req.getEndDate()));
+                ps.setString(3, req.getDuration());
+                ps.setDouble(4, req.getDurationDays());
+                ps.setString(5, req.getReason());
+                ps.setString(6, req.getHalfSession());
+                ps.setInt(7, req.getLeaveId());
+                ps.setInt(8, empId);
+                ps.executeUpdate();
+            }
+
+            // 3. Update Metadata (Padam lama, masuk baru)
+            deleteOldMetadata(con, req.getLeaveId());
+            insertInheritedData(con, req.getLeaveId(), req);
+
+            con.commit();
+            return true;
+        } catch (Exception e) {
+            con.rollback();
+            throw e;
+        } finally {
+            con.close();
+        }
+    }
+
+    /* =====================================================
+       5. LEAVE HISTORY & OTHERS
        ===================================================== */
     public List<Map<String, Object>> getLeaveHistory(int empId, String status, String year) throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
@@ -278,9 +312,6 @@ public class LeaveDAO {
         return list;
     }
 
-    /* =====================================================
-       6. DELETE LEAVE
-       ===================================================== */
     public boolean deleteLeave(int leaveId, int empId) throws Exception {
         Connection con = DatabaseConnection.getConnection();
         try {
@@ -319,8 +350,62 @@ public class LeaveDAO {
         }
     }
 
+    public List<String> getHistoryYears(int empId) throws Exception {
+        List<String> years = new ArrayList<>();
+        String sql = "SELECT DISTINCT EXTRACT(YEAR FROM start_date) AS yr FROM leave.leave_requests WHERE empid = ? ORDER BY yr DESC";
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, empId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    years.add(rs.getString("yr"));
+                }
+            }
+        }
+        return years;
+    }
+
+    public boolean requestCancellation(int leaveId, int empId) throws Exception {
+        String sql = """
+            UPDATE leave.leave_requests
+            SET status_id = (SELECT status_id FROM leave.leave_statuses WHERE status_code = 'CANCELLATION_REQUESTED')
+            WHERE leave_id = ? AND empid = ?
+              AND status_id = (SELECT status_id FROM leave.leave_statuses WHERE status_code = 'APPROVED')
+        """;
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, leaveId);
+            ps.setInt(2, empId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public double calculateWorkingDays(LocalDate start, LocalDate end) throws Exception {
+        Set<LocalDate> holidays = new HashSet<>();
+        String sql = "SELECT holiday_date FROM leave.holidays WHERE holiday_date BETWEEN ? AND ?";
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setDate(1, java.sql.Date.valueOf(start));
+            ps.setDate(2, java.sql.Date.valueOf(end));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    holidays.add(rs.getDate(1).toLocalDate());
+                }
+            }
+        }
+        double count = 0;
+        LocalDate cur = start;
+        while (!cur.isAfter(end)) {
+            if (cur.getDayOfWeek() != DayOfWeek.SATURDAY && cur.getDayOfWeek() != DayOfWeek.SUNDAY && !holidays.contains(cur)) {
+                count++;
+            }
+            cur = cur.plusDays(1);
+        }
+        return count;
+    }
+
     /* =====================================================
-       7. HELPER: UPDATE BALANCE
+       6. HELPER METHODS (PRIVATE)
        ===================================================== */
     private void updateBalance(Connection con, int empId, int typeId, double days) throws Exception {
         try (PreparedStatement ps = con.prepareStatement("UPDATE leave.leave_balances SET pending = pending + ?, total = total - ? WHERE empid=? AND leave_type_id=?")) {
@@ -332,9 +417,6 @@ public class LeaveDAO {
         }
     }
 
-    /* =====================================================
-       8. HELPER: DELETE METADATA
-       ===================================================== */
     private void deleteOldMetadata(Connection con, int leaveId) throws Exception {
         String[] tables = {"leave.lr_emergency", "leave.lr_sick", "leave.lr_hospitalization", "leave.lr_paternity", "leave.lr_maternity"};
         for (String table : tables) {
@@ -345,9 +427,6 @@ public class LeaveDAO {
         }
     }
 
-    /* =====================================================
-       9. HELPER: INSERT METADATA
-       ===================================================== */
     private void insertInheritedData(Connection con, int leaveId, LeaveRequest req) throws Exception {
         String typeCode = "";
         try (PreparedStatement ps = con.prepareStatement("SELECT type_code FROM leave.leave_types WHERE leave_type_id = ?")) {
@@ -396,42 +475,6 @@ public class LeaveDAO {
                 ps.setInt(4, req.getWeekPregnancy());
                 ps.executeUpdate();
             }
-        }
-    }
-
-    /* =====================================================
-       10. HISTORY YEARS
-       ===================================================== */
-    public List<String> getHistoryYears(int empId) throws Exception {
-        List<String> years = new ArrayList<>();
-        String sql = "SELECT DISTINCT EXTRACT(YEAR FROM start_date) AS yr FROM leave.leave_requests WHERE empid = ? ORDER BY yr DESC";
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, empId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    years.add(rs.getString("yr"));
-                }
-            }
-        }
-        return years;
-    }
-
-    /* =====================================================
-       11. REQUEST CANCELLATION
-       ===================================================== */
-    public boolean requestCancellation(int leaveId, int empId) throws Exception {
-        String sql = """
-            UPDATE leave.leave_requests
-            SET status_id = (SELECT status_id FROM leave.leave_statuses WHERE status_code = 'CANCELLATION_REQUESTED')
-            WHERE leave_id = ? AND empid = ?
-              AND status_id = (SELECT status_id FROM leave.leave_statuses WHERE status_code = 'APPROVED')
-        """;
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, leaveId);
-            ps.setInt(2, empId);
-            return ps.executeUpdate() > 0;
         }
     }
 }
