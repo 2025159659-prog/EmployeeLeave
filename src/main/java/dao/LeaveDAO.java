@@ -45,11 +45,24 @@ public class LeaveDAO {
     public LeaveRequest getLeaveById(int leaveId, int empId) throws Exception {
 
         String sql = """
-            SELECT lr.*, lt.type_code, ls.status_code
+            SELECT
+              lr.leave_id,
+              lr.empid,
+              lr.leave_type_id,
+              lr.start_date,
+              lr.end_date,
+              lr.duration,
+              lr.duration_days,
+              lr.reason           AS employee_reason,
+              lr.half_session,
+              lr.manager_remark   AS manager_remark,
+              lt.type_code,
+              ls.status_code
             FROM leave.leave_requests lr
             JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
             JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
             WHERE lr.leave_id = ? AND lr.empid = ?
+
         """;
 
         try (Connection con = DatabaseConnection.getConnection();
@@ -68,10 +81,10 @@ public class LeaveDAO {
                     lr.setEndDate(rs.getDate("end_date").toLocalDate());
                     lr.setDuration(rs.getString("duration"));
                     lr.setDurationDays(rs.getDouble("duration_days"));
-                    lr.setReason(rs.getString("reason"));
+                    lr.setReason(rs.getString("employee_reason"));
                     lr.setHalfSession(rs.getString("half_session"));
                     lr.setStatusCode(rs.getString("status_code"));
-                    lr.setManagerComment(rs.getString("manager_comment"));
+                    lr.setManagerComment(rs.getString("manager_remark"));
                     return lr;
                 }
             }
@@ -504,6 +517,7 @@ public class LeaveDAO {
         }
 
 }
+
 
 
 
