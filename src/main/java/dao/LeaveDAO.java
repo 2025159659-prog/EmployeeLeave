@@ -411,4 +411,75 @@ public class LeaveDAO {
             ps.executeUpdate();
         }
     }
+
+            /* =====================================================
+           UPDATE LEAVE (EDIT PENDING REQUEST)
+           ===================================================== */
+        public boolean updateLeave(bean.LeaveRequest req, int empId) throws Exception {
+        
+            Connection con = DatabaseConnection.getConnection();
+            try {
+                con.setAutoCommit(false);
+        
+                // 🔹 Pastikan leave masih PENDING
+                String checkSql = """
+                    SELECT status_id
+                    FROM leave.leave_requests
+                    WHERE leave_id = ? AND empid = ?
+                """;
+        
+                int statusId;
+                try (PreparedStatement ps = con.prepareStatement(checkSql)) {
+                    ps.setInt(1, req.getLeaveId());
+                    ps.setInt(2, empId);
+                    ResultSet rs = ps.executeQuery();
+                    if (!rs.next()) return false;
+                    statusId = rs.getInt("status_id");
+                }
+        
+                String pendingCheck = """
+                    SELECT status_id
+                    FROM leave.leave_statuses
+                    WHERE status_code = 'PENDING'
+                """;
+        
+                try (PreparedStatement ps = con.prepareStatement(pendingCheck);
+                     ResultSet rs = ps.executeQuery()) {
+        
+                    rs.next();
+                    if (statusId != rs.getInt(1)) return false;
+                }
+        
+                // 🔹 Update leave request
+                String updateSql = """
+                    UPDATE leave.leave_requests
+                    SET start_date = ?, end_date = ?, duration = ?, duration_days = ?,
+                        reason = ?, half_session = ?
+                    WHERE leave_id = ? AND empid = ?
+                """;
+        
+                try (PreparedStatement ps = con.prepareStatement(updateSql)) {
+                    ps.setDate(1, Date.valueOf(req.getStartDate()));
+                    ps.setDate(2, Date.valueOf(req.getEndDate()));
+                    ps.setString(3, req.getDuration());
+                    ps.setDouble(4, req.getDurationDays());
+                    ps.setString(5, req.getReason());
+                    ps.setString(6, req.getHalfSession());
+                    ps.setInt(7, req.getLeaveId());
+                    ps.setInt(8, empId);
+                    ps.executeUpdate();
+                }
+        
+                con.commit();
+                return true;
+        
+            } catch (Exception e) {
+                con.rollback();
+                throw e;
+            } finally {
+                con.close();
+            }
+        }
+
 }
+
