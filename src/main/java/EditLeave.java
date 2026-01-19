@@ -163,66 +163,74 @@ public class EditLeave extends HttpServlet {
 			    }
 			}
 
-		
-		        String type = existing.getTypeCode();
-		        type = type == null ? "" : type.toUpperCase();
-		
-		        /* ======================
-		           METADATA BY TYPE
-		           ====================== */
-		
-		        // ===== SICK =====
-		        if (type.contains("SICK")) {
-		            existing.setMedicalFacility(request.getParameter("medicalFacility"));
-		            existing.setRefSerialNo(request.getParameter("refSerialNo"));
-		        }
-		
-		        // ===== EMERGENCY =====
-		        else if (type.contains("EMERGENCY")) {
-		            existing.setEmergencyCategory(request.getParameter("emergencyCategory"));
-		            existing.setEmergencyContact(request.getParameter("emergencyContact"));
-		        }
-		
-		        // ===== HOSPITALIZATION =====
-		        else if (type.contains("HOSPITAL")) {
-		            existing.setMedicalFacility(request.getParameter("medicalFacility"));
-		
-		            String admit = request.getParameter("eventDate");
-		            if (admit != null && !admit.isBlank()) {
-		                existing.setEventDate(LocalDate.parse(admit));
-		            }
-		
-		            String discharge = request.getParameter("dischargeDate");
-		            if (discharge != null && !discharge.isBlank()) {
-		                existing.setDischargeDate(LocalDate.parse(discharge));
-		            }
-		        }
-		
-		        // ===== PATERNITY =====
-		        else if (type.contains("PATERNITY")) {
-		            existing.setSpouseName(request.getParameter("spouseName"));
-		            existing.setMedicalFacility(request.getParameter("medicalFacility"));
-		
-		            String delivery = request.getParameter("eventDate");
-		            if (delivery != null && !delivery.isBlank()) {
-		                existing.setEventDate(LocalDate.parse(delivery));
-		            }
-		        }
-		
-		        // ===== MATERNITY =====
-		        else if (type.contains("MATERNITY")) {
-		            existing.setMedicalFacility(request.getParameter("consultationClinic"));
-		
-		            String due = request.getParameter("expectedDueDate");
-		            if (due != null && !due.isBlank()) {
-		                existing.setEventDate(LocalDate.parse(due));
-		            }
-		
-		            String week = request.getParameter("weekPregnancy");
-		            if (week != null && !week.isBlank()) {
-		                existing.setWeekPregnancy(Integer.parseInt(week));
-		            }
-		        }
+		String type = existing.getTypeCode();
+type = type == null ? "" : type.toUpperCase();
+
+					/* ======================
+					   METADATA BY TYPE
+					   ====================== */
+					
+					// ===== SICK =====
+					if (type.contains("SICK")) {
+					    existing.setMedicalFacility(request.getParameter("medicalFacility"));
+					    existing.setRefSerialNo(request.getParameter("refSerialNo"));
+					}
+					
+					// ===== EMERGENCY =====
+					else if (type.contains("EMERGENCY")) {
+					
+					    String cat = request.getParameter("emergencyCategory");
+					    if (cat != null && !cat.isBlank() && !"null".equalsIgnoreCase(cat)) {
+					        existing.setEmergencyCategory(cat);
+					    }
+					
+					    String cnt = request.getParameter("emergencyContact");
+					    if (cnt != null && !cnt.isBlank() && !"null".equalsIgnoreCase(cnt)) {
+					        existing.setEmergencyContact(cnt);
+					    }
+					}
+					
+					// ===== HOSPITALIZATION =====
+					else if (type.contains("HOSPITAL")) {
+					    existing.setMedicalFacility(request.getParameter("medicalFacility"));
+					
+					    String admit = request.getParameter("eventDate");
+					    if (admit != null && !admit.isBlank()) {
+					        existing.setEventDate(LocalDate.parse(admit));
+					    }
+					
+					    String discharge = request.getParameter("dischargeDate");
+					    if (discharge != null && !discharge.isBlank()) {
+					        existing.setDischargeDate(LocalDate.parse(discharge));
+					    }
+					}
+					
+					// ===== PATERNITY =====
+					else if (type.contains("PATERNITY")) {
+					    existing.setSpouseName(request.getParameter("spouseName"));
+					    existing.setMedicalFacility(request.getParameter("medicalFacility"));
+					
+					    String delivery = request.getParameter("eventDate");
+					    if (delivery != null && !delivery.isBlank()) {
+					        existing.setEventDate(LocalDate.parse(delivery));
+					    }
+					}
+					
+					// ===== MATERNITY =====
+					else if (type.contains("MATERNITY")) {
+					    existing.setMedicalFacility(request.getParameter("consultationClinic"));
+					
+					    String due = request.getParameter("expectedDueDate");
+					    if (due != null && !due.isBlank()) {
+					        existing.setEventDate(LocalDate.parse(due));
+					    }
+					
+					    String week = request.getParameter("weekPregnancy");
+					    if (week != null && !week.isBlank()) {
+					        existing.setWeekPregnancy(Integer.parseInt(week));
+					    }
+					}
+
 		
 		        /* ======================
 		           RECALCULATE DAYS
@@ -261,6 +269,7 @@ public class EditLeave extends HttpServlet {
 	}
 
 }
+
 
 
 
