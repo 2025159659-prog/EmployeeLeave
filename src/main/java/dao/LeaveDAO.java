@@ -70,7 +70,7 @@ public class LeaveDAO {
                     lr.setEndDate(rs.getDate("end_date").toLocalDate());
                     lr.setDuration(rs.getString("duration"));
                     lr.setDurationDays(rs.getDouble("duration_days"));
-                    lr.setReason(rs.getString("employee_reason"));
+                    lr.setReason(rs.getString("reason"));
                     lr.setHalfSession(rs.getString("half_session"));
                     lr.setStatusCode(rs.getString("status_code"));
                     lr.setManagerComment(rs.getString("manager_comment"));
@@ -506,6 +506,7 @@ public class LeaveDAO {
         }
 
 }
+
 
 
 
