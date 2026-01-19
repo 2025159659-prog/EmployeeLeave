@@ -238,6 +238,31 @@ public class LeaveDAO {
 
             insertInheritedData(con, leaveId, req);
             updateBalance(con, req.getEmpId(), req.getLeaveTypeId(), req.getDurationDays());
+                            // ===============================
+                // INSERT ATTACHMENT (IF ANY)
+                // ===============================
+                if (filePart != null && filePart.getSize() > 0) {
+                
+                    String attachSql = """
+                        INSERT INTO leave.leave_request_attachments
+                        (leave_id, file_data, mime_type, file_name, uploaded_on)
+                        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    """;
+                
+                    try (PreparedStatement ps = con.prepareStatement(attachSql)) {
+                
+                        ps.setInt(1, leaveId);
+                        ps.setBinaryStream(2, filePart.getInputStream(), filePart.getSize());
+                        ps.setString(3, filePart.getContentType());
+                        ps.setString(4, filePart.getSubmittedFileName());
+                
+                        ps.executeUpdate();
+                
+                        System.out.println("Attachment saved for leave_id = " + leaveId);
+                    }
+                } else {
+                    System.out.println("No attachment uploaded.");
+                }
 
             con.commit();
             return true;
@@ -784,4 +809,5 @@ public class LeaveDAO {
 
 
 }
+
 
