@@ -25,8 +25,6 @@ public class EditLeave extends HttpServlet {
 		HttpSession session = request.getSession(false);
 		if (session == null || session.getAttribute("empid") == null) {
 			response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-			System.out.println("DEBUG EDIT emergency_contact = " + lr.getEmergencyContact());
-
 			return;
 		}
 
@@ -39,6 +37,8 @@ public class EditLeave extends HttpServlet {
 			}
 
 			LeaveRequest lr = leaveDAO.getLeaveById(Integer.parseInt(idParam), empId);
+			System.out.println("DEBUG EDIT emergency_contact = " + lr.getEmergencyContact());
+
 			if (lr == null || !"PENDING".equalsIgnoreCase(lr.getStatusCode())) {
 				response.setStatus(HttpServletResponse.SC_FORBIDDEN);
 				response.getWriter().print("{\"error\":\"Only PENDING requests can be edited.\"}");
@@ -257,5 +257,6 @@ public class EditLeave extends HttpServlet {
 	}
 
 }
+
 
 
