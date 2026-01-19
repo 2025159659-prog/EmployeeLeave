@@ -121,12 +121,13 @@ to {
         
         // Store metadata for the dynamic field generators to use
         currentMetadata = {
-            med: data.med || "",
-            ref: data.ref || "",
-            cat: data.cat || "",
-            cnt: data.cnt || "",
-            spo: data.spo || ""
-        };
+	    med: (data.med && data.med !== "null") ? data.med : "",
+	    ref: (data.ref && data.ref !== "null") ? data.ref : "",
+	    cat: (data.cat && data.cat !== "null") ? data.cat : "",
+	    cnt: (data.cnt && data.cnt !== "null") ? data.cnt : "",
+	    spo: (data.spo && data.spo !== "null") ? data.spo : ""
+	};
+
 
         // Set combined duration
         let durValue = data.duration || "FULL_DAY";
@@ -218,4 +219,5 @@ to {
     }
   </script>
 </body>
+
 </html>
