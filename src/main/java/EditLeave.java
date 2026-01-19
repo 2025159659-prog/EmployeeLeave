@@ -65,8 +65,22 @@ public class EditLeave extends HttpServlet {
 					.append("\",").append("\"endDate\":\"").append(lr.getEndDate()).append("\",")
 					.append("\"duration\":\"").append(lr.getDuration()).append("\",").append("\"halfSession\":\"")
 					.append(lr.getHalfSession() == null ? "" : lr.getHalfSession()).append("\",")
-					.append("\"reason\":\"").append(esc(lr.getReason())).append("\",").append("\"balance\":")
-					.append(currentBalance).append(",").append("\"leaveTypes\":[");
+					.append("\"reason\":\"").append(esc(lr.getReason())).append("\",")
+					
+					// ===== ADD METADATA HERE =====
+					.append("\"medicalFacility\":\"").append(esc(lr.getMedicalFacility())).append("\",")
+					.append("\"ref\":\"").append(esc(lr.getRefSerialNo())).append("\",")
+					.append("\"cat\":\"").append(esc(lr.getEmergencyCategory())).append("\",")
+					.append("\"cnt\":\"").append(esc(lr.getEmergencyContact())).append("\",")
+					.append("\"spo\":\"").append(esc(lr.getSpouseName())).append("\",")
+					
+					// dates (safe)
+					.append("\"eventDate\":\"").append(lr.getEventDate() != null ? lr.getEventDate() : "").append("\",")
+					.append("\"dischargeDate\":\"").append(lr.getDischargeDate() != null ? lr.getDischargeDate() : "").append("\",")
+					
+					.append("\"balance\":").append(currentBalance).append(",")
+					.append("\"leaveTypes\":[");
+
 
 			List<Map<String, Object>> types = leaveDAO.getAllLeaveTypes();
 			boolean first = true;
@@ -241,3 +255,4 @@ public class EditLeave extends HttpServlet {
 	}
 
 }
+
