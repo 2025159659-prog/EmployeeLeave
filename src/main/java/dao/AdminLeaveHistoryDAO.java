@@ -177,35 +177,37 @@ public class AdminLeaveHistoryDAO {
         r.setManagerComment(rs.getString("manager_comment"));
         r.setAttachment(rs.getString("attachment_name"));
 
-        String type = rs.getString("type_code");
-
-        if ("SICK".equals(type)) {
-            r.setMedicalFacility(rs.getString("sick_fac"));
-            r.setRefSerialNo(rs.getString("sick_ref"));
-
-        } else if ("EMERGENCY".equals(type)) {
-            r.setEmergencyCategory(rs.getString("emergency_category"));
-            r.setEmergencyContact(rs.getString("emergency_contact"));
-
-        } else if ("HOSPITALIZATION".equals(type)) {
-            r.setMedicalFacility(rs.getString("hosp_name"));
-            if (rs.getDate("hosp_admit") != null)
-                r.setEventDate(sdfDate.format(rs.getDate("hosp_admit")));
-            if (rs.getDate("hosp_dis") != null)
-                r.setDischargeDate(sdfDate.format(rs.getDate("hosp_dis")));
-
-        } else if ("MATERNITY".equals(type)) {
-            r.setMedicalFacility(rs.getString("mat_clinic"));
-            if (rs.getDate("mat_due") != null)
-                r.setEventDate(sdfDate.format(rs.getDate("mat_due")));
-            r.setWeekPregnancy(rs.getInt("mat_week"));
-
-        } else if ("PATERNITY".equals(type)) {
-            r.setSpouseName(rs.getString("pat_spouse"));
-            r.setMedicalFacility(rs.getString("pat_fac"));
-            if (rs.getDate("pat_del") != null)
-                r.setEventDate(sdfDate.format(rs.getDate("pat_del")));
-        }
+             String type = rs.getString("type_code");
+            if (type == null) type = "";
+            type = type.toUpperCase();
+            
+            if (type.contains("SICK")) {
+                r.setMedicalFacility(rs.getString("sick_fac"));
+                r.setRefSerialNo(rs.getString("sick_ref"));
+            
+            } else if (type.contains("EMERGENCY")) {
+                r.setEmergencyCategory(rs.getString("emergency_category"));
+                r.setEmergencyContact(rs.getString("emergency_contact"));
+            
+            } else if (type.contains("HOSPITAL")) {
+                r.setMedicalFacility(rs.getString("hosp_name"));
+                if (rs.getDate("hosp_admit") != null)
+                    r.setEventDate(sdfDate.format(rs.getDate("hosp_admit")));
+                if (rs.getDate("hosp_dis") != null)
+                    r.setDischargeDate(sdfDate.format(rs.getDate("hosp_dis")));
+            
+            } else if (type.contains("MATERNITY")) {
+                r.setMedicalFacility(rs.getString("mat_clinic"));
+                if (rs.getDate("mat_due") != null)
+                    r.setEventDate(sdfDate.format(rs.getDate("mat_due")));
+                r.setWeekPregnancy(rs.getInt("mat_week"));
+            
+            } else if (type.contains("PATERNITY")) {
+                r.setSpouseName(rs.getString("pat_spouse"));
+                r.setMedicalFacility(rs.getString("pat_fac"));
+                if (rs.getDate("pat_del") != null)
+                    r.setEventDate(sdfDate.format(rs.getDate("pat_del")));
+            }
 
         return r;
     }
@@ -245,4 +247,5 @@ public class AdminLeaveHistoryDAO {
         return count;
     }
 }
+
 
