@@ -526,75 +526,199 @@ public class LeaveDAO {
     /* =====================================================
        UPDATE LEAVE (USED BY EditLeave SERVLET)
        ===================================================== */
-        public boolean updateLeave(LeaveRequest req, int empId) throws Exception {
-    
-        Connection con = DatabaseConnection.getConnection();
-        try {
-            con.setAutoCommit(false);
-    
-            // 🔹 Pastikan leave masih PENDING
-            String checkSql = """
-                SELECT ls.status_code, lt.type_code
-                FROM leave.leave_requests lr
-                JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
-                JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
-                WHERE lr.leave_id = ? AND lr.empid = ?
-            """;
-    
-            String statusCode;
-            String typeCode;
-    
-            try (PreparedStatement ps = con.prepareStatement(checkSql)) {
-                ps.setInt(1, req.getLeaveId());
-                ps.setInt(2, empId);
-                ResultSet rs = ps.executeQuery();
-                if (!rs.next()) return false;
-    
-                statusCode = rs.getString("status_code");
-                typeCode = rs.getString("type_code");
+                public boolean updateLeave(LeaveRequest req, int empId) throws Exception {
+        
+            Connection con = DatabaseConnection.getConnection();
+            try {
+                con.setAutoCommit(false);
+        
+                // 🔹 Check ownership & status
+                String fetchSql = """
+                    SELECT lr.status_id, lt.type_code
+                    FROM leave.leave_requests lr
+                    JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
+                    WHERE lr.leave_id = ? AND lr.empid = ?
+                """;
+        
+                int statusId;
+                String typeCode;
+        
+                try (PreparedStatement ps = con.prepareStatement(fetchSql)) {
+                    ps.setInt(1, req.getLeaveId());
+                    ps.setInt(2, empId);
+                    ResultSet rs = ps.executeQuery();
+                    if (!rs.next()) return false;
+        
+                    statusId = rs.getInt("status_id");
+                    typeCode = rs.getString("type_code");
+                }
+        
+                // 🔹 Only PENDING can edit
+                try (PreparedStatement ps = con.prepareStatement(
+                        "SELECT status_id FROM leave.leave_statuses WHERE status_code='PENDING'")) {
+                    ResultSet rs = ps.executeQuery();
+                    rs.next();
+                    if (statusId != rs.getInt(1)) return false;
+                }
+        
+                // 🔹 Update main leave_requests
+                String updateMain = """
+                    UPDATE leave.leave_requests
+                    SET start_date = ?, end_date = ?, duration = ?, duration_days = ?,
+                        reason = ?, half_session = ?
+                    WHERE leave_id = ? AND empid = ?
+                """;
+        
+                try (PreparedStatement ps = con.prepareStatement(updateMain)) {
+                    ps.setDate(1, java.sql.Date.valueOf(req.getStartDate()));
+                    ps.setDate(2, java.sql.Date.valueOf(req.getEndDate()));
+                    ps.setString(3, req.getDuration());
+                    ps.setDouble(4, req.getDurationDays());
+                    ps.setString(5, req.getReason());
+                    ps.setString(6, req.getHalfSession());
+                    ps.setInt(7, req.getLeaveId());
+                    ps.setInt(8, empId);
+                    ps.executeUpdate();
+                }
+        
+                typeCode = typeCode == null ? "" : typeCode.toUpperCase();
+        
+                /* =====================================================
+                   🔹 METADATA UPSERT BY TYPE
+                   ===================================================== */
+        
+                // ===== SICK =====
+                if (typeCode.contains("SICK")) {
+                    upsert(con,
+                        "leave.lr_sick",
+                        "medical_facility, ref_serial_no",
+                        "medical_facility=?, ref_serial_no=?",
+                        ps -> {
+                            ps.setString(1, req.getMedicalFacility());
+                            ps.setString(2, req.getRefSerialNo());
+                        },
+                        req.getLeaveId()
+                    );
+                }
+        
+                // ===== EMERGENCY =====
+                else if (typeCode.contains("EMERGENCY")) {
+                    upsert(con,
+                        "leave.lr_emergency",
+                        "emergency_category, emergency_contact",
+                        "emergency_category=?, emergency_contact=?",
+                        ps -> {
+                            ps.setString(1, req.getEmergencyCategory());
+                            ps.setString(2, req.getEmergencyContact());
+                        },
+                        req.getLeaveId()
+                    );
+                }
+        
+                // ===== HOSPITALIZATION =====
+                else if (typeCode.contains("HOSPITAL")) {
+                    upsert(con,
+                        "leave.lr_hospitalization",
+                        "hospital_name, admit_date, discharge_date",
+                        "hospital_name=?, admit_date=?, discharge_date=?",
+                        ps -> {
+                            ps.setString(1, req.getMedicalFacility());
+                            ps.setDate(2, req.getEventDate() != null
+                                    ? java.sql.Date.valueOf(req.getEventDate()) : null);
+                            ps.setDate(3, req.getDischargeDate() != null
+                                    ? java.sql.Date.valueOf(req.getDischargeDate()) : null);
+                        },
+                        req.getLeaveId()
+                    );
+                }
+        
+                // ===== PATERNITY =====
+                else if (typeCode.contains("PATERNITY")) {
+                    upsert(con,
+                        "leave.lr_paternity",
+                        "spouse_name, medical_facility, delivery_date",
+                        "spouse_name=?, medical_facility=?, delivery_date=?",
+                        ps -> {
+                            ps.setString(1, req.getSpouseName());
+                            ps.setString(2, req.getMedicalFacility());
+                            ps.setDate(3, req.getEventDate() != null
+                                    ? java.sql.Date.valueOf(req.getEventDate()) : null);
+                        },
+                        req.getLeaveId()
+                    );
+                }
+        
+                // ===== MATERNITY =====
+                else if (typeCode.contains("MATERNITY")) {
+                    upsert(con,
+                        "leave.lr_maternity",
+                        "consultation_clinic, expected_due_date, week_pregnancy",
+                        "consultation_clinic=?, expected_due_date=?, week_pregnancy=?",
+                        ps -> {
+                            ps.setString(1, req.getMedicalFacility());
+                            ps.setDate(2, req.getEventDate() != null
+                                    ? java.sql.Date.valueOf(req.getEventDate()) : null);
+                            ps.setInt(3, req.getWeekPregnancy());
+                        },
+                        req.getLeaveId()
+                    );
+                }
+        
+                con.commit();
+                return true;
+        
+            } catch (Exception e) {
+                con.rollback();
+                throw e;
+            } finally {
+                con.close();
             }
-    
-            if (!"PENDING".equalsIgnoreCase(statusCode)) return false;
-    
-            // 🔹 Update MAIN leave request
-            String updateSql = """
-                UPDATE leave.leave_requests
-                SET start_date = ?, end_date = ?, duration = ?, duration_days = ?,
-                    reason = ?, half_session = ?
-                WHERE leave_id = ? AND empid = ?
-            """;
-    
-            try (PreparedStatement ps = con.prepareStatement(updateSql)) {
-                ps.setDate(1, java.sql.Date.valueOf(req.getStartDate()));
-                ps.setDate(2, java.sql.Date.valueOf(req.getEndDate()));
-                ps.setString(3, req.getDuration());
-                ps.setDouble(4, req.getDurationDays());
-                ps.setString(5, req.getReason());
-                ps.setString(6, req.getHalfSession());
-                ps.setInt(7, req.getLeaveId());
-                ps.setInt(8, empId);
-                ps.executeUpdate();
-            }
-    
-            // 🔥 DELETE OLD METADATA (SAFE RESET)
-            deleteOldMetadata(con, req.getLeaveId());
-    
-            // 🔥 INSERT NEW METADATA
-            insertInheritedData(con, req.getLeaveId(), req);
-    
-            con.commit();
-            return true;
-    
-        } catch (Exception e) {
-            con.rollback();
-            throw e;
-        } finally {
-            con.close();
         }
-    }
+
+            @FunctionalInterface
+        private interface StatementFiller {
+            void fill(PreparedStatement ps) throws SQLException;
+        }
+        
+        private void upsert(Connection con,
+                            String table,
+                            String insertCols,
+                            String updateSet,
+                            StatementFiller filler,
+                            int leaveId) throws SQLException {
+        
+            int count;
+            try (PreparedStatement ps = con.prepareStatement(
+                    "SELECT COUNT(*) FROM " + table + " WHERE leave_id = ?")) {
+                ps.setInt(1, leaveId);
+                ResultSet rs = ps.executeQuery();
+                rs.next();
+                count = rs.getInt(1);
+            }
+        
+            if (count == 0) {
+                try (PreparedStatement ps = con.prepareStatement(
+                        "INSERT INTO " + table + " (leave_id," + insertCols + ") VALUES (?," +
+                                "?,".repeat(insertCols.split(",").length - 1) + "?)")) {
+                    ps.setInt(1, leaveId);
+                    filler.fill(ps);
+                    ps.executeUpdate();
+                }
+            } else {
+                try (PreparedStatement ps = con.prepareStatement(
+                        "UPDATE " + table + " SET " + updateSet + " WHERE leave_id = ?")) {
+                    filler.fill(ps);
+                    ps.setInt(ps.getParameterMetaData().getParameterCount(), leaveId);
+                    ps.executeUpdate();
+                }
+            }
+        }
+
+
 
 
 }
+
 
 
 
