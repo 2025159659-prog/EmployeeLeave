@@ -21,28 +21,42 @@ public class ManagerDAO {
         List<LeaveRecord> list = new ArrayList<>();
 
         String sql = """
-            SELECT lr.*,
-                   u.empid            AS user_id,
-                   u.fullname,
-                   u.hiredate,
-                   u.profile_picture,
-                   lt.type_code,
-                   ls.status_code,
-
-                   e.emergency_category   AS emer_cat,
-                   e.emergency_contact    AS emer_con,
-                   s.medical_facility     AS sick_fac,
-                   s.ref_serial_no        AS sick_ref,
-                   h.hospital_name        AS hosp_name,
-                   h.admit_date           AS hosp_admit,
-                   h.discharge_date       AS hosp_dis,
-                   m.consultation_clinic  AS mat_clinic,
-                   m.expected_due_date    AS mat_due,
-                   m.week_pregnancy       AS mat_week,
-                   p.spouse_name          AS pat_spouse,
-                   p.medical_facility     AS pat_fac,
-                   p.delivery_date        AS pat_del
+                        SELECT
+                lr.leave_id,
+                lr.empid,
+                lr.leave_type_id       AS leave_type_id,   -- ✅ ADD EXPLICIT
+                lr.start_date,
+                lr.end_date,
+                lr.duration,
+                lr.duration_days,
+                lr.applied_on,
+                lr.reason,
+                lr.manager_comment,
+            
+                u.empid            AS user_id,
+                u.fullname,
+                u.hiredate,
+                u.profile_picture,
+            
+                lt.type_code,
+                ls.status_code,
+            
+                e.emergency_category   AS emer_cat,
+                e.emergency_contact    AS emer_con,
+                s.medical_facility     AS sick_fac,
+                s.ref_serial_no        AS sick_ref,
+                h.hospital_name        AS hosp_name,
+                h.admit_date           AS hosp_admit,
+                h.discharge_date       AS hosp_dis,
+                m.consultation_clinic  AS mat_clinic,
+                m.expected_due_date    AS mat_due,
+                m.week_pregnancy       AS mat_week,
+                p.spouse_name          AS pat_spouse,
+                p.medical_facility     AS pat_fac,
+                p.delivery_date        AS pat_del
             FROM leave.leave_requests lr
+            
+
             JOIN leave.users u               ON lr.empid = u.empid
             JOIN leave.leave_types lt        ON lr.leave_type_id = lt.leave_type_id
             JOIN leave.leave_statuses ls     ON lr.status_id = ls.status_id
