@@ -172,66 +172,100 @@ public class LeaveDAO {
        4. UPDATE LEAVE (INI YANG TERTINGGAL TADI)
        ===================================================== */
     public boolean updateLeave(LeaveRequest req, int empId) throws Exception {
-        Connection con = DatabaseConnection.getConnection();
-        try {
-            con.setAutoCommit(false);
 
-            // 1. Cek status (Hanya PENDING boleh edit)
-            String checkSql = """
-                SELECT lr.status_id, lt.type_code 
-                FROM leave.leave_requests lr
-                JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
-                WHERE lr.leave_id = ? AND lr.empid = ?
-            """;
+    try (Connection con = DatabaseConnection.getConnection()) {
+        con.setAutoCommit(false);
             
-            int statusId;
-            String typeCode;
-            try (PreparedStatement ps = con.prepareStatement(checkSql)) {
-                ps.setInt(1, req.getLeaveId());
-                ps.setInt(2, empId);
-                ResultSet rs = ps.executeQuery();
-                if (!rs.next()) return false;
-                statusId = rs.getInt("status_id");
-                typeCode = rs.getString("type_code");
+                    /* =========================
+                       1. VALIDATE STATUS = PENDING
+                       ========================= */
+                    String checkSql = """
+                        SELECT lr.status_id, ls.status_code
+                        FROM leave.leave_requests lr
+                        JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
+                        WHERE lr.leave_id = ? AND lr.empid = ?
+                    """;
+            
+                    try (PreparedStatement ps = con.prepareStatement(checkSql)) {
+                        ps.setInt(1, req.getLeaveId());
+                        ps.setInt(2, empId);
+            
+                        ResultSet rs = ps.executeQuery();
+                        if (!rs.next()) return false;
+            
+                        if (!"PENDING".equalsIgnoreCase(rs.getString("status_code"))) {
+                            return false;
+                        }
+                    }
+            
+                    /* =========================
+                       2. UPDATE LEAVE (SEMUA FIELD)
+                       ========================= */
+                    String updateSql = """
+                        UPDATE leave.leave_requests
+                        SET start_date = ?,
+                            end_date = ?,
+                            duration = ?,
+                            half_session = ?,
+                            reason = ?,
+                            duration_days = ?,
+            
+                            medical_facility = ?,
+                            ref_serial_no = ?,
+                            emergency_category = ?,
+                            emergency_contact = ?,
+                            spouse_name = ?,
+            
+                            event_date = ?,
+                            discharge_date = ?,
+                            week_pregnancy = ?
+            
+                        WHERE leave_id = ? AND empid = ?
+                    """;
+            
+                    try (PreparedStatement ps = con.prepareStatement(updateSql)) {
+                        int i = 1;
+            
+                        ps.setDate(i++, java.sql.Date.valueOf(req.getStartDate()));
+                        ps.setDate(i++, java.sql.Date.valueOf(req.getEndDate()));
+                        ps.setString(i++, req.getDuration());
+                        ps.setString(i++, req.getHalfSession());
+                        ps.setString(i++, req.getReason());
+                        ps.setDouble(i++, req.getDurationDays());
+            
+                        ps.setString(i++, req.getMedicalFacility());
+                        ps.setString(i++, req.getRefSerialNo());
+                        ps.setString(i++, req.getEmergencyCategory());
+                        ps.setString(i++, req.getEmergencyContact());
+                        ps.setString(i++, req.getSpouseName());
+            
+                        if (req.getEventDate() != null)
+                            ps.setDate(i++, java.sql.Date.valueOf(req.getEventDate()));
+                        else
+                            ps.setNull(i++, java.sql.Types.DATE);
+            
+                        if (req.getDischargeDate() != null)
+                            ps.setDate(i++, java.sql.Date.valueOf(req.getDischargeDate()));
+                        else
+                            ps.setNull(i++, java.sql.Types.DATE);
+            
+                        ps.setInt(i++, req.getWeekPregnancy());
+            
+                        ps.setInt(i++, req.getLeaveId());
+                        ps.setInt(i++, empId);
+            
+                        ps.executeUpdate();
+                    }
+            
+                    con.commit();
+                    return true;
+            
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw e;
+                }
             }
 
-            try (PreparedStatement ps = con.prepareStatement("SELECT status_id FROM leave.leave_statuses WHERE status_code = 'PENDING'")) {
-                ResultSet rs = ps.executeQuery();
-                rs.next();
-                if (statusId != rs.getInt(1)) return false; 
-            }
-
-            // 2. Update table utama
-            String updateMain = """
-                UPDATE leave.leave_requests 
-                SET start_date = ?, end_date = ?, duration = ?, duration_days = ?, reason = ?, half_session = ?
-                WHERE leave_id = ? AND empid = ?
-            """;
-            try (PreparedStatement ps = con.prepareStatement(updateMain)) {
-                ps.setDate(1, java.sql.Date.valueOf(req.getStartDate()));
-                ps.setDate(2, java.sql.Date.valueOf(req.getEndDate()));
-                ps.setString(3, req.getDuration());
-                ps.setDouble(4, req.getDurationDays());
-                ps.setString(5, req.getReason());
-                ps.setString(6, req.getHalfSession());
-                ps.setInt(7, req.getLeaveId());
-                ps.setInt(8, empId);
-                ps.executeUpdate();
-            }
-
-            // 3. Update Metadata (Padam lama, masuk baru)
-            deleteOldMetadata(con, req.getLeaveId());
-            insertInheritedData(con, req.getLeaveId(), req);
-
-            con.commit();
-            return true;
-        } catch (Exception e) {
-            con.rollback();
-            throw e;
-        } finally {
-            con.close();
-        }
-    }
 
     /* =====================================================
        5. LEAVE HISTORY & OTHERS
@@ -478,3 +512,4 @@ public class LeaveDAO {
         }
     }
 }
+
