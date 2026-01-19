@@ -25,6 +25,8 @@ public class EditLeave extends HttpServlet {
 		HttpSession session = request.getSession(false);
 		if (session == null || session.getAttribute("empid") == null) {
 			response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+			System.out.println("DEBUG EDIT emergency_contact = " + lr.getEmergencyContact());
+
 			return;
 		}
 
@@ -255,4 +257,5 @@ public class EditLeave extends HttpServlet {
 	}
 
 }
+
 
