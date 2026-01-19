@@ -295,7 +295,12 @@ public class LeaveDAO {
                 lr.duration_days,
                 lr.applied_on,
                 lr.reason,
-                lr.manager_comment
+                lr.manager_comment,
+                EXISTS (
+                    SELECT 1 
+                    FROM leave.leave_request_attachments a
+                    WHERE a.leave_id = lr.leave_id
+                ) AS has_file
             FROM leave.leave_requests lr
             JOIN leave.leave_types lt ON lr.leave_type_id = lt.leave_type_id
             JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
@@ -336,6 +341,7 @@ public class LeaveDAO {
                     m.put("appliedOn", rs.getTimestamp("applied_on"));
                     m.put("reason", rs.getString("reason"));
                     m.put("managerRemark", rs.getString("manager_comment"));
+                    m.put("hasFile", rs.getBoolean("has_file"));
                     list.add(m);
                 }
             }
@@ -482,5 +488,6 @@ public class LeaveDAO {
         }
 
 }
+
 
 
