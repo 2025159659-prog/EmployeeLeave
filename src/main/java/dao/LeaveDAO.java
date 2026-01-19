@@ -142,9 +142,6 @@ public class LeaveDAO {
                 }
             }
 
-        return null;
-    }
-
     /* =====================================================
        WORKING DAYS CALCULATION
        ===================================================== */
@@ -568,5 +565,6 @@ public class LeaveDAO {
     }
 
 }
+
 
 
