@@ -91,70 +91,153 @@ public class EditLeave extends HttpServlet {
 		}
 	}
 
-	@Override
-	protected void doPost(HttpServletRequest request, HttpServletResponse response)
-			throws ServletException, IOException {
-		HttpSession session = request.getSession(false);
-		if (session == null || session.getAttribute("empid") == null) {
-			response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-			return;
+	
+			@Override
+		protected void doPost(HttpServletRequest request, HttpServletResponse response)
+		        throws ServletException, IOException {
+		
+		    HttpSession session = request.getSession(false);
+		    if (session == null || session.getAttribute("empid") == null) {
+		        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+		        return;
+		    }
+		
+		    try {
+		        int empId = (Integer) session.getAttribute("empid");
+		        int leaveId = Integer.parseInt(request.getParameter("leaveId"));
+		
+		        LeaveRequest existing = leaveDAO.getLeaveById(leaveId, empId);
+		        if (existing == null) {
+		            response.getWriter().print("Error: Record not found.");
+		            return;
+		        }
+		
+		        /* ======================
+		           BASIC FIELDS
+		           ====================== */
+		        existing.setReason(request.getParameter("reason"));
+		
+		        String durationUi = request.getParameter("duration");
+		        boolean isHalf = durationUi != null && durationUi.startsWith("HALF_DAY");
+		
+		        existing.setStartDate(LocalDate.parse(request.getParameter("startDate")));
+		        existing.setEndDate(
+		                isHalf
+		                        ? existing.getStartDate()
+		                        : LocalDate.parse(request.getParameter("endDate"))
+		        );
+		
+		        existing.setDuration(isHalf ? "HALF_DAY" : "FULL_DAY");
+		        existing.setHalfSession(
+		                isHalf
+		                        ? (durationUi.contains("AM") ? "AM" : "PM")
+		                        : null
+		        );
+		
+		        /* ======================
+		           RESET METADATA (SAFETY)
+		           ====================== */
+		        existing.setMedicalFacility(null);
+		        existing.setRefSerialNo(null);
+		        existing.setEmergencyCategory(null);
+		        existing.setEmergencyContact(null);
+		        existing.setSpouseName(null);
+		        existing.setEventDate(null);
+		        existing.setDischargeDate(null);
+		        existing.setWeekPregnancy(0);
+		
+		        String type = existing.getTypeCode();
+		        type = type == null ? "" : type.toUpperCase();
+		
+		        /* ======================
+		           METADATA BY TYPE
+		           ====================== */
+		
+		        // ===== SICK =====
+		        if (type.contains("SICK")) {
+		            existing.setMedicalFacility(request.getParameter("medicalFacility"));
+		            existing.setRefSerialNo(request.getParameter("refSerialNo"));
+		        }
+		
+		        // ===== EMERGENCY =====
+		        else if (type.contains("EMERGENCY")) {
+		            existing.setEmergencyCategory(request.getParameter("emergencyCategory"));
+		            existing.setEmergencyContact(request.getParameter("emergencyContact"));
+		        }
+		
+		        // ===== HOSPITALIZATION =====
+		        else if (type.contains("HOSPITAL")) {
+		            existing.setMedicalFacility(request.getParameter("medicalFacility"));
+		
+		            String admit = request.getParameter("eventDate");
+		            if (admit != null && !admit.isBlank()) {
+		                existing.setEventDate(LocalDate.parse(admit));
+		            }
+		
+		            String discharge = request.getParameter("dischargeDate");
+		            if (discharge != null && !discharge.isBlank()) {
+		                existing.setDischargeDate(LocalDate.parse(discharge));
+		            }
+		        }
+		
+		        // ===== PATERNITY =====
+		        else if (type.contains("PATERNITY")) {
+		            existing.setSpouseName(request.getParameter("spouseName"));
+		            existing.setMedicalFacility(request.getParameter("medicalFacility"));
+		
+		            String delivery = request.getParameter("eventDate");
+		            if (delivery != null && !delivery.isBlank()) {
+		                existing.setEventDate(LocalDate.parse(delivery));
+		            }
+		        }
+		
+		        // ===== MATERNITY =====
+		        else if (type.contains("MATERNITY")) {
+		            existing.setMedicalFacility(request.getParameter("consultationClinic"));
+		
+		            String due = request.getParameter("expectedDueDate");
+		            if (due != null && !due.isBlank()) {
+		                existing.setEventDate(LocalDate.parse(due));
+		            }
+		
+		            String week = request.getParameter("weekPregnancy");
+		            if (week != null && !week.isBlank()) {
+		                existing.setWeekPregnancy(Integer.parseInt(week));
+		            }
+		        }
+		
+		        /* ======================
+		           RECALCULATE DAYS
+		           ====================== */
+		        double days = isHalf
+		                ? 0.5
+		                : leaveDAO.calculateWorkingDays(
+		                        existing.getStartDate(),
+		                        existing.getEndDate()
+		                );
+		
+		        existing.setDurationDays(days);
+		
+		        /* ======================
+		           SAVE
+		           ====================== */
+		        if (leaveDAO.updateLeave(existing, empId)) {
+		            response.getWriter().print("OK");
+		        } else {
+		            response.getWriter().print("Update failed.");
+		        }
+		
+		    } catch (Exception e) {
+		        e.printStackTrace();
+		        response.getWriter().print("System Error: " + e.getMessage());
+		    }
 		}
 
-		try {
-			int empId = (Integer) session.getAttribute("empid");
-			int leaveId = Integer.parseInt(request.getParameter("leaveId"));
-
-			LeaveRequest existing = leaveDAO.getLeaveById(leaveId, empId);
-			if (existing == null) {
-				response.getWriter().print("Error: Record not found.");
-				return;
-			}
-
-			existing.setReason(request.getParameter("reason"));
-			String durationUi = request.getParameter("duration");
-			boolean isHalf = durationUi.startsWith("HALF_DAY");
-			existing.setStartDate(LocalDate.parse(request.getParameter("startDate")));
-			existing.setEndDate(isHalf ? existing.getStartDate() : LocalDate.parse(request.getParameter("endDate")));
-			existing.setDuration(isHalf ? "HALF_DAY" : "FULL_DAY");
-			existing.setHalfSession(isHalf ? (durationUi.contains("AM") ? "AM" : "PM") : null);
-
-			existing.setMedicalFacility(request.getParameter("medicalFacility"));
-			existing.setRefSerialNo(request.getParameter("refSerialNo"));
-			existing.setEmergencyCategory(request.getParameter("emergencyCategory"));
-			existing.setEmergencyContact(request.getParameter("emergencyContact"));
-			existing.setSpouseName(request.getParameter("spouseName"));
-
-			String evtDateStr = request.getParameter("eventDate");
-			if (evtDateStr != null && !evtDateStr.isEmpty()) {
-				existing.setEventDate(LocalDate.parse(evtDateStr));
-			}
-
-			String disDateStr = request.getParameter("dischargeDate");
-			if (disDateStr != null && !disDateStr.isEmpty()) {
-				existing.setDischargeDate(LocalDate.parse(disDateStr));
-			}
-
-			String weekPregStr = request.getParameter("weekPregnancy");
-			if (weekPregStr != null && !weekPregStr.isEmpty()) {
-				existing.setWeekPregnancy(Integer.parseInt(weekPregStr));
-			}
-
-			double days = isHalf ? 0.5 : leaveDAO.calculateWorkingDays(existing.getStartDate(), existing.getEndDate());
-			existing.setDurationDays(days);
-
-			if (leaveDAO.updateLeave(existing, empId)) {
-				response.getWriter().print("OK");
-			} else {
-				response.getWriter().print("Update failed.");
-			}
-		} catch (Exception e) {
-			response.getWriter().print("System Error: " + e.getMessage());
-		}
-	}
 
 	private String esc(String s) {
 		if (s == null)
 			return "";
 		return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "");
 	}
+
 }
