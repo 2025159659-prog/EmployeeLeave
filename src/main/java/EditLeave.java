@@ -11,7 +11,6 @@ import java.sql.Connection;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.net.URLEncoder;
 
 @WebServlet("/EditLeave")
 public class EditLeave extends HttpServlet {
@@ -22,7 +21,6 @@ public class EditLeave extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         
-        // Gunakan "empid" seperti kod asal anda
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("empid") == null) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -41,11 +39,10 @@ public class EditLeave extends HttpServlet {
 
             if (lr == null || !"PENDING".equalsIgnoreCase(lr.getStatusCode())) {
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                response.getWriter().print("{\"error\":\"Only PENDING requests can be edited.\"}");
+                response.getWriter().print("{\"error\":\"Hanya permohonan PENDING yang boleh diedit.\"}");
                 return;
             }
 
-            // Ambil baki cuti untuk dipaparkan di modal/form edit
             LeaveBalanceDAO lbDAO = new LeaveBalanceDAO(con);
             List<LeaveBalance> balances = lbDAO.getEmployeeBalances(empId);
             double currentBalance = 0;
@@ -56,7 +53,6 @@ public class EditLeave extends HttpServlet {
                 }
             }
 
-            // Logik Jantina untuk tapis Leave Types
             Object genderObj = session.getAttribute("gender");
             String gen = (genderObj != null) ? String.valueOf(genderObj).trim().toUpperCase() : "";
             boolean isFemale = gen.startsWith("F") || gen.startsWith("P") || gen.contains("FEMALE");
@@ -87,30 +83,23 @@ public class EditLeave extends HttpServlet {
             boolean first = true;
             for (Map<String, Object> t : types) {
                 String code = t.get("code").toString().toUpperCase();
-                if ((code.contains("MATERNITY") && !isFemale) || (code.contains("PATERNITY") && !isMale))
-                    continue;
-
+                if ((code.contains("MATERNITY") && !isFemale) || (code.contains("PATERNITY") && !isMale)) continue;
                 if (!first) json.append(",");
-                json.append("{\"id\":").append(t.get("id"))
-                    .append(",\"code\":\"").append(esc(t.get("code").toString()))
+                json.append("{\"id\":").append(t.get("id")).append(",\"code\":\"").append(esc(t.get("code").toString()))
                     .append("\",\"desc\":\"").append(esc(t.get("desc") != null ? t.get("desc").toString() : ""))
                     .append("\"}");
                 first = false;
             }
             json.append("]}");
             response.getWriter().print(json.toString());
-
         } catch (Exception e) {
-            e.printStackTrace();
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             response.getWriter().print("{\"error\":\"" + esc(e.getMessage()) + "\"}");
         }
     }
 
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("empid") == null) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -120,14 +109,17 @@ public class EditLeave extends HttpServlet {
         try {
             int empId = (Integer) session.getAttribute("empid");
             int leaveId = Integer.parseInt(request.getParameter("leaveId"));
+            int leaveTypeId = Integer.parseInt(request.getParameter("leaveTypeId"));
 
+            // Ambil data asal dari DB
             LeaveRequest existing = leaveDAO.getLeaveById(leaveId, empId);
             if (existing == null) {
-                response.getWriter().print("Error: Record not found.");
+                response.getWriter().print("Error: Rekod tidak dijumpai.");
                 return;
             }
 
-            // 1. Ambil Data Asas
+            // 1. Map Data Asas
+            existing.setLeaveTypeId(leaveTypeId);
             existing.setReason(request.getParameter("reason"));
             String durationUi = request.getParameter("duration");
             boolean isHalf = durationUi != null && durationUi.startsWith("HALF_DAY");
@@ -137,50 +129,38 @@ public class EditLeave extends HttpServlet {
             existing.setDuration(isHalf ? "HALF_DAY" : "FULL_DAY");
             existing.setHalfSession(isHalf ? (durationUi.contains("AM") ? "AM" : "PM") : null);
 
-            // 2. Ambil Metadata mengikut jenis (Penting: Ambil dari request parameter!)
-            String type = request.getParameter("leaveTypeCode"); // Pastikan frontend hantar ini
-            if (type == null) {
-                // Jika tak dihantar, cuba ambil dari bean yang sedia ada
-                type = existing.getTypeCode(); 
-            }
-            type = (type == null) ? "" : type.toUpperCase();
+            // 2. Map Metadata secara terus dari Request (PENTING UNTUK FIX UPDATE)
+            existing.setMedicalFacility(request.getParameter("medicalFacility"));
+            existing.setRefSerialNo(request.getParameter("refSerialNo"));
+            existing.setEmergencyCategory(request.getParameter("emergencyCategory"));
+            existing.setEmergencyContact(request.getParameter("emergencyContact"));
+            existing.setSpouseName(request.getParameter("spouseName"));
 
-            if (type.contains("SICK")) {
-                existing.setMedicalFacility(request.getParameter("medicalFacility"));
-                existing.setRefSerialNo(request.getParameter("refSerialNo"));
-            } else if (type.contains("EMERGENCY")) {
-                existing.setEmergencyCategory(request.getParameter("emergencyCategory"));
-                existing.setEmergencyContact(request.getParameter("emergencyContact"));
-            } else if (type.contains("HOSPITAL")) {
-                existing.setMedicalFacility(request.getParameter("medicalFacility"));
-                String admit = request.getParameter("eventDate");
-                if (admit != null && !admit.isBlank()) existing.setEventDate(LocalDate.parse(admit));
-                String discharge = request.getParameter("dischargeDate");
-                if (discharge != null && !discharge.isBlank()) existing.setDischargeDate(LocalDate.parse(discharge));
-            } else if (type.contains("PATERNITY")) {
-                existing.setSpouseName(request.getParameter("spouseName"));
-                existing.setMedicalFacility(request.getParameter("medicalFacility"));
-                String deliv = request.getParameter("eventDate");
-                if (deliv != null && !deliv.isBlank()) existing.setEventDate(LocalDate.parse(deliv));
-            } else if (type.contains("MATERNITY")) {
-                existing.setMedicalFacility(request.getParameter("consultationClinic"));
-                String due = request.getParameter("expectedDueDate");
-                if (due != null && !due.isBlank()) existing.setEventDate(LocalDate.parse(due));
-                String week = request.getParameter("weekPregnancy");
-                if (week != null && !week.isBlank()) existing.setWeekPregnancy(Integer.parseInt(week));
+            String eventDate = request.getParameter("eventDate");
+            if (eventDate != null && !eventDate.isBlank()) existing.setEventDate(LocalDate.parse(eventDate));
+            
+            String dischargeDate = request.getParameter("dischargeDate");
+            if (dischargeDate != null && !dischargeDate.isBlank()) existing.setDischargeDate(LocalDate.parse(dischargeDate));
+
+            String week = request.getParameter("weekPregnancy");
+            if (week != null && !week.isBlank()) existing.setWeekPregnancy(Integer.parseInt(week));
+
+            // Jika guna maternity field names berbeza di modal
+            if (request.getParameter("consultationClinic") != null) existing.setMedicalFacility(request.getParameter("consultationClinic"));
+            if (request.getParameter("expectedDueDate") != null && !request.getParameter("expectedDueDate").isBlank()) {
+                existing.setEventDate(LocalDate.parse(request.getParameter("expectedDueDate")));
             }
 
-            // 3. Kira semula hari bekerja
+            // 3. Kira semula hari
             double days = isHalf ? 0.5 : leaveDAO.calculateWorkingDays(existing.getStartDate(), existing.getEndDate());
             existing.setDurationDays(days);
 
-            // 4. Simpan melalui DAO
+            // 4. Jalankan Update di DAO
             if (leaveDAO.updateLeave(existing, empId)) {
                 response.getWriter().print("OK");
             } else {
                 response.getWriter().print("Update failed.");
             }
-
         } catch (Exception e) {
             e.printStackTrace();
             response.getWriter().print("System Error: " + e.getMessage());
