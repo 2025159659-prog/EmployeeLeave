@@ -1,266 +1,128 @@
 import bean.LeaveRequest;
-import bean.LeaveBalance;
+import bean.User;
 import dao.LeaveDAO;
-import dao.LeaveBalanceDAO;
-import util.DatabaseConnection;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.*;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+
 import java.io.IOException;
-import java.sql.Connection;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 
 @WebServlet("/EditLeave")
 public class EditLeave extends HttpServlet {
-	private static final long serialVersionUID = 1L;
-	private final LeaveDAO leaveDAO = new LeaveDAO();
+    private final LeaveDAO leaveDAO = new LeaveDAO();
 
-	@Override
-	protected void doGet(HttpServletRequest request, HttpServletResponse response)
-			throws ServletException, IOException {
-		HttpSession session = request.getSession(false);
-		if (session == null || session.getAttribute("empid") == null) {
-			response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-			return;
-		}
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        HttpSession session = request.getSession();
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            response.sendRedirect("login.jsp");
+            return;
+        }
 
-		try (Connection con = DatabaseConnection.getConnection()) {
-			int empId = (Integer) session.getAttribute("empid");
-			String idParam = request.getParameter("id");
-			if (idParam == null) {
-				response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-				return;
-			}
+        try {
+            int leaveId = Integer.parseInt(request.getParameter("id"));
+            LeaveRequest lr = leaveDAO.getLeaveById(leaveId, user.getEmpid());
 
-			LeaveRequest lr = leaveDAO.getLeaveById(Integer.parseInt(idParam), empId);
-			System.out.println("DEBUG EDIT emergency_contact = " + lr.getEmergencyContact());
+            if (lr != null && "PENDING".equalsIgnoreCase(lr.getStatusCode())) {
+                request.setAttribute("leave", lr);
+                request.setAttribute("leaveTypes", leaveDAO.getAllLeaveTypes());
+                request.getRequestDispatcher("editLeave.jsp").forward(request, response);
+            } else {
+                response.sendRedirect("LeaveHistory?error=" + URLEncoder.encode("Cuti tidak boleh diedit atau tidak dijumpai.", "UTF-8"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.sendRedirect("LeaveHistory?error=SystemError");
+        }
+    }
 
-			if (lr == null || !"PENDING".equalsIgnoreCase(lr.getStatusCode())) {
-				response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-				response.getWriter().print("{\"error\":\"Only PENDING requests can be edited.\"}");
-				return;
-			}
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        HttpSession session = request.getSession();
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            response.sendRedirect("login.jsp");
+            return;
+        }
 
-			LeaveBalanceDAO lbDAO = new LeaveBalanceDAO(con);
-			List<LeaveBalance> balances = lbDAO.getEmployeeBalances(empId);
-			double currentBalance = 0;
-			for (LeaveBalance b : balances) {
-				if (b.getLeaveTypeId() == lr.getLeaveTypeId()) {
-					currentBalance = b.getTotalAvailable();
-					break;
-				}
-			}
+        try {
+            // 1. Ambil data asas
+            int leaveId = Integer.parseInt(request.getParameter("leaveId"));
+            int leaveTypeId = Integer.parseInt(request.getParameter("leaveTypeId"));
+            LocalDate startDate = LocalDate.parse(request.getParameter("startDate"));
+            LocalDate endDate = LocalDate.parse(request.getParameter("endDate"));
+            String duration = request.getParameter("duration");
+            String halfSession = request.getParameter("halfSession");
+            String reason = request.getParameter("reason");
 
-			Object genderObj = session.getAttribute("gender");
-			String gen = (genderObj != null) ? String.valueOf(genderObj).trim().toUpperCase() : "";
-			boolean isFemale = gen.startsWith("F") || gen.startsWith("P") || gen.contains("FEMALE");
-			boolean isMale = !isFemale;
+            // 2. Kira semula hari bekerja (Sangat penting jika tarikh berubah)
+            double durationDays;
+            if ("FULL_DAY".equals(duration)) {
+                durationDays = leaveDAO.calculateWorkingDays(startDate, endDate);
+            } else {
+                durationDays = 0.5;
+            }
 
-			response.setContentType("application/json");
-			StringBuilder json = new StringBuilder();
-			json.append("{").append("\"leaveId\":").append(lr.getLeaveId()).append(",").append("\"leaveTypeId\":")
-					.append(lr.getLeaveTypeId()).append(",").append("\"startDate\":\"").append(lr.getStartDate())
-					.append("\",").append("\"endDate\":\"").append(lr.getEndDate()).append("\",")
-					.append("\"duration\":\"").append(lr.getDuration()).append("\",").append("\"halfSession\":\"")
-					.append(lr.getHalfSession() == null ? "" : lr.getHalfSession()).append("\",")
-					.append("\"reason\":\"").append(esc(lr.getReason())).append("\",")
-					
-					// ===== ADD METADATA HERE =====
-					.append("\"medicalFacility\":\"").append(esc(lr.getMedicalFacility())).append("\",")
-					.append("\"ref\":\"").append(esc(lr.getRefSerialNo())).append("\",")
-					.append("\"cat\":\"").append(esc(lr.getEmergencyCategory())).append("\",")
-					.append("\"cnt\":\"").append(esc(lr.getEmergencyContact())).append("\",")
-					.append("\"spo\":\"").append(esc(lr.getSpouseName())).append("\",")
-					
-					// dates (safe)
-					.append("\"eventDate\":\"").append(lr.getEventDate() != null ? lr.getEventDate() : "").append("\",")
-					.append("\"dischargeDate\":\"").append(lr.getDischargeDate() != null ? lr.getDischargeDate() : "").append("\",")
-					
-					.append("\"balance\":").append(currentBalance).append(",")
-					.append("\"leaveTypes\":[");
+            // 3. Bina objek LeaveRequest
+            LeaveRequest req = new LeaveRequest();
+            req.setLeaveId(leaveId);
+            req.setEmpId(user.getEmpid());
+            req.setLeaveTypeId(leaveTypeId);
+            req.setStartDate(startDate);
+            req.setEndDate(endDate);
+            req.setDuration(duration);
+            req.setDurationDays(durationDays);
+            req.setReason(reason);
+            req.setHalfSession(halfSession);
 
+            // 4. Ambil Metadata berdasarkan Jenis Cuti (KOD BARU UNTUK FIX UPDATE)
+            String typeCode = request.getParameter("leaveTypeCode"); // Pastikan ini ada dalam hidden field JSP
+            if (typeCode != null) {
+                typeCode = typeCode.toUpperCase();
+                if (typeCode.contains("EMERGENCY")) {
+                    req.setEmergencyCategory(request.getParameter("emergencyCategory"));
+                    req.setEmergencyContact(request.getParameter("emergencyContact"));
+                } else if (typeCode.contains("SICK") || typeCode.contains("HOSPITAL") || typeCode.contains("MATERNITY") || typeCode.contains("PATERNITY")) {
+                    req.setMedicalFacility(request.getParameter("medicalFacility"));
+                    req.setRefSerialNo(request.getParameter("refSerialNo"));
+                    
+                    String eventDateStr = request.getParameter("eventDate");
+                    if (eventDateStr != null && !eventDateStr.isEmpty()) {
+                        req.setEventDate(LocalDate.parse(eventDateStr));
+                    }
+                    
+                    String dischargeDateStr = request.getParameter("dischargeDate");
+                    if (dischargeDateStr != null && !dischargeDateStr.isEmpty()) {
+                        req.setDischargeDate(LocalDate.parse(dischargeDateStr));
+                    }
+                    
+                    String weekPregStr = request.getParameter("weekPregnancy");
+                    if (weekPregStr != null && !weekPregStr.isEmpty()) {
+                        req.setWeekPregnancy(Integer.parseInt(weekPregPregnancy));
+                    }
+                    
+                    req.setSpouseName(request.getParameter("spouseName"));
+                }
+            }
 
-			List<Map<String, Object>> types = leaveDAO.getAllLeaveTypes();
-			boolean first = true;
-			for (Map<String, Object> t : types) {
-				String code = t.get("code").toString().toUpperCase();
-				if ((code.contains("MATERNITY") && !isFemale) || (code.contains("PATERNITY") && !isMale))
-					continue;
+            // 5. Panggil DAO Update
+            boolean success = leaveDAO.updateLeave(req, user.getEmpid());
 
-				if (!first)
-					json.append(",");
-				json.append("{\"id\":").append(t.get("id")).append(",\"code\":\"").append(esc(t.get("code").toString()))
-						.append("\",\"desc\":\"").append(esc(t.get("desc") != null ? t.get("desc").toString() : ""))
-						.append("\"}");
-				first = false;
-			}
-			json.append("]}");
-			response.getWriter().print(json.toString());
+            if (success) {
+                response.sendRedirect("LeaveHistory?success=" + URLEncoder.encode("Permohonan berjaya dikemas kini.", "UTF-8"));
+            } else {
+                response.sendRedirect("EditLeave?id=" + leaveId + "&error=UpdateFailed");
+            }
 
-		} catch (Exception e) {
-			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-			response.getWriter().print("{\"error\":\"" + esc(e.getMessage()) + "\"}");
-		}
-	}
-
-	
-			@Override
-		protected void doPost(HttpServletRequest request, HttpServletResponse response)
-		        throws ServletException, IOException {
-		
-		    HttpSession session = request.getSession(false);
-		    if (session == null || session.getAttribute("empid") == null) {
-		        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-		        return;
-		    }
-		
-		    try {
-		        int empId = (Integer) session.getAttribute("empid");
-		        int leaveId = Integer.parseInt(request.getParameter("leaveId"));
-		
-		        LeaveRequest existing = leaveDAO.getLeaveById(leaveId, empId);
-		        if (existing == null) {
-		            response.getWriter().print("Error: Record not found.");
-		            return;
-		        }
-		
-		        /* ======================
-		           BASIC FIELDS
-		           ====================== */
-		        existing.setReason(request.getParameter("reason"));
-		
-		        String durationUi = request.getParameter("duration");
-		        boolean isHalf = durationUi != null && durationUi.startsWith("HALF_DAY");
-		
-		        existing.setStartDate(LocalDate.parse(request.getParameter("startDate")));
-		        existing.setEndDate(
-		                isHalf
-		                        ? existing.getStartDate()
-		                        : LocalDate.parse(request.getParameter("endDate"))
-		        );
-		
-		        existing.setDuration(isHalf ? "HALF_DAY" : "FULL_DAY");
-		        existing.setHalfSession(
-		                isHalf
-		                        ? (durationUi.contains("AM") ? "AM" : "PM")
-		                        : null
-		        );
-		
-		        
-
-		String type = existing.getTypeCode();
-		type = type == null ? "" : type.toUpperCase();
-
-					/* ======================
-					   METADATA BY TYPE
-					   ====================== */
-					
-					// ===== SICK =====
-					if (type.contains("SICK")) {
-					    existing.setMedicalFacility(request.getParameter("medicalFacility"));
-					    existing.setRefSerialNo(request.getParameter("refSerialNo"));
-					}
-					
-					// ===== EMERGENCY =====
-					else if (type.contains("EMERGENCY")) {
-					
-					    String cat = request.getParameter("emergencyCategory");
-					    if (cat != null && !cat.isBlank() && !"null".equalsIgnoreCase(cat)) {
-					        existing.setEmergencyCategory(cat);
-					    }
-					
-					    String cnt = request.getParameter("emergencyContact");
-					    if (cnt != null && !cnt.isBlank() && !"null".equalsIgnoreCase(cnt)) {
-					        existing.setEmergencyContact(cnt);
-					    }
-					}
-					
-					// ===== HOSPITALIZATION =====
-					else if (type.contains("HOSPITAL")) {
-					    existing.setMedicalFacility(request.getParameter("medicalFacility"));
-					
-					    String admit = request.getParameter("eventDate");
-					    if (admit != null && !admit.isBlank()) {
-					        existing.setEventDate(LocalDate.parse(admit));
-					    }
-					
-					    String discharge = request.getParameter("dischargeDate");
-					    if (discharge != null && !discharge.isBlank()) {
-					        existing.setDischargeDate(LocalDate.parse(discharge));
-					    }
-					}
-					
-					// ===== PATERNITY =====
-					else if (type.contains("PATERNITY")) {
-					    existing.setSpouseName(request.getParameter("spouseName"));
-					    existing.setMedicalFacility(request.getParameter("medicalFacility"));
-					
-					    String delivery = request.getParameter("eventDate");
-					    if (delivery != null && !delivery.isBlank()) {
-					        existing.setEventDate(LocalDate.parse(delivery));
-					    }
-					}
-					
-					// ===== MATERNITY =====
-					else if (type.contains("MATERNITY")) {
-					    existing.setMedicalFacility(request.getParameter("consultationClinic"));
-					
-					    String due = request.getParameter("expectedDueDate");
-					    if (due != null && !due.isBlank()) {
-					        existing.setEventDate(LocalDate.parse(due));
-					    }
-					
-					    String week = request.getParameter("weekPregnancy");
-					    if (week != null && !week.isBlank()) {
-					        existing.setWeekPregnancy(Integer.parseInt(week));
-					    }
-					}
-
-		
-		        /* ======================
-		           RECALCULATE DAYS
-		           ====================== */
-		        double days = isHalf
-		                ? 0.5
-		                : leaveDAO.calculateWorkingDays(
-		                        existing.getStartDate(),
-		                        existing.getEndDate()
-		                );
-		
-		        existing.setDurationDays(days);
-		
-		        /* ======================
-		           SAVE
-		           ====================== */
-				System.out.println("FINAL SAVE emergency_contact = " + existing.getEmergencyContact());
-
-		        if (leaveDAO.updateLeave(existing, empId)) {
-		            response.getWriter().print("OK");
-		        } else {
-		            response.getWriter().print("Update failed.");
-		        }
-		
-		    } catch (Exception e) {
-		        e.printStackTrace();
-		        response.getWriter().print("System Error: " + e.getMessage());
-		    }
-		}
-
-
-	private String esc(String s) {
-		if (s == null)
-			return "";
-		return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "");
-	}
-
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.sendRedirect("LeaveHistory?error=InternalError");
+        }
+    }
 }
-
-
-
-
-
-
