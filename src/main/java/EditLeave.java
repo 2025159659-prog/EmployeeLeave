@@ -111,7 +111,6 @@ public class EditLeave extends HttpServlet {
             int leaveId = Integer.parseInt(request.getParameter("leaveId"));
             int leaveTypeId = Integer.parseInt(request.getParameter("leaveTypeId"));
 
-            // Ambil data asal dari DB
             LeaveRequest existing = leaveDAO.getLeaveById(leaveId, empId);
             if (existing == null) {
                 response.getWriter().print("Error: Rekod tidak dijumpai.");
@@ -122,14 +121,14 @@ public class EditLeave extends HttpServlet {
             existing.setLeaveTypeId(leaveTypeId);
             existing.setReason(request.getParameter("reason"));
             String durationUi = request.getParameter("duration");
-            boolean isHalf = durationUi != null && durationUi.startsWith("HALF_DAY");
+            boolean isHalf = durationUi != null && (durationUi.startsWith("HALF_DAY") || durationUi.contains("AM") || durationUi.contains("PM"));
 
             existing.setStartDate(LocalDate.parse(request.getParameter("startDate")));
             existing.setEndDate(isHalf ? existing.getStartDate() : LocalDate.parse(request.getParameter("endDate")));
             existing.setDuration(isHalf ? "HALF_DAY" : "FULL_DAY");
             existing.setHalfSession(isHalf ? (durationUi.contains("AM") ? "AM" : "PM") : null);
 
-            // 2. Map Metadata secara terus dari Request (PENTING UNTUK FIX UPDATE)
+            // 2. Map Metadata secara terus dari Request (INI FIX UNTUK UPDATE)
             existing.setMedicalFacility(request.getParameter("medicalFacility"));
             existing.setRefSerialNo(request.getParameter("refSerialNo"));
             existing.setEmergencyCategory(request.getParameter("emergencyCategory"));
@@ -137,19 +136,18 @@ public class EditLeave extends HttpServlet {
             existing.setSpouseName(request.getParameter("spouseName"));
 
             String eventDate = request.getParameter("eventDate");
-            if (eventDate != null && !eventDate.isBlank()) existing.setEventDate(LocalDate.parse(eventDate));
+            if (eventDate != null && !eventDate.isBlank() && !"null".equals(eventDate)) existing.setEventDate(LocalDate.parse(eventDate));
             
             String dischargeDate = request.getParameter("dischargeDate");
-            if (dischargeDate != null && !dischargeDate.isBlank()) existing.setDischargeDate(LocalDate.parse(dischargeDate));
+            if (dischargeDate != null && !dischargeDate.isBlank() && !"null".equals(dischargeDate)) existing.setDischargeDate(LocalDate.parse(dischargeDate));
 
             String week = request.getParameter("weekPregnancy");
-            if (week != null && !week.isBlank()) existing.setWeekPregnancy(Integer.parseInt(week));
+            if (week != null && !week.isBlank() && !"null".equals(week)) existing.setWeekPregnancy(Integer.parseInt(week));
 
-            // Jika guna maternity field names berbeza di modal
+            // Jika field maternity menggunakan nama berbeza di frontend
             if (request.getParameter("consultationClinic") != null) existing.setMedicalFacility(request.getParameter("consultationClinic"));
-            if (request.getParameter("expectedDueDate") != null && !request.getParameter("expectedDueDate").isBlank()) {
-                existing.setEventDate(LocalDate.parse(request.getParameter("expectedDueDate")));
-            }
+            String edd = request.getParameter("expectedDueDate");
+            if (edd != null && !edd.isBlank() && !"null".equals(edd)) existing.setEventDate(LocalDate.parse(edd));
 
             // 3. Kira semula hari
             double days = isHalf ? 0.5 : leaveDAO.calculateWorkingDays(existing.getStartDate(), existing.getEndDate());
@@ -159,7 +157,7 @@ public class EditLeave extends HttpServlet {
             if (leaveDAO.updateLeave(existing, empId)) {
                 response.getWriter().print("OK");
             } else {
-                response.getWriter().print("Update failed.");
+                response.getWriter().print("Gagal mengemaskini maklumat.");
             }
         } catch (Exception e) {
             e.printStackTrace();
