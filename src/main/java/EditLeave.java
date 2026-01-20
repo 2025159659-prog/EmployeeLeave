@@ -27,7 +27,8 @@ public class EditLeave extends HttpServlet {
 
         try {
             int leaveId = Integer.parseInt(request.getParameter("id"));
-            LeaveRequest lr = leaveDAO.getLeaveById(leaveId, user.getEmpid());
+            // Membetulkan getEmpid() kepada getEmpId()
+            LeaveRequest lr = leaveDAO.getLeaveById(leaveId, user.getEmpId());
 
             if (lr != null && "PENDING".equalsIgnoreCase(lr.getStatusCode())) {
                 request.setAttribute("leave", lr);
@@ -61,7 +62,7 @@ public class EditLeave extends HttpServlet {
             String halfSession = request.getParameter("halfSession");
             String reason = request.getParameter("reason");
 
-            // 2. Kira semula hari bekerja (Sangat penting jika tarikh berubah)
+            // 2. Kira semula hari bekerja
             double durationDays;
             if ("FULL_DAY".equals(duration)) {
                 durationDays = leaveDAO.calculateWorkingDays(startDate, endDate);
@@ -72,7 +73,8 @@ public class EditLeave extends HttpServlet {
             // 3. Bina objek LeaveRequest
             LeaveRequest req = new LeaveRequest();
             req.setLeaveId(leaveId);
-            req.setEmpId(user.getEmpid());
+            // Membetulkan getEmpid() kepada getEmpId()
+            req.setEmpId(user.getEmpId());
             req.setLeaveTypeId(leaveTypeId);
             req.setStartDate(startDate);
             req.setEndDate(endDate);
@@ -81,8 +83,8 @@ public class EditLeave extends HttpServlet {
             req.setReason(reason);
             req.setHalfSession(halfSession);
 
-            // 4. Ambil Metadata berdasarkan Jenis Cuti (KOD BARU UNTUK FIX UPDATE)
-            String typeCode = request.getParameter("leaveTypeCode"); // Pastikan ini ada dalam hidden field JSP
+            // 4. Ambil Metadata berdasarkan Jenis Cuti
+            String typeCode = request.getParameter("leaveTypeCode");
             if (typeCode != null) {
                 typeCode = typeCode.toUpperCase();
                 if (typeCode.contains("EMERGENCY")) {
@@ -104,7 +106,8 @@ public class EditLeave extends HttpServlet {
                     
                     String weekPregStr = request.getParameter("weekPregnancy");
                     if (weekPregStr != null && !weekPregStr.isEmpty()) {
-                        req.setWeekPregnancy(Integer.parseInt(weekPregPregnancy));
+                        // Membetulkan typo weekPregPregnancy kepada weekPregStr
+                        req.setWeekPregnancy(Integer.parseInt(weekPregStr));
                     }
                     
                     req.setSpouseName(request.getParameter("spouseName"));
@@ -112,7 +115,8 @@ public class EditLeave extends HttpServlet {
             }
 
             // 5. Panggil DAO Update
-            boolean success = leaveDAO.updateLeave(req, user.getEmpid());
+            // Membetulkan getEmpid() kepada getEmpId()
+            boolean success = leaveDAO.updateLeave(req, user.getEmpId());
 
             if (success) {
                 response.sendRedirect("LeaveHistory?success=" + URLEncoder.encode("Permohonan berjaya dikemas kini.", "UTF-8"));
