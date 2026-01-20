@@ -20,14 +20,22 @@ public class EditLeave extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         HttpSession session = request.getSession();
         User user = (User) session.getAttribute("user");
+        
+        // Jika sesi kosong, hantar ke login
         if (user == null) {
             response.sendRedirect("login.jsp");
             return;
         }
 
         try {
-            int leaveId = Integer.parseInt(request.getParameter("id"));
-            // Membetulkan getEmpid() kepada getEmpId()
+            String idParam = request.getParameter("id");
+            if (idParam == null || idParam.isEmpty()) {
+                response.sendRedirect("LeaveHistory?error=InvalidID");
+                return;
+            }
+
+            int leaveId = Integer.parseInt(idParam);
+            // Pastikan method ini sepadan dengan bean User anda (getEmpId)
             LeaveRequest lr = leaveDAO.getLeaveById(leaveId, user.getEmpId());
 
             if (lr != null && "PENDING".equalsIgnoreCase(lr.getStatusCode())) {
@@ -73,7 +81,6 @@ public class EditLeave extends HttpServlet {
             // 3. Bina objek LeaveRequest
             LeaveRequest req = new LeaveRequest();
             req.setLeaveId(leaveId);
-            // Membetulkan getEmpid() kepada getEmpId()
             req.setEmpId(user.getEmpId());
             req.setLeaveTypeId(leaveTypeId);
             req.setStartDate(startDate);
@@ -106,7 +113,6 @@ public class EditLeave extends HttpServlet {
                     
                     String weekPregStr = request.getParameter("weekPregnancy");
                     if (weekPregStr != null && !weekPregStr.isEmpty()) {
-                        // Membetulkan typo weekPregPregnancy kepada weekPregStr
                         req.setWeekPregnancy(Integer.parseInt(weekPregStr));
                     }
                     
@@ -115,7 +121,6 @@ public class EditLeave extends HttpServlet {
             }
 
             // 5. Panggil DAO Update
-            // Membetulkan getEmpid() kepada getEmpId()
             boolean success = leaveDAO.updateLeave(req, user.getEmpId());
 
             if (success) {
