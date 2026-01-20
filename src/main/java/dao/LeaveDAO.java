@@ -169,71 +169,84 @@ public class LeaveDAO {
     }
 
     /* =====================================================
-       4. UPDATE LEAVE (INI YANG TERTINGGAL TADI)
+       4. UPDATE LEAVE (FIXED)
        ===================================================== */
-                           public boolean updateLeave(LeaveRequest req, int empId) throws Exception {
-                Connection con = DatabaseConnection.getConnection();
-                try {
-                    con.setAutoCommit(false);
-            
-                    // 1. Pastikan masih PENDING
-                    String checkSql = """
-                        SELECT lr.leave_id, ls.status_code
-                        FROM leave.leave_requests lr
-                        JOIN leave.leave_statuses ls ON lr.status_id = ls.status_id
-                        WHERE lr.leave_id = ? AND lr.empid = ?
-                    """;
-            
-                    try (PreparedStatement ps = con.prepareStatement(checkSql)) {
-                        ps.setInt(1, req.getLeaveId());
-                        ps.setInt(2, empId);
-                        ResultSet rs = ps.executeQuery();
-                        if (!rs.next() || !"PENDING".equalsIgnoreCase(rs.getString("status_code"))) {
-                            return false;
-                        }
+    public boolean updateLeave(LeaveRequest req, int empId) throws Exception {
+        Connection con = DatabaseConnection.getConnection();
+        try {
+            con.setAutoCommit(false);
+
+            // 1. Ambil data lama untuk pelarasan baki (balance)
+            int oldTypeId;
+            double oldDays;
+            String fetchSql = "SELECT leave_type_id, duration_days, status_id FROM leave.leave_requests WHERE leave_id = ? AND empid = ?";
+            try (PreparedStatement ps = con.prepareStatement(fetchSql)) {
+                ps.setInt(1, req.getLeaveId());
+                ps.setInt(2, empId);
+                ResultSet rs = ps.executeQuery();
+                if (!rs.next()) return false;
+                
+                // Hanya benarkan update jika status PENDING
+                int statusId = rs.getInt("status_id");
+                String checkStatus = "SELECT status_code FROM leave.leave_statuses WHERE status_id = ?";
+                try (PreparedStatement ps2 = con.prepareStatement(checkStatus)) {
+                    ps2.setInt(1, statusId);
+                    ResultSet rs2 = ps2.executeQuery();
+                    if (!rs2.next() || !"PENDING".equalsIgnoreCase(rs2.getString("status_code"))) {
+                        return false;
                     }
-            
-                    // 2. Update table utama
-                    String updateMain = """
-                        UPDATE leave.leave_requests
-                        SET start_date = ?,
-                            end_date = ?,
-                            duration = ?,
-                            duration_days = ?,
-                            reason = ?,
-                            half_session = ?
-                        WHERE leave_id = ? AND empid = ?
-                    """;
-            
-                    try (PreparedStatement ps = con.prepareStatement(updateMain)) {
-                        ps.setDate(1, java.sql.Date.valueOf(req.getStartDate()));
-                        ps.setDate(2, java.sql.Date.valueOf(req.getEndDate()));
-                        ps.setString(3, req.getDuration());
-                        ps.setDouble(4, req.getDurationDays());
-                        ps.setString(5, req.getReason());
-                        ps.setString(6, req.getHalfSession());
-                        ps.setInt(7, req.getLeaveId());
-                        ps.setInt(8, empId);
-                        ps.executeUpdate();
-                    }
-            
-                    // 3. Metadata
-                    deleteOldMetadata(con, req.getLeaveId());
-                    insertInheritedData(con, req.getLeaveId(), req);
-            
-                    con.commit();
-                    return true;
-            
-                } catch (Exception e) {
-                    con.rollback();
-                    throw e;
-                } finally {
-                    con.close();
                 }
+                
+                oldTypeId = rs.getInt("leave_type_id");
+                oldDays = rs.getDouble("duration_days");
             }
 
+            // 2. Pulangkan baki lama (Revert old balance)
+            revertBalance(con, empId, oldTypeId, oldDays);
 
+            // 3. Update table utama (Sertakan leave_type_id!)
+            String updateMain = """
+                UPDATE leave.leave_requests
+                SET leave_type_id = ?,
+                    start_date = ?,
+                    end_date = ?,
+                    duration = ?,
+                    duration_days = ?,
+                    reason = ?,
+                    half_session = ?
+                WHERE leave_id = ? AND empid = ?
+            """;
 
+            try (PreparedStatement ps = con.prepareStatement(updateMain)) {
+                ps.setInt(1, req.getLeaveTypeId());
+                ps.setDate(2, java.sql.Date.valueOf(req.getStartDate()));
+                ps.setDate(3, java.sql.Date.valueOf(req.getEndDate()));
+                ps.setString(4, req.getDuration());
+                ps.setDouble(5, req.getDurationDays());
+                ps.setString(6, req.getReason());
+                ps.setString(7, req.getHalfSession());
+                ps.setInt(8, req.getLeaveId());
+                ps.setInt(9, empId);
+                ps.executeUpdate();
+            }
+
+            // 4. Tolak baki baru (Apply new balance)
+            updateBalance(con, empId, req.getLeaveTypeId(), req.getDurationDays());
+
+            // 5. Metadata (Hapus lama, Masuk baru)
+            deleteOldMetadata(con, req.getLeaveId());
+            insertInheritedData(con, req.getLeaveId(), req);
+
+            con.commit();
+            return true;
+
+        } catch (Exception e) {
+            con.rollback();
+            throw e;
+        } finally {
+            con.close();
+        }
+    }
 
     /* =====================================================
        5. LEAVE HISTORY & OTHERS
@@ -335,13 +348,7 @@ public class LeaveDAO {
                 ps.setInt(2, empId);
                 ps.executeUpdate();
             }
-            try (PreparedStatement ps = con.prepareStatement("UPDATE leave.leave_balances SET pending = pending - ?, total = total + ? WHERE empid = ? AND leave_type_id = ?")) {
-                ps.setDouble(1, days);
-                ps.setDouble(2, days);
-                ps.setInt(3, empId);
-                ps.setInt(4, leaveTypeId);
-                ps.executeUpdate();
-            }
+            revertBalance(con, empId, leaveTypeId, days);
             con.commit();
             return true;
         } catch (Exception e) {
@@ -419,123 +426,89 @@ public class LeaveDAO {
         }
     }
 
-            private void deleteOldMetadata(Connection con, int leaveId) throws Exception {
-            
-                String[] sqls = {
-                    "DELETE FROM leave.lr_emergency WHERE leave_id = ?",
-                    "DELETE FROM leave.lr_hospitalization WHERE leave_id = ?",
-                    "DELETE FROM leave.lr_sick WHERE leave_id = ?",
-                    "DELETE FROM leave.lr_paternity WHERE leave_id = ?",
-                    "DELETE FROM leave.lr_maternity WHERE leave_id = ?"
-                };
-            
-                for (String sql : sqls) {
-                    try (PreparedStatement ps = con.prepareStatement(sql)) {
-                        ps.setInt(1, leaveId);
-                        ps.executeUpdate();
-                    }
-                }
-            }
+    private void revertBalance(Connection con, int empId, int typeId, double days) throws Exception {
+        try (PreparedStatement ps = con.prepareStatement("UPDATE leave.leave_balances SET pending = pending - ?, total = total + ? WHERE empid=? AND leave_type_id=?")) {
+            ps.setDouble(1, days);
+            ps.setDouble(2, days);
+            ps.setInt(3, empId);
+            ps.setInt(4, typeId);
+            ps.executeUpdate();
+        }
+    }
 
+    private void deleteOldMetadata(Connection con, int leaveId) throws Exception {
+        String[] sqls = {
+            "DELETE FROM leave.lr_emergency WHERE leave_id = ?",
+            "DELETE FROM leave.lr_hospitalization WHERE leave_id = ?",
+            "DELETE FROM leave.lr_sick WHERE leave_id = ?",
+            "DELETE FROM leave.lr_paternity WHERE leave_id = ?",
+            "DELETE FROM leave.lr_maternity WHERE leave_id = ?"
+        };
 
-
-                private void insertInheritedData(Connection con, int leaveId, LeaveRequest req) throws Exception {
-        
-            String typeCode = null;
-            String sqlType = "SELECT type_code FROM leave.leave_types WHERE leave_type_id = ?";
-        
-            try (PreparedStatement ps = con.prepareStatement(sqlType)) {
-                ps.setInt(1, req.getLeaveTypeId());
-                ResultSet rs = ps.executeQuery();
-                if (rs.next()) typeCode = rs.getString("type_code");
-            }
-        
-            if (typeCode == null) return;
-            typeCode = typeCode.toUpperCase();
-        
-            // ================= EMERGENCY =================
-            if (typeCode.contains("EMERGENCY")) {
-                String sql = """
-                    INSERT INTO leave.lr_emergency
-                    (leave_id, emergency_category, emergency_contact)
-                    VALUES (?, ?, ?)
-                """;
-                try (PreparedStatement ps = con.prepareStatement(sql)) {
-                    ps.setInt(1, leaveId);
-                    ps.setString(2, req.getEmergencyCategory());
-                    ps.setString(3, req.getEmergencyContact());
-                    ps.executeUpdate();
-                }
-            }
-        
-            // ================= SICK =================
-            else if (typeCode.contains("SICK")) {
-                String sql = """
-                    INSERT INTO leave.lr_sick
-                    (leave_id, medical_facility, ref_serial_no)
-                    VALUES (?, ?, ?)
-                """;
-                try (PreparedStatement ps = con.prepareStatement(sql)) {
-                    ps.setInt(1, leaveId);
-                    ps.setString(2, req.getMedicalFacility());
-                    ps.setString(3, req.getRefSerialNo());
-                    ps.executeUpdate();
-                }
-            }
-        
-            // ================= HOSPITAL =================
-            else if (typeCode.contains("HOSPITAL")) {
-                String sql = """
-                    INSERT INTO leave.lr_hospitalization
-                    (leave_id, hospital_name, admit_date, discharge_date)
-                    VALUES (?, ?, ?, ?)
-                """;
-                try (PreparedStatement ps = con.prepareStatement(sql)) {
-                    ps.setInt(1, leaveId);
-                    ps.setString(2, req.getMedicalFacility());
-                    ps.setDate(3, req.getEventDate() != null ? java.sql.Date.valueOf(req.getEventDate()) : null);
-                    ps.setDate(4, req.getDischargeDate() != null ? java.sql.Date.valueOf(req.getDischargeDate()) : null);
-                    ps.executeUpdate();
-                }
-            }
-        
-            // ================= PATERNITY =================
-            else if (typeCode.contains("PATERNITY")) {
-                String sql = """
-                    INSERT INTO leave.lr_paternity
-                    (leave_id, spouse_name, medical_facility, delivery_date)
-                    VALUES (?, ?, ?, ?)
-                """;
-                try (PreparedStatement ps = con.prepareStatement(sql)) {
-                    ps.setInt(1, leaveId);
-                    ps.setString(2, req.getSpouseName());
-                    ps.setString(3, req.getMedicalFacility());
-                    ps.setDate(4, req.getEventDate() != null ? java.sql.Date.valueOf(req.getEventDate()) : null);
-                    ps.executeUpdate();
-                }
-            }
-        
-            // ================= MATERNITY =================
-            else if (typeCode.contains("MATERNITY")) {
-                String sql = """
-                    INSERT INTO leave.lr_maternity
-                    (leave_id, consultation_clinic, expected_due_date, week_pregnancy)
-                    VALUES (?, ?, ?, ?)
-                """;
-                try (PreparedStatement ps = con.prepareStatement(sql)) {
-                    ps.setInt(1, leaveId);
-                    ps.setString(2, req.getMedicalFacility());
-                    ps.setDate(3, req.getEventDate() != null ? java.sql.Date.valueOf(req.getEventDate()) : null);
-                    ps.setInt(4, req.getWeekPregnancy());
-                    ps.executeUpdate();
-                }
+        for (String sql : sqls) {
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setInt(1, leaveId);
+                ps.executeUpdate();
             }
         }
+    }
 
+    private void insertInheritedData(Connection con, int leaveId, LeaveRequest req) throws Exception {
+        String typeCode = null;
+        String sqlType = "SELECT type_code FROM leave.leave_types WHERE leave_type_id = ?";
+
+        try (PreparedStatement ps = con.prepareStatement(sqlType)) {
+            ps.setInt(1, req.getLeaveTypeId());
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) typeCode = rs.getString("type_code");
+        }
+
+        if (typeCode == null) return;
+        typeCode = typeCode.toUpperCase();
+
+        if (typeCode.contains("EMERGENCY")) {
+            String sql = "INSERT INTO leave.lr_emergency (leave_id, emergency_category, emergency_contact) VALUES (?, ?, ?)";
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setInt(1, leaveId);
+                ps.setString(2, req.getEmergencyCategory());
+                ps.setString(3, req.getEmergencyContact());
+                ps.executeUpdate();
+            }
+        } else if (typeCode.contains("SICK")) {
+            String sql = "INSERT INTO leave.lr_sick (leave_id, medical_facility, ref_serial_no) VALUES (?, ?, ?)";
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setInt(1, leaveId);
+                ps.setString(2, req.getMedicalFacility());
+                ps.setString(3, req.getRefSerialNo());
+                ps.executeUpdate();
+            }
+        } else if (typeCode.contains("HOSPITAL")) {
+            String sql = "INSERT INTO leave.lr_hospitalization (leave_id, hospital_name, admit_date, discharge_date) VALUES (?, ?, ?, ?)";
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setInt(1, leaveId);
+                ps.setString(2, req.getMedicalFacility());
+                ps.setDate(3, req.getEventDate() != null ? java.sql.Date.valueOf(req.getEventDate()) : null);
+                ps.setDate(4, req.getDischargeDate() != null ? java.sql.Date.valueOf(req.getDischargeDate()) : null);
+                ps.executeUpdate();
+            }
+        } else if (typeCode.contains("PATERNITY")) {
+            String sql = "INSERT INTO leave.lr_paternity (leave_id, spouse_name, medical_facility, delivery_date) VALUES (?, ?, ?, ?)";
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setInt(1, leaveId);
+                ps.setString(2, req.getSpouseName());
+                ps.setString(3, req.getMedicalFacility());
+                ps.setDate(4, req.getEventDate() != null ? java.sql.Date.valueOf(req.getEventDate()) : null);
+                ps.executeUpdate();
+            }
+        } else if (typeCode.contains("MATERNITY")) {
+            String sql = "INSERT INTO leave.lr_maternity (leave_id, consultation_clinic, expected_due_date, week_pregnancy) VALUES (?, ?, ?, ?)";
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setInt(1, leaveId);
+                ps.setString(2, req.getMedicalFacility());
+                ps.setDate(3, req.getEventDate() != null ? java.sql.Date.valueOf(req.getEventDate()) : null);
+                ps.setInt(4, req.getWeekPregnancy());
+                ps.executeUpdate();
+            }
+        }
+    }
 }
-
-
-
-
-
-
