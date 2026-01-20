@@ -604,14 +604,24 @@ to {
             const available = leaveBalances[typeId] !== undefined ? parseFloat(leaveBalances[typeId]) : 0;
             let requested = (duration !== 'FULL_DAY') ? 0.5 : calculateWorkingDaysJS(startVal, endVal);
 
-            if (requested > available) {
+            // --- TAMBAH SEMAKAN HARI MINGGU DI SINI ---
+            const dStart = new Date(startVal);
+            const dayOfWeek = dStart.getDay(); // 0 = Ahad, 6 = Sabtu
+
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                hasError = true;
+                msg = "YOU CANNOT APPLY FOR LEAVE ON WEEKENDS (SATURDAY/SUNDAY).";
+            } 
+            // --- TAMBAH SEMAKAN BAKI DI SINI ---
+            else if (requested > available) {
                 hasError = true;
                 msg = `Insufficient balance. Available: ${available} Days, Requested: ${requested} Days.`;
             }
             
-            if (!hasError && requested === 0 && startVal && endVal) {
+            // Semakan tambahan jika tempoh yang dikira adalah 0
+            if (!hasError && requested === 0) {
                 hasError = true;
-                msg = "You cannot apply for leave on weekends (Saturday/Sunday).";
+                msg = "Selected date range consist only of weekends.";
             }
         }
 
@@ -709,3 +719,4 @@ to {
 </body>
 
 </html>
+
