@@ -3,15 +3,24 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.InputStreamReader;
-import java.io.BufferedReader;
+import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+
+// Import tambahan untuk GSON TypeAdapter
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
 import bean.Holiday;
 
@@ -19,7 +28,22 @@ import bean.Holiday;
 public class ManageHoliday extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private final String API_URL = "https://holiday-service-48048ca7054c.herokuapp.com/api/holidays";
-    private final Gson gson = new Gson();
+    
+    // ⭐ KONFIGURASI GSON UNTUK JAVA 21 (LOCALDATE FIX) ⭐
+    private final Gson gson = new GsonBuilder()
+        .registerTypeAdapter(LocalDate.class, new JsonSerializer<LocalDate>() {
+            @Override
+            public JsonElement serialize(LocalDate src, Type typeOfSrc, JsonSerializationContext context) {
+                return new JsonPrimitive(src.toString()); // Simpan sebagai "yyyy-MM-dd"
+            }
+        })
+        .registerTypeAdapter(LocalDate.class, new JsonDeserializer<LocalDate>() {
+            @Override
+            public LocalDate deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+                return LocalDate.parse(json.getAsString()); // Baca dari "yyyy-MM-dd"
+            }
+        })
+        .create();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -32,7 +56,6 @@ public class ManageHoliday extends HttpServlet {
         }
 
         try {
-            // Mengambil data dari Microservice (GET)
             URL url = new URL(API_URL);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
@@ -41,22 +64,21 @@ public class ManageHoliday extends HttpServlet {
             if (conn.getResponseCode() == 200) {
                 Scanner scanner = new Scanner(conn.getInputStream());
                 StringBuilder sb = new StringBuilder();
-                while (scanner.hasNext()) {
-                    sb.append(scanner.next());
+                while (scanner.hasNextLine()) {
+                    sb.append(scanner.nextLine());
                 }
                 scanner.close();
 
-                // Tukar JSON kepada List Object
                 List<Holiday> holidayList = gson.fromJson(sb.toString(), new TypeToken<ArrayList<Holiday>>(){}.getType());
                 request.setAttribute("holidays", holidayList);
             } else {
-                request.setAttribute("error", "Gagal mengambil data dari API: Code " + conn.getResponseCode());
+                request.setAttribute("error", "API Error: HTTP " + conn.getResponseCode());
             }
 
             request.getRequestDispatcher("/holidays.jsp").forward(request, response);
         } catch (Exception e) {
             e.printStackTrace();
-            request.setAttribute("error", "Ralat Sistem: " + e.getMessage());
+            request.setAttribute("error", "Ralat: " + e.getMessage());
             request.getRequestDispatcher("/holidays.jsp").forward(request, response);
         }
     }
@@ -66,7 +88,6 @@ public class ManageHoliday extends HttpServlet {
             throws ServletException, IOException {
 
         HttpSession session = request.getSession(false);
-        // ⭐ PERBAIKAN RALAT BARIS 69 ⭐
         if (session == null || !"ADMIN".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
             response.sendRedirect("login.jsp");
             return;
@@ -74,12 +95,6 @@ public class ManageHoliday extends HttpServlet {
 
         String action = request.getParameter("action");
         try {
-            if (action == null) {
-                response.sendRedirect("ManageHoliday?error=Invalid+Action");
-                return;
-            }
-
-            // ================= DELETE =================
             if ("DELETE".equalsIgnoreCase(action)) {
                 String id = request.getParameter("holidayId");
                 sendApiRequest(API_URL + "/" + id, "DELETE", null);
@@ -87,12 +102,10 @@ public class ManageHoliday extends HttpServlet {
                 return;
             }
 
-            // ================= ADD / UPDATE =================
             String name = request.getParameter("holidayName");
             String dateStr = request.getParameter("holidayDate");
             
             Holiday h = new Holiday();
-            // Kembalikan kepada setName/setDate kerana bean.Holiday lama menggunakan nama ini
             h.setName(name); 
             h.setDate(LocalDate.parse(dateStr));
 
@@ -102,13 +115,9 @@ public class ManageHoliday extends HttpServlet {
 
             } else if ("UPDATE".equalsIgnoreCase(action)) {
                 String id = request.getParameter("holidayId");
-                // Tukar kepada Integer.parseInt kerana bean.Holiday menggunakan 'int' bukan 'long'
                 h.setId(Integer.parseInt(id));
                 sendApiRequest(API_URL + "/" + id, "PUT", h);
                 response.sendRedirect("ManageHoliday?msg=Holiday+updated+successfully");
-
-            } else {
-                response.sendRedirect("ManageHoliday?error=Unknown+Action");
             }
 
         } catch (Exception e) {
@@ -116,9 +125,6 @@ public class ManageHoliday extends HttpServlet {
         }
     }
 
-    /**
-     * Fungsi helper untuk menghantar data ke API Microservice
-     */
     private void sendApiRequest(String urlStr, String method, Object data) throws Exception {
         URL url = new URL(urlStr);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
