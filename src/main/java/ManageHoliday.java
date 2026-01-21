@@ -66,7 +66,7 @@ public class ManageHoliday extends HttpServlet {
             throws ServletException, IOException {
 
         HttpSession session = request.getSession(false);
-        if (session == null || !"ADMIN".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
+        if (session == null || !"ADMIN".equalsIgnoreCase(String.equalsIgnoreCase(String.valueOf(session.getAttribute("role"))))) {
             response.sendRedirect("login.jsp");
             return;
         }
@@ -81,7 +81,6 @@ public class ManageHoliday extends HttpServlet {
             // ================= DELETE =================
             if ("DELETE".equalsIgnoreCase(action)) {
                 String id = request.getParameter("holidayId");
-                // Nota: Pastikan HolidayController di Spring Boot ada @DeleteMapping("/{id}")
                 sendApiRequest(API_URL + "/" + id, "DELETE", null);
                 response.sendRedirect("ManageHoliday?msg=Holiday+deleted+successfully");
                 return;
@@ -91,11 +90,10 @@ public class ManageHoliday extends HttpServlet {
             String name = request.getParameter("holidayName");
             String dateStr = request.getParameter("holidayDate");
             
-            // Kita bina objek JSON yang sepadan dengan Model di Spring Boot
-            // Pastikan nama field (holidayName, holidayDate) sama dengan di Spring Boot
             Holiday h = new Holiday();
-            h.setHolidayName(name); 
-            h.setHolidayDate(LocalDate.parse(dateStr));
+            // Kembalikan kepada setName/setDate kerana bean.Holiday lama menggunakan nama ini
+            h.setName(name); 
+            h.setDate(LocalDate.parse(dateStr));
 
             if ("ADD".equalsIgnoreCase(action)) {
                 sendApiRequest(API_URL, "POST", h);
@@ -103,8 +101,8 @@ public class ManageHoliday extends HttpServlet {
 
             } else if ("UPDATE".equalsIgnoreCase(action)) {
                 String id = request.getParameter("holidayId");
-                h.setId(Long.parseLong(id));
-                // Nota: Pastikan HolidayController di Spring Boot ada @PutMapping("/{id}")
+                // Tukar kepada Integer.parseInt kerana bean.Holiday menggunakan 'int' bukan 'long'
+                h.setId(Integer.parseInt(id));
                 sendApiRequest(API_URL + "/" + id, "PUT", h);
                 response.sendRedirect("ManageHoliday?msg=Holiday+updated+successfully");
 
