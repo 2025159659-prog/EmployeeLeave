@@ -43,7 +43,7 @@ public class ManageHoliday extends HttpServlet {
         try {
                 // URL microservice anda di Heroku nanti
                 // Untuk sekarang, kita guna placeholder atau URL Heroku holiday-service anda
-                URL url = new URL("https://holiday-service-anda.herokuapp.com/api/holidays");
+                URL url = new URL("https://holiday-service-48048ca7054c.herokuapp.com/api/holidays");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.connect();
@@ -129,4 +129,5 @@ public class ManageHoliday extends HttpServlet {
         }
     }
 }
+
 
