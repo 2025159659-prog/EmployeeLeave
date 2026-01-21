@@ -47,7 +47,7 @@ public class ManageHoliday extends HttpServlet {
                 return LocalDate.parse(json.getAsString());
             }
         })
-        // 2. Handle Mapping dari JSON (holidayName) ke Bean (name)
+        // 2. Handle Mapping dari JSON API (Spring Boot) ke Bean (Monolith)
         .registerTypeAdapter(Holiday.class, new JsonDeserializer<Holiday>() {
             @Override
             public Holiday deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
@@ -56,6 +56,10 @@ public class ManageHoliday extends HttpServlet {
                 if (obj.has("id")) h.setId(obj.get("id").getAsInt());
                 if (obj.has("holidayName")) h.setName(obj.get("holidayName").getAsString());
                 if (obj.has("holidayDate")) h.setDate(LocalDate.parse(obj.get("holidayDate").getAsString()));
+                // ⭐ FIX: Map 'holidayType' dari API ke setType() dalam bean.Holiday
+                if (obj.has("holidayType") && !obj.get("holidayType").isJsonNull()) {
+                    h.setType(obj.get("holidayType").getAsString());
+                }
                 return h;
             }
         })
@@ -120,11 +124,13 @@ public class ManageHoliday extends HttpServlet {
 
             String name = request.getParameter("holidayName");
             String dateStr = request.getParameter("holidayDate");
+            String type = request.getParameter("holidayType"); // ⭐ Ambil dari form JSP
             
             // ⭐ Guna Map untuk hantar data dengan key yang tepat untuk Spring Boot ⭐
             Map<String, Object> apiData = new HashMap<>();
             apiData.put("holidayName", name);
             apiData.put("holidayDate", dateStr);
+            apiData.put("holidayType", type); // ⭐ FIX: Hantar holidayType ke microservice
 
             if ("ADD".equalsIgnoreCase(action)) {
                 sendApiRequest(API_URL, "POST", apiData);
