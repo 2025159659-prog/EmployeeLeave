@@ -173,6 +173,11 @@ String monthTitle = ym.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH)
                         LeaveBalance b = balByType.get(type);
                         if (b == null) continue;
 
+						double entVal = b.getEntitlement();
+						double usedVal = b.getUsed();
+						double pendVal = b.getPending();
+						double totalVal = b.getTotalAvailable();
+
                         String cardTheme = type.toLowerCase().replace("_", "-");
                     %>
                     <div class="card <%=cardTheme%>">
@@ -298,3 +303,4 @@ String monthTitle = ym.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH)
     </script>
 </body>
 </html>
+
