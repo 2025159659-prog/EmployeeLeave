@@ -8,15 +8,18 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 
-// Import tambahan untuk GSON TypeAdapter
+// Import tambahan untuk GSON
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
@@ -29,18 +32,31 @@ public class ManageHoliday extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private final String API_URL = "https://holiday-service-48048ca7054c.herokuapp.com/api/holidays";
     
-    // ⭐ KONFIGURASI GSON UNTUK JAVA 21 (LOCALDATE FIX) ⭐
+    // ⭐ KONFIGURASI GSON UNTUK PENYELARASAN NAMA MEDAN (MAPPING) ⭐
     private final Gson gson = new GsonBuilder()
+        // 1. Handle LocalDate
         .registerTypeAdapter(LocalDate.class, new JsonSerializer<LocalDate>() {
             @Override
             public JsonElement serialize(LocalDate src, Type typeOfSrc, JsonSerializationContext context) {
-                return new JsonPrimitive(src.toString()); // Simpan sebagai "yyyy-MM-dd"
+                return new JsonPrimitive(src.toString());
             }
         })
         .registerTypeAdapter(LocalDate.class, new JsonDeserializer<LocalDate>() {
             @Override
             public LocalDate deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-                return LocalDate.parse(json.getAsString()); // Baca dari "yyyy-MM-dd"
+                return LocalDate.parse(json.getAsString());
+            }
+        })
+        // 2. Handle Mapping dari JSON (holidayName) ke Bean (name)
+        .registerTypeAdapter(Holiday.class, new JsonDeserializer<Holiday>() {
+            @Override
+            public Holiday deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+                JsonObject obj = json.getAsJsonObject();
+                Holiday h = new Holiday();
+                if (obj.has("id")) h.setId(obj.get("id").getAsInt());
+                if (obj.has("holidayName")) h.setName(obj.get("holidayName").getAsString());
+                if (obj.has("holidayDate")) h.setDate(LocalDate.parse(obj.get("holidayDate").getAsString()));
+                return h;
             }
         })
         .create();
@@ -105,18 +121,19 @@ public class ManageHoliday extends HttpServlet {
             String name = request.getParameter("holidayName");
             String dateStr = request.getParameter("holidayDate");
             
-            Holiday h = new Holiday();
-            h.setName(name); 
-            h.setDate(LocalDate.parse(dateStr));
+            // ⭐ Guna Map untuk hantar data dengan key yang tepat untuk Spring Boot ⭐
+            Map<String, Object> apiData = new HashMap<>();
+            apiData.put("holidayName", name);
+            apiData.put("holidayDate", dateStr);
 
             if ("ADD".equalsIgnoreCase(action)) {
-                sendApiRequest(API_URL, "POST", h);
+                sendApiRequest(API_URL, "POST", apiData);
                 response.sendRedirect("ManageHoliday?msg=Holiday+added+successfully");
 
             } else if ("UPDATE".equalsIgnoreCase(action)) {
                 String id = request.getParameter("holidayId");
-                h.setId(Integer.parseInt(id));
-                sendApiRequest(API_URL + "/" + id, "PUT", h);
+                apiData.put("id", Integer.parseInt(id));
+                sendApiRequest(API_URL + "/" + id, "PUT", apiData);
                 response.sendRedirect("ManageHoliday?msg=Holiday+updated+successfully");
             }
 
