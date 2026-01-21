@@ -21,13 +21,13 @@ import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
 
 import bean.Holiday;
-import dao.HolidayDAO; // Import DAO lama anda
+import dao.HolidayDAO;
 
 @WebServlet("/ManageHoliday")
 public class ManageHoliday extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private final String API_URL = "https://holiday-service-48048ca7054c.herokuapp.com/api/holidays";
-    private final HolidayDAO holidayDAO = new HolidayDAO(); // Inisialisasi DAO tempatan
+    private final HolidayDAO holidayDAO = new HolidayDAO();
     
     private final Gson gson = new GsonBuilder()
         .registerTypeAdapter(LocalDate.class, (com.google.gson.JsonSerializer<LocalDate>) (src, typeOfSrc, context) -> new com.google.gson.JsonPrimitive(src.toString()))
@@ -55,17 +55,13 @@ public class ManageHoliday extends HttpServlet {
 
         List<Holiday> combinedHolidays = new ArrayList<>();
 
-        // --- 1. AMBIL DATA DARI DATABASE TEMPATAN (LOCAL DB) ---
+        // 1. Ambil dari DB Tempatan
         try {
             List<Holiday> localList = holidayDAO.getAllHolidays();
-            if (localList != null) {
-                combinedHolidays.addAll(localList);
-            }
-        } catch (Exception e) {
-            System.out.println("Nota: Tiada data dalam DB tempatan atau ralat: " + e.getMessage());
-        }
+            if (localList != null) combinedHolidays.addAll(localList);
+        } catch (Exception e) { e.printStackTrace(); }
 
-        // --- 2. AMBIL DATA DARI MICROSERVICE (HEROKU) ---
+        // 2. Ambil dari Microservice
         try {
             URL url = new URL(API_URL);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -75,17 +71,11 @@ public class ManageHoliday extends HttpServlet {
                 StringBuilder sb = new StringBuilder();
                 while (scanner.hasNextLine()) sb.append(scanner.nextLine());
                 scanner.close();
-
                 List<Holiday> apiList = gson.fromJson(sb.toString(), new TypeToken<ArrayList<Holiday>>(){}.getType());
-                if (apiList != null) {
-                    combinedHolidays.addAll(apiList);
-                }
+                if (apiList != null) combinedHolidays.addAll(apiList);
             }
-        } catch (Exception e) {
-            System.err.println("Gagal akses Microservice: " + e.getMessage());
-        }
+        } catch (Exception e) { e.printStackTrace(); }
 
-        // Hantar senarai gabungan ke JSP
         request.setAttribute("holidays", combinedHolidays);
         request.getRequestDispatcher("/holidays.jsp").forward(request, response);
     }
@@ -94,16 +84,21 @@ public class ManageHoliday extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         
-        // Logik POST kekal hantar ke Microservice (Heroku)
-        // Ini supaya semua data BARU masuk ke sistem baru secara automatik.
-        
         String action = request.getParameter("action");
         try {
+            // ================= DELETE =================
             if ("DELETE".equalsIgnoreCase(action)) {
-                String id = request.getParameter("holidayId");
-                // Cuba padam di Microservice
-                sendApiRequest(API_URL + "/" + id, "DELETE", null);
-                response.sendRedirect("ManageHoliday?msg=Holiday+deleted+from+Microservice");
+                int id = Integer.parseInt(request.getParameter("holidayId"));
+                
+                // Padam di DB Tempatan
+                holidayDAO.deleteHoliday(id);
+                
+                // Cuba padam di Microservice (Guna try-catch supaya jika tiada di cloud pun, proses jalan terus)
+                try {
+                    sendApiRequest(API_URL + "/" + id, "DELETE", null);
+                } catch (Exception e) { System.err.println("Tiada di Cloud: " + e.getMessage()); }
+
+                response.sendRedirect("ManageHoliday?msg=Holiday+deleted+from+both+systems");
                 return;
             }
 
@@ -111,23 +106,51 @@ public class ManageHoliday extends HttpServlet {
             String dateStr = request.getParameter("holidayDate");
             String type = request.getParameter("holidayType");
             
+            Holiday h = new Holiday();
+            h.setName(name);
+            h.setDate(LocalDate.parse(dateStr));
+            h.setType(type);
+
             Map<String, Object> apiData = new HashMap<>();
             apiData.put("holidayName", name);
             apiData.put("holidayDate", dateStr);
             apiData.put("holidayType", type);
 
+            // ================= ADD =================
             if ("ADD".equalsIgnoreCase(action)) {
+                // Simpan ke DB Tempatan (Supaya masuk dalam database 'leave' anda)
+                holidayDAO.addHoliday(h);
+                
+                // Simpan ke Microservice
                 sendApiRequest(API_URL, "POST", apiData);
-                response.sendRedirect("ManageHoliday?msg=Holiday+added+to+Microservice");
+                
+                response.sendRedirect("ManageHoliday?msg=Holiday+added+successfully+to+both");
+
+            // ================= UPDATE =================
+            } else if ("UPDATE".equalsIgnoreCase(action)) {
+                int id = Integer.parseInt(request.getParameter("holidayId"));
+                h.setId(id);
+                apiData.put("id", id);
+
+                // Kemaskini DB Tempatan
+                holidayDAO.updateHoliday(h);
+                
+                // Kemaskini Microservice
+                try {
+                    sendApiRequest(API_URL + "/" + id, "PUT", apiData);
+                } catch (Exception e) { System.err.println("Gagal kemaskini Cloud: " + e.getMessage()); }
+                
+                response.sendRedirect("ManageHoliday?msg=Holiday+updated+successfully");
             }
         } catch (Exception e) {
-            response.sendRedirect("ManageHoliday?error=" + java.net.URLEncoder.encode("Gagal: " + e.getMessage(), "UTF-8"));
+            response.sendRedirect("ManageHoliday?error=" + java.net.URLEncoder.encode(e.getMessage(), "UTF-8"));
         }
     }
 
     private void sendApiRequest(String urlStr, String method, Object data) throws Exception {
         URL url = new URL(urlStr);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setConnectTimeout(5000); // Set timeout 5 saat
         conn.setRequestMethod(method);
         conn.setRequestProperty("Content-Type", "application/json");
         conn.setDoOutput(true);
@@ -139,8 +162,10 @@ public class ManageHoliday extends HttpServlet {
                 os.write(input, 0, input.length);
             }
         }
-        if (conn.getResponseCode() < 200 || conn.getResponseCode() >= 300) {
-            throw new RuntimeException("HTTP " + conn.getResponseCode());
+        int code = conn.getResponseCode();
+        // Hanya balingan ralat jika ralat teruk (bukan 404)
+        if (code >= 500) {
+            throw new RuntimeException("API Server Error: HTTP " + code);
         }
         conn.disconnect();
     }
