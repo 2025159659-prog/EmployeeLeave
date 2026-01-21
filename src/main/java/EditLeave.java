@@ -109,29 +109,31 @@ public class EditLeave extends HttpServlet {
         try {
             int empId = (Integer) session.getAttribute("empid");
             
-            // Ambil parameter dengan selamat
             String leaveIdStr = request.getParameter("leaveId");
             String leaveTypeIdStr = request.getParameter("leaveTypeId");
 
-            // Debug log ke Heroku console
+            // Debug log
             System.out.println("DEBUG EditLeave: leaveId=" + leaveIdStr + ", leaveTypeId=" + leaveTypeIdStr);
 
-            if (leaveIdStr == null || leaveIdStr.isEmpty() || leaveTypeIdStr == null || leaveTypeIdStr.isEmpty()) {
-                response.getWriter().print("Error: Parameter leaveId atau leaveTypeId hilang.");
+            if (leaveIdStr == null || leaveIdStr.isEmpty()) {
+                response.getWriter().print("Error: Parameter leaveId hilang.");
                 return;
             }
 
             int leaveId = Integer.parseInt(leaveIdStr);
-            int leaveTypeId = Integer.parseInt(leaveTypeIdStr);
-
             LeaveRequest existing = leaveDAO.getLeaveById(leaveId, empId);
+            
             if (existing == null) {
                 response.getWriter().print("Error: Rekod tidak dijumpai.");
                 return;
             }
 
             // 1. Map Data Asas
-            existing.setLeaveTypeId(leaveTypeId);
+            // Jika leaveTypeId dihantar, update. Jika tidak, guna yang asal (seperti code lama anda).
+            if (leaveTypeIdStr != null && !leaveTypeIdStr.isEmpty()) {
+                existing.setLeaveTypeId(Integer.parseInt(leaveTypeIdStr));
+            }
+            
             existing.setReason(request.getParameter("reason"));
             String durationUi = request.getParameter("duration");
             boolean isHalf = durationUi != null && (durationUi.startsWith("HALF_DAY") || durationUi.contains("AM") || durationUi.contains("PM"));
@@ -157,7 +159,7 @@ public class EditLeave extends HttpServlet {
             String week = request.getParameter("weekPregnancy");
             if (week != null && !week.isBlank() && !"null".equals(week)) existing.setWeekPregnancy(Integer.parseInt(week));
 
-            // Support field names alternatif dari modal
+            // Support field names alternatif
             if (request.getParameter("consultationClinic") != null) existing.setMedicalFacility(request.getParameter("consultationClinic"));
             String edd = request.getParameter("expectedDueDate");
             if (edd != null && !edd.isBlank() && !"null".equals(edd)) existing.setEventDate(LocalDate.parse(edd));
