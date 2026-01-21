@@ -6,6 +6,11 @@ import java.time.LocalDate;
 import java.util.List;
 import dao.HolidayDAO;
 import bean.Holiday;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.Scanner;
 
 /**
  * Unified Controller for Holiday Management (View, Add, Update, Delete).
@@ -34,6 +39,37 @@ public class ManageHoliday extends HttpServlet {
             request.setAttribute("error", e.getMessage());
             request.getRequestDispatcher("/holidays.jsp").forward(request, response);
         }
+
+        try {
+                // URL microservice anda di Heroku nanti
+                // Untuk sekarang, kita guna placeholder atau URL Heroku holiday-service anda
+                URL url = new URL("https://holiday-service-anda.herokuapp.com/api/holidays");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.connect();
+            
+                int responseCode = conn.getResponseCode();
+                if (responseCode != 200) {
+                    throw new RuntimeException("HttpResponseCode: " + responseCode);
+                } else {
+                    StringBuilder informationString = new StringBuilder();
+                    Scanner scanner = new Scanner(url.openStream());
+            
+                    while (scanner.hasNext()) {
+                        informationString.append(scanner.next());
+                    }
+                    scanner.close();
+            
+                    // Tukar JSON ke List
+                    Gson gson = new Gson();
+                    java.lang.reflect.Type listType = new TypeToken<ArrayList<Holiday>>(){}.getType();
+                    ArrayList<Holiday> holidayList = gson.fromJson(informationString.toString(), listType);
+            
+                    request.setAttribute("holidayList", holidayList);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
     }
 
     @Override
@@ -93,3 +129,4 @@ public class ManageHoliday extends HttpServlet {
         }
     }
 }
+
