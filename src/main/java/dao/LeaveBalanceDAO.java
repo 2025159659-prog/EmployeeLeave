@@ -63,6 +63,12 @@ public class LeaveBalanceDAO {
                         );
 
                 double entitlement = er.proratedEntitlement;
+                double entitlement = result.proratedEntitlement;
+				double carriedFwd = 0.0;
+				double used = 0.0;
+				double pending = 0.0;
+				// Total Available Calculation
+				double total = (entitlement + carriedFwd) - used - pending;
 
                 insertStmt.setInt(1, empId);
                 insertStmt.setInt(2, leaveTypeId);
