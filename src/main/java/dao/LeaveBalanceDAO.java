@@ -62,21 +62,22 @@ public class LeaveBalanceDAO {
                                 g
                         );
 
-                double entitlement = er.proratedEntitlement;
-                double entitlement = result.proratedEntitlement;
-				double carriedFwd = 0.0;
-				double used = 0.0;
-				double pending = 0.0;
-				// Total Available Calculation
-				double total = (entitlement + carriedFwd) - used - pending;
+                // ⭐ PERBAIKAN RALAT BARIS 66 ⭐
+                double entitlement = er.proratedEntitlement; 
+                double carriedFwd = 0.0;
+                double used = 0.0;
+                double pending = 0.0;
+                
+                // Kira Total Available
+                double total = (entitlement + carriedFwd) - used - pending;
 
                 insertStmt.setInt(1, empId);
                 insertStmt.setInt(2, leaveTypeId);
                 insertStmt.setDouble(3, entitlement);
-                insertStmt.setDouble(4, 0); // carried_fwd
-                insertStmt.setDouble(5, 0); // used
-                insertStmt.setDouble(6, 0); // pending
-                insertStmt.setDouble(7, entitlement); // total
+                insertStmt.setDouble(4, carriedFwd); // carried_fwd
+                insertStmt.setDouble(5, used);       // used
+                insertStmt.setDouble(6, pending);    // pending
+                insertStmt.setDouble(7, total);      // total (Gunakan hasil kiraan tadi)
 
                 insertStmt.addBatch();
             }
@@ -85,7 +86,7 @@ public class LeaveBalanceDAO {
     }
 
     /* =====================================================
-       GET EMPLOYEE LEAVE BALANCES (FIXED FOR UNPAID)
+       GET EMPLOYEE LEAVE BALANCES
        ===================================================== */
     public List<LeaveBalance> getEmployeeBalances(int empId)
             throws SQLException {
@@ -127,16 +128,14 @@ public class LeaveBalanceDAO {
                        SPECIAL HANDLING FOR UNPAID
                        =============================== */
                     if (typeCode.equals("UNPAID")) {
-
-                        double pending = sumUnpaidDays(empId, "PENDING");
-                        double used    = sumUnpaidDays(empId, "APPROVED");
+                        double p = sumUnpaidDays(empId, "PENDING");
+                        double u = sumUnpaidDays(empId, "APPROVED");
 
                         b.setEntitlement(3); // UI reference only
                         b.setCarriedForward(0);
-                        b.setPending(pending);
-                        b.setUsed(used);
-                        b.setTotalAvailable(3 - pending - used);
-
+                        b.setPending(p);
+                        b.setUsed(u);
+                        b.setTotalAvailable(3 - p - u);
                     } else {
                         // ===== NORMAL LEAVE TYPES =====
                         b.setEntitlement(rs.getDouble("entitlement"));
