@@ -25,14 +25,17 @@ public class EmployeeDirectory extends HttpServlet {
 
         List<Map<String, Object>> users = new ArrayList<>();
 
-        // ✅ FIX BETUL:
-        // - JANGAN filter status
-        // - Papar SEMUA role
-        // - Status ACTIVE / INACTIVE ditentukan oleh button
+        // ✅ FIX: Tambah susunan mengikut status terlebih dahulu
+        // Status 'ACTIVE' akan dapat nilai 1 (Atas)
+        // Status 'INACTIVE' akan dapat nilai 2 (Bawah)
         String sql = """
             SELECT empid, fullname, email, role, phoneno, hiredate, status
             FROM leave.users
             ORDER BY 
+                CASE 
+                    WHEN status = 'ACTIVE' THEN 1 
+                    ELSE 2 
+                END ASC,
                 CASE role
                     WHEN 'ADMIN' THEN 1
                     WHEN 'MANAGER' THEN 2
