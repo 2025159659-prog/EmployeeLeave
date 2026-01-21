@@ -66,7 +66,8 @@ public class ManageHoliday extends HttpServlet {
             throws ServletException, IOException {
 
         HttpSession session = request.getSession(false);
-        if (session == null || !"ADMIN".equalsIgnoreCase(String.equalsIgnoreCase(String.valueOf(session.getAttribute("role"))))) {
+        // ⭐ PERBAIKAN RALAT BARIS 69 ⭐
+        if (session == null || !"ADMIN".equalsIgnoreCase(String.valueOf(session.getAttribute("role")))) {
             response.sendRedirect("login.jsp");
             return;
         }
