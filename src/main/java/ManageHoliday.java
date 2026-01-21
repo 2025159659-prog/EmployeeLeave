@@ -2,24 +2,24 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import java.io.IOException;
-import java.time.LocalDate;
-import java.util.List;
-import dao.HolidayDAO;
-import bean.Holiday;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import java.io.OutputStream;
+import java.io.InputStreamReader;
+import java.io.BufferedReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import bean.Holiday;
 
-/**
- * Unified Controller for Holiday Management (View, Add, Update, Delete).
- * Restricts access to ADMIN role.
- */
 @WebServlet("/ManageHoliday")
 public class ManageHoliday extends HttpServlet {
     private static final long serialVersionUID = 1L;
-    private final HolidayDAO holidayDAO = new HolidayDAO();
+    private final String API_URL = "https://holiday-service-48048ca7054c.herokuapp.com/api/holidays";
+    private final Gson gson = new Gson();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -32,44 +32,33 @@ public class ManageHoliday extends HttpServlet {
         }
 
         try {
-            List<Holiday> list = holidayDAO.getAllHolidays();
-            request.setAttribute("holidays", list);
+            // Mengambil data dari Microservice (GET)
+            URL url = new URL(API_URL);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Accept", "application/json");
+
+            if (conn.getResponseCode() == 200) {
+                Scanner scanner = new Scanner(conn.getInputStream());
+                StringBuilder sb = new StringBuilder();
+                while (scanner.hasNext()) {
+                    sb.append(scanner.next());
+                }
+                scanner.close();
+
+                // Tukar JSON kepada List Object
+                List<Holiday> holidayList = gson.fromJson(sb.toString(), new TypeToken<ArrayList<Holiday>>(){}.getType());
+                request.setAttribute("holidays", holidayList);
+            } else {
+                request.setAttribute("error", "Gagal mengambil data dari API: Code " + conn.getResponseCode());
+            }
+
             request.getRequestDispatcher("/holidays.jsp").forward(request, response);
         } catch (Exception e) {
-            request.setAttribute("error", e.getMessage());
+            e.printStackTrace();
+            request.setAttribute("error", "Ralat Sistem: " + e.getMessage());
             request.getRequestDispatcher("/holidays.jsp").forward(request, response);
         }
-
-        try {
-                // URL microservice anda di Heroku nanti
-                // Untuk sekarang, kita guna placeholder atau URL Heroku holiday-service anda
-                URL url = new URL("https://holiday-service-48048ca7054c.herokuapp.com/api/holidays");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
-                conn.connect();
-            
-                int responseCode = conn.getResponseCode();
-                if (responseCode != 200) {
-                    throw new RuntimeException("HttpResponseCode: " + responseCode);
-                } else {
-                    StringBuilder informationString = new StringBuilder();
-                    Scanner scanner = new Scanner(url.openStream());
-            
-                    while (scanner.hasNext()) {
-                        informationString.append(scanner.next());
-                    }
-                    scanner.close();
-            
-                    // Tukar JSON ke List
-                    Gson gson = new Gson();
-                    java.lang.reflect.Type listType = new TypeToken<ArrayList<Holiday>>(){}.getType();
-                    ArrayList<Holiday> holidayList = gson.fromJson(informationString.toString(), listType);
-            
-                    request.setAttribute("holidayList", holidayList);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
     }
 
     @Override
@@ -83,7 +72,6 @@ public class ManageHoliday extends HttpServlet {
         }
 
         String action = request.getParameter("action");
-
         try {
             if (action == null) {
                 response.sendRedirect("ManageHoliday?error=Invalid+Action");
@@ -92,8 +80,9 @@ public class ManageHoliday extends HttpServlet {
 
             // ================= DELETE =================
             if ("DELETE".equalsIgnoreCase(action)) {
-                int id = Integer.parseInt(request.getParameter("holidayId"));
-                holidayDAO.deleteHoliday(id);
+                String id = request.getParameter("holidayId");
+                // Nota: Pastikan HolidayController di Spring Boot ada @DeleteMapping("/{id}")
+                sendApiRequest(API_URL + "/" + id, "DELETE", null);
                 response.sendRedirect("ManageHoliday?msg=Holiday+deleted+successfully");
                 return;
             }
@@ -101,20 +90,22 @@ public class ManageHoliday extends HttpServlet {
             // ================= ADD / UPDATE =================
             String name = request.getParameter("holidayName");
             String dateStr = request.getParameter("holidayDate");
-            String type = request.getParameter("holidayType");
-
+            
+            // Kita bina objek JSON yang sepadan dengan Model di Spring Boot
+            // Pastikan nama field (holidayName, holidayDate) sama dengan di Spring Boot
             Holiday h = new Holiday();
-            h.setName(name);
-            h.setDate(LocalDate.parse(dateStr));
-            h.setType(type.toUpperCase()); // ⭐ CRITICAL FIX ⭐
+            h.setHolidayName(name); 
+            h.setHolidayDate(LocalDate.parse(dateStr));
 
             if ("ADD".equalsIgnoreCase(action)) {
-                holidayDAO.addHoliday(h);
+                sendApiRequest(API_URL, "POST", h);
                 response.sendRedirect("ManageHoliday?msg=Holiday+added+successfully");
 
             } else if ("UPDATE".equalsIgnoreCase(action)) {
-                h.setId(Integer.parseInt(request.getParameter("holidayId")));
-                holidayDAO.updateHoliday(h);
+                String id = request.getParameter("holidayId");
+                h.setId(Long.parseLong(id));
+                // Nota: Pastikan HolidayController di Spring Boot ada @PutMapping("/{id}")
+                sendApiRequest(API_URL + "/" + id, "PUT", h);
                 response.sendRedirect("ManageHoliday?msg=Holiday+updated+successfully");
 
             } else {
@@ -122,12 +113,32 @@ public class ManageHoliday extends HttpServlet {
             }
 
         } catch (Exception e) {
-            response.sendRedirect(
-                "ManageHoliday?error=" +
-                java.net.URLEncoder.encode(e.getMessage(), "UTF-8")
-            );
+            response.sendRedirect("ManageHoliday?error=" + java.net.URLEncoder.encode(e.getMessage(), "UTF-8"));
         }
     }
+
+    /**
+     * Fungsi helper untuk menghantar data ke API Microservice
+     */
+    private void sendApiRequest(String urlStr, String method, Object data) throws Exception {
+        URL url = new URL(urlStr);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod(method);
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setDoOutput(true);
+
+        if (data != null) {
+            String jsonInputString = gson.toJson(data);
+            try (OutputStream os = conn.getOutputStream()) {
+                byte[] input = jsonInputString.getBytes("utf-8");
+                os.write(input, 0, input.length);
+            }
+        }
+
+        int code = conn.getResponseCode();
+        if (code < 200 || code >= 300) {
+            throw new RuntimeException("API Error: HTTP " + code);
+        }
+        conn.disconnect();
+    }
 }
-
-
