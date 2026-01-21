@@ -108,8 +108,21 @@ public class EditLeave extends HttpServlet {
 
         try {
             int empId = (Integer) session.getAttribute("empid");
-            int leaveId = Integer.parseInt(request.getParameter("leaveId"));
-            int leaveTypeId = Integer.parseInt(request.getParameter("leaveTypeId"));
+            
+            // Ambil parameter dengan selamat
+            String leaveIdStr = request.getParameter("leaveId");
+            String leaveTypeIdStr = request.getParameter("leaveTypeId");
+
+            // Debug log ke Heroku console
+            System.out.println("DEBUG EditLeave: leaveId=" + leaveIdStr + ", leaveTypeId=" + leaveTypeIdStr);
+
+            if (leaveIdStr == null || leaveIdStr.isEmpty() || leaveTypeIdStr == null || leaveTypeIdStr.isEmpty()) {
+                response.getWriter().print("Error: Parameter leaveId atau leaveTypeId hilang.");
+                return;
+            }
+
+            int leaveId = Integer.parseInt(leaveIdStr);
+            int leaveTypeId = Integer.parseInt(leaveTypeIdStr);
 
             LeaveRequest existing = leaveDAO.getLeaveById(leaveId, empId);
             if (existing == null) {
@@ -128,7 +141,7 @@ public class EditLeave extends HttpServlet {
             existing.setDuration(isHalf ? "HALF_DAY" : "FULL_DAY");
             existing.setHalfSession(isHalf ? (durationUi.contains("AM") ? "AM" : "PM") : null);
 
-            // 2. Map Metadata secara terus dari Request (INI FIX UNTUK UPDATE)
+            // 2. Map Metadata
             existing.setMedicalFacility(request.getParameter("medicalFacility"));
             existing.setRefSerialNo(request.getParameter("refSerialNo"));
             existing.setEmergencyCategory(request.getParameter("emergencyCategory"));
@@ -144,7 +157,7 @@ public class EditLeave extends HttpServlet {
             String week = request.getParameter("weekPregnancy");
             if (week != null && !week.isBlank() && !"null".equals(week)) existing.setWeekPregnancy(Integer.parseInt(week));
 
-            // Jika field maternity menggunakan nama berbeza di frontend
+            // Support field names alternatif dari modal
             if (request.getParameter("consultationClinic") != null) existing.setMedicalFacility(request.getParameter("consultationClinic"));
             String edd = request.getParameter("expectedDueDate");
             if (edd != null && !edd.isBlank() && !"null".equals(edd)) existing.setEventDate(LocalDate.parse(edd));
@@ -153,7 +166,7 @@ public class EditLeave extends HttpServlet {
             double days = isHalf ? 0.5 : leaveDAO.calculateWorkingDays(existing.getStartDate(), existing.getEndDate());
             existing.setDurationDays(days);
 
-            // 4. Jalankan Update di DAO
+            // 4. Update
             if (leaveDAO.updateLeave(existing, empId)) {
                 response.getWriter().print("OK");
             } else {
