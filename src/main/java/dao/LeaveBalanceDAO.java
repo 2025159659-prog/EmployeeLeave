@@ -62,22 +62,22 @@ public class LeaveBalanceDAO {
                                 g
                         );
 
-                // ⭐ PERBAIKAN RALAT BARIS 66 ⭐
-                double entitlement = er.proratedEntitlement; 
+                // ⭐ PERBAIKAN: Gunakan 'double' untuk menyokong 0.5 hari dan buang pengisytiharan bertindan ⭐
+                double entitlement = er.proratedEntitlement;
                 double carriedFwd = 0.0;
                 double used = 0.0;
                 double pending = 0.0;
                 
-                // Kira Total Available
+                // Kira baki keseluruhan menggunakan double
                 double total = (entitlement + carriedFwd) - used - pending;
 
                 insertStmt.setInt(1, empId);
                 insertStmt.setInt(2, leaveTypeId);
-                insertStmt.setDouble(3, entitlement);
-                insertStmt.setDouble(4, carriedFwd); // carried_fwd
-                insertStmt.setDouble(5, used);       // used
-                insertStmt.setDouble(6, pending);    // pending
-                insertStmt.setDouble(7, total);      // total (Gunakan hasil kiraan tadi)
+                insertStmt.setDouble(3, entitlement); // Benarkan perpuluhan
+                insertStmt.setDouble(4, carriedFwd);
+                insertStmt.setDouble(5, used);
+                insertStmt.setDouble(6, pending);
+                insertStmt.setDouble(7, total);
 
                 insertStmt.addBatch();
             }
@@ -86,7 +86,7 @@ public class LeaveBalanceDAO {
     }
 
     /* =====================================================
-       GET EMPLOYEE LEAVE BALANCES
+       GET EMPLOYEE LEAVE BALANCES (MENYOKONG 0.5 HARI)
        ===================================================== */
     public List<LeaveBalance> getEmployeeBalances(int empId)
             throws SQLException {
@@ -125,19 +125,21 @@ public class LeaveBalanceDAO {
                     String typeCode = rs.getString("type_code").toUpperCase();
 
                     /* ===============================
-                       SPECIAL HANDLING FOR UNPAID
+                       PENGENDALIAN KHAS UNTUK UNPAID
                        =============================== */
                     if (typeCode.equals("UNPAID")) {
+
                         double p = sumUnpaidDays(empId, "PENDING");
                         double u = sumUnpaidDays(empId, "APPROVED");
 
-                        b.setEntitlement(3); // UI reference only
-                        b.setCarriedForward(0);
+                        b.setEntitlement(3.0); 
+                        b.setCarriedForward(0.0);
                         b.setPending(p);
                         b.setUsed(u);
-                        b.setTotalAvailable(3 - p - u);
+                        b.setTotalAvailable(3.0 - p - u);
+
                     } else {
-                        // ===== NORMAL LEAVE TYPES =====
+                        // ⭐ Gunakan getDouble() untuk membaca nilai 0.5 ⭐
                         b.setEntitlement(rs.getDouble("entitlement"));
                         b.setCarriedForward(rs.getDouble("carried_fwd"));
                         b.setUsed(rs.getDouble("used"));
@@ -153,13 +155,13 @@ public class LeaveBalanceDAO {
     }
 
     /* =====================================================
-       HELPER: SUM UNPAID DAYS BY STATUS
+       HELPER: KIRA JUMLAH HARI UNPAID (DOUBLE)
        ===================================================== */
     private double sumUnpaidDays(int empId, String statusCode)
             throws SQLException {
 
         String sql = """
-            SELECT COALESCE(SUM(lr.duration_days), 0)
+            SELECT COALESCE(SUM(lr.duration_days), 0.0)
             FROM leave.leave_requests lr
             JOIN leave.leave_types lt
               ON lr.leave_type_id = lt.leave_type_id
@@ -175,6 +177,7 @@ public class LeaveBalanceDAO {
             ps.setString(2, statusCode);
 
             try (ResultSet rs = ps.executeQuery()) {
+                // Pastikan nilai dikembalikan sebagai double
                 return rs.next() ? rs.getDouble(1) : 0.0;
             }
         }
