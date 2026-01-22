@@ -17,7 +17,7 @@ public class LeaveBalanceDAO {
     }
 
     /* =====================================================
-       INITIALIZE LEAVE BALANCES FOR NEW EMPLOYEE
+       MENGINISIALISASI BAKI CUTI UNTUK PEKERJA BARU
        ===================================================== */
     public void initializeNewEmployeeBalances(
             int empId,
@@ -51,7 +51,7 @@ public class LeaveBalanceDAO {
                 int leaveTypeId = rs.getInt("leave_type_id");
                 String typeCode = rs.getString("type_code").toUpperCase();
 
-                // ===== GENDER FILTER =====
+                // ===== TAPISAN JANTINA =====
                 if (typeCode.contains("MATERNITY") && isMale) continue;
                 if (typeCode.contains("PATERNITY") && isFemale) continue;
 
@@ -73,7 +73,7 @@ public class LeaveBalanceDAO {
 
                 insertStmt.setInt(1, empId);
                 insertStmt.setInt(2, leaveTypeId);
-                insertStmt.setDouble(3, entitlement); // Benarkan perpuluhan
+                insertStmt.setDouble(3, entitlement); // Membenarkan nilai perpuluhan
                 insertStmt.setDouble(4, carriedFwd);
                 insertStmt.setDouble(5, used);
                 insertStmt.setDouble(6, pending);
@@ -86,7 +86,7 @@ public class LeaveBalanceDAO {
     }
 
     /* =====================================================
-       GET EMPLOYEE LEAVE BALANCES (MENYOKONG 0.5 HARI)
+       AMBIL BAKI CUTI PEKERJA (MENYOKONG 0.5 HARI)
        ===================================================== */
     public List<LeaveBalance> getEmployeeBalances(int empId)
             throws SQLException {
@@ -139,7 +139,7 @@ public class LeaveBalanceDAO {
                         b.setTotalAvailable(3.0 - p - u);
 
                     } else {
-                        // ⭐ Gunakan getDouble() untuk membaca nilai 0.5 ⭐
+                        // ⭐ Gunakan getDouble() untuk membaca nilai 0.5 dengan tepat ⭐
                         b.setEntitlement(rs.getDouble("entitlement"));
                         b.setCarriedForward(rs.getDouble("carried_fwd"));
                         b.setUsed(rs.getDouble("used"));
@@ -177,7 +177,7 @@ public class LeaveBalanceDAO {
             ps.setString(2, statusCode);
 
             try (ResultSet rs = ps.executeQuery()) {
-                // Pastikan nilai dikembalikan sebagai double
+                // Pastikan nilai dikembalikan sebagai double supaya menyokong perpuluhan
                 return rs.next() ? rs.getDouble(1) : 0.0;
             }
         }
